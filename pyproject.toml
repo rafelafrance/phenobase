@@ -6,14 +6,19 @@ build-backend = "setuptools.build_meta"
 name = "phenobase"
 version = "0.1.0"
 description = ""
-license = {file = "LICENSE"}
-authors = [{name="Raphael LaFrance", email="rafelafrance@proton.me"}]
+license = { file = "LICENSE" }
+authors = [{ name = "Raphael LaFrance", email = "rafelafrance@proton.me" }]
 requires-python = ">=3.10"
 dependencies = [
     "Pillow",
+    "ipython",
+    "jupyter",
+    "jupyterlab",
     "matplotlib",
     "numpy",
     "pandas",
+    "polars",
+    "requests",
     "scikit-image",
     "scipy",
     "torch",
@@ -26,11 +31,8 @@ optional-dependencies.dev = [
     "bandit",
     "black",
     "ipyparallel",
-    "ipython",
     "isort",
-    "jupyter",
     "jupyter_nbextensions_configurator",
-    "jupyterlab",
     "jupyterlab-code-formatter",
     "jupyterlab-drawio",
     "jupyterlab-git",
@@ -109,9 +111,9 @@ reports.reports = true                  # Tells whether to display a full report
 reports.score = true                    # Activate the evaluation score.
 similarities.min-similarity-lines = 4   # Minimum lines number of a similarity.
 disable = [
-    "missing-module-docstring",         # "C0114"
-    "missing-class-docstring",          # "C0115"
-    "missing-function-docstring",       # "C0116"
-    "too-few-public-methods",           # "R0903"
-    "too-many-arguments",               # "R0913"
+    "missing-module-docstring", # "C0114"
+    "missing-class-docstring", # "C0115"
+    "missing-function-docstring", # "C0116"
+    "too-few-public-methods", # "R0903"
+    "too-many-arguments", # "R0913"
 ]
