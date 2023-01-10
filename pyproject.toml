@@ -26,7 +26,6 @@ dependencies = [
     "tqdm",
 ]
 optional-dependencies.dev = [
-    "aquirdturtle-collapsible-headings",
     "autopep8",
     "bandit",
     "black",
