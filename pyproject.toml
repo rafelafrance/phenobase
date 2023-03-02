@@ -17,6 +17,7 @@ dependencies = [
     "matplotlib",
     "numpy",
     "pandas",
+    "pyarrow",
     "requests",
     "scikit-image",
     "scipy",

@@ -4,6 +4,7 @@ import logging
 import textwrap
 import urllib.request
 from collections import namedtuple
+from datetime import date
 from pathlib import Path
 from threading import Thread
 from urllib.error import HTTPError
@@ -19,13 +20,19 @@ def main():
 
     args = parse_args()
 
+    today = date.today().isoformat() if args.today else ""
+
     targets = []
 
-    if args.dwc_url and args.dwc_file:
-        targets.append(Download(args.dwc_url, args.dwc_file))
+    if args.dwc_url:
+        path = args.output_dir / Path(args.dwc_url).name
+        path = path.with_stem(f"{path.stem}_{today}") if today else path
+        targets.append(Download(args.dwc_url, path))
 
-    if args.metadata_url and args.metadata_file:
-        targets.append(Download(args.metadata_url, args.metadata_file))
+    if args.metadata_url:
+        path = args.output_dir / Path(args.metadata_url).name
+        path = path.with_stem(f"{path.stem}_{today}") if today else path
+        targets.append(Download(args.metadata_url, path))
 
     threads = [Thread(target=downloader, args=(t,)) for t in targets]
 
@@ -57,11 +64,19 @@ def parse_args():
         1. The most recent DwC archive of plant observations.
         2. The metadata file that contains image URLs.
 
-        These files are large and will take
+        These files are large and will take a while to download.
         """
 
     arg_parser = argparse.ArgumentParser(
         description=textwrap.dedent(description), fromfile_prefix_chars="@"
+    )
+
+    arg_parser.add_argument(
+        "--output-dir",
+        metavar="PATH",
+        required=True,
+        type=Path,
+        help="""Place downloaded files into this directory.""",
     )
 
     arg_parser.add_argument(
@@ -70,14 +85,6 @@ def parse_args():
         default="https://www.inaturalist.org/observations/phenobase-dwca.zip",
         help="""The URL for the most recent DwC archive of plant observations.
             (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--dwc-file",
-        metavar="PATH",
-        type=Path,
-        help="""Where to save the DwC archive zip file. If you don't enter this
-            the DwC archive will not get downloaded.""",
     )
 
     arg_parser.add_argument(
@@ -92,11 +99,9 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--metadata-file",
-        metavar="PATH",
-        type=Path,
-        help="""Where to save the metadata file. If you do not enter this the metadata
-            file will not get downloaded.""",
+        "--today",
+        action="store_true",
+        help="""Append today's date to the downloaded file names.""",
     )
 
     args = arg_parser.parse_args()
