@@ -2,24 +2,22 @@
 .ONESHELL:
 
 VENV=.venv
-PYTHON=./$(VENV)/bin/python3.10
+PYTHON=./$(VENV)/bin/python3.11
 
 test:
 	$(PYTHON) -m unittest discover
 
 install: venv
-	source $(VENV)/bin/activate
-	$(PYTHON) -m pip install -U pip setuptools wheel
 	$(PYTHON) -m pip install .
 
 dev: venv
-	source $(VENV)/bin/activate
-	$(PYTHON) -m pip install -U pip setuptools wheel
 	$(PYTHON) -m pip install -e .[dev]
 	pre-commit install
 
 venv:
-	test -d $(VENV) || python3.10 -m venv $(VENV)
+	test -d $(VENV) || python3.11 -m venv $(VENV)
+	source $(VENV)/bin/activate
+	$(PYTHON) -m pip install -U pip setuptools wheel
 
 clean:
 	rm -r $(VENV)
