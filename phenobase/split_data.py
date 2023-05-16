@@ -19,7 +19,6 @@ def main():
     df = pd.read_parquet(args.observations)
     df["split"] = None
 
-    # print(df["reproductiveCondition"].unique())
     df = df[df["reproductiveCondition"].notna()]
     df = df[df["reproductiveCondition"] != "flowering|no evidence of flowering"]
 

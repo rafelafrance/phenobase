@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # aws s3 --no-sign-request --region us-east-1 cp
 # s3://inaturalist-open-data/photos/37504/medium.jpg
 # 37504_medium.jpg
@@ -41,16 +41,24 @@ def main():
 
     with tqdm(total=len(image_ids)) as bar:
         with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = [
-                executor.submit(
-                    download, i, s, args.image_dir, args.image_size, args.attempts
+            futures = []
+            for image_id, suffix in items:
+                futures.append(
+                    executor.submit(
+                        download,
+                        image_id,
+                        suffix,
+                        args.image_dir,
+                        args.image_size,
+                        args.attempts,
+                    )
                 )
-                for i, s in items
-            ]
             for future in as_completed(futures):
-                bar.update(1)
                 results[future.result()] += 1
-                print(results)
+                if args.print_results:
+                    print(results)
+                else:
+                    bar.update(1)
 
     log.finished()
 
@@ -83,7 +91,7 @@ def parse_args():
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Read from and write to this parquet file containing observations.""",
+        help="""Read from this parquet file containing observations.""",
     )
 
     arg_parser.add_argument(
@@ -124,6 +132,12 @@ def parse_args():
         type=int,
         default=3,
         help="""How many times to try downloading the image. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--print-results",
+        action="store_true",
+        help="Print result categories instead of a tqdm status bar.",
     )
 
     args = arg_parser.parse_args()
