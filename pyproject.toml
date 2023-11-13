@@ -8,12 +8,11 @@ version = "0.1.0"
 description = ""
 license = { file = "LICENSE" }
 authors = [{ name = "Raphael LaFrance", email = "rafelafrance@proton.me" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "Pillow",
+    "git-lfs",
     "ipython",
-    "jupyter",
-    "jupyterlab",
     "matplotlib",
     "numpy",
     "pandas",
@@ -21,29 +20,25 @@ dependencies = [
     "requests",
     "scikit-image",
     "scipy",
+    "seaborn",
     "torch",
+    "torchmetrics",
     "torchvision",
+    "transformers",
     "tqdm",
 ]
 optional-dependencies.dev = [
     "autopep8",
     "bandit",
     "black",
-    "ipyparallel",
     "isort",
-    "jupyter_nbextensions_configurator",
-    "jupyterlab-code-formatter",
-    "jupyterlab-drawio",
-    "jupyterlab-git",
-    "jupyterlab-lsp",
-    "jupyterlab-spellchecker",
-    "nbdime",
     "neovim",
     "pre-commit",
     "pre-commit-hooks",
     "pydocstyle",
     "pylint",
     "python-lsp-server[all]",
+    "ruff",
     "tensorboard",
     "yapf",
 ]
@@ -115,3 +110,36 @@ disable = [
     "too-few-public-methods", # "R0903"
     "too-many-arguments", # "R0913"
 ]
+
+[tool.pyright]
+reportGeneralTypeIssues = "none"
+reportMissingImports = false
+
+[tool.ruff]
+line-length = 88
+extend-select = [
+    "BLE",
+    "C4",
+    "D",
+    "E",
+    "ERA",
+    "I",
+    "ISC",
+    "N",
+    "NPY",
+    "PD",
+    "PGH",
+    "Q",
+    "RET",
+    "RSE",
+    "RUF",
+    "S",
+    "SIM",
+    "T20",
+    "TCH",
+    "TID",
+    "UP",
+    "YTT",
+]
+show-fixes = true
+ignore = ["D10", "D203", "D213", "ERA001", "PD901", "RET504", "RUF001", "S608", "SIM117", "T201", "TID252"]
