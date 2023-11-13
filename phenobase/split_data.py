@@ -6,74 +6,77 @@ from pathlib import Path
 
 import pandas as pd
 from pylib import log
-from tqdm import tqdm
 
 
 def main():
     log.started()
-
     args = parse_args()
-
     random.seed(args.seed)
 
-    df = pd.read_parquet(args.observations)
-    df["split"] = None
+    df = pd.read_csv(args.trait_csv).set_index("file")
+    df = df.drop(["time", "whole_plant", "reproductive_structure"], axis="columns")
 
-    df = df[df["reproductiveCondition"].notna()]
-    df = df[df["reproductiveCondition"] != "flowering|no evidence of flowering"]
+    triples = {  # flowers, fruits, leaves
+        "none": ["0", "0", "0"],
+        "flowers": ["1", "0", "0"],
+        "fruits": ["0", "1", "0"],
+        "leaves": ["0", "0", "1"],
+        "flowers_fruits": ["1", "1", "0"],
+        "flowers_leaves": ["1", "0", "1"],
+        "fruits_leaves": ["0", "1", "1"],
+        "all": ["1", "1", "1"],
+    }
 
-    def flowering(rc):
-        flags = [" ".join(f.split()) for f in rc.split("|")]
-        return 1 if "flowering" in flags else 0
+    splits = {}
+    for label, v in triples.items():
+        splits[label] = df[
+            (df["flowers"] == v[0]) & (df["fruits"] == v[1]) & (df["leaves"] == v[2])
+        ]
 
-    def fruiting(rc):
-        flags = [" ".join(f.split()) for f in rc.split("|")]
-        return 1 if "fruiting" in flags else 0
+    splits2 = {}
+    for label in ("flowers", "fruits", "leaves"):
+        splits2[label] = df[df[label] == "1"]
+        splits2["no_" + label] = df[df[label] == "0"]
 
-    df["flowering"] = df["reproductiveCondition"].map(flowering).astype(int)
-    df["fruiting"] = df["reproductiveCondition"].map(fruiting).astype(int)
-
-    grouped = df.groupby(["order", "flowering", "fruiting"])
-    for repro, group in tqdm(grouped):
-        index = group.index.values
-        random.shuffle(index)
-
-        count = len(group)
-        test = max(1, round(count * args.test_split))
-        valid = test + max(1, round(count * args.val_split)) if count > 1 else 0
-
-        for i in range(count):
-            if i < test:
-                split = "test"
-            elif i < valid:
-                split = "val"
-            else:
-                split = "train"
-            df.at[index[i], "split"] = split
-
-    df.to_parquet(args.observations)
-
-    print(df.head(10))
+    print(df.head())
     print(df.shape)
+
+    for key, df1 in splits.items():
+        print(key, df1.shape)
+
+    print()
+
+    for key, df1 in splits2.items():
+        print(key, df1.shape)
 
     log.finished()
 
 
 def parse_args():
-    description = """
-        Split the data into training, testing, & validation data sets.
-        """
-
     arg_parser = argparse.ArgumentParser(
-        description=textwrap.dedent(description), fromfile_prefix_chars="@"
+        allow_abbrev=True,
+        fromfile_prefix_chars="@",
+        description=textwrap.dedent(
+            """Split the data into training, testing, & validation datasets."""
+        ),
     )
 
     arg_parser.add_argument(
-        "--observations",
+        "--trait-csv",
+        "-t",
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Read from and write to this parquet file containing observations.""",
+        help="""Read traits from this CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--image-dir",
+        "-i",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Images for the classifications are stored in this directory.""",
     )
 
     arg_parser.add_argument(

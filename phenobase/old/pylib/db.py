@@ -1,8 +1,7 @@
 import sqlite3
 from pathlib import Path
-from typing import Union
 
-DbPath = Union[Path, str]
+DbPath = Path | str
 
 
 def select(database: DbPath, sql, one_column=False, **kwargs):

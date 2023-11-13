@@ -1,6 +1,6 @@
 import sys
 
-from . import db
+from phenobase.old.pylib import db
 
 
 def validate_inference_set(database, inference_set):
