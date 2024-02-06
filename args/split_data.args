@@ -1,0 +1,3 @@
+--trait-csv=data/ant/ant_0.csv
+--trait-csv=data/ant/ant_1.csv
+--split-csv=data/split.csv

@@ -1,53 +1,48 @@
 #!/usr/bin/env python3
 import argparse
-import random
 import textwrap
 from pathlib import Path
 
 import pandas as pd
 from pylib import log
+from sklearn.model_selection import train_test_split
 
 
 def main():
     log.started()
     args = parse_args()
-    random.seed(args.seed)
 
-    df = pd.read_csv(args.trait_csv).set_index("file")
-    df = df.drop(["time", "whole_plant", "reproductive_structure"], axis="columns")
+    df = pd.concat([pd.read_csv(f).set_index("file") for f in args.trait_csv])
+    df = df.drop(columns=["time", "whole_plant", "reproductive_structure"])
 
-    triples = {  # flowers, fruits, leaves
-        "none": ["0", "0", "0"],
-        "flowers": ["1", "0", "0"],
-        "fruits": ["0", "1", "0"],
-        "leaves": ["0", "0", "1"],
-        "flowers_fruits": ["1", "1", "0"],
-        "flowers_leaves": ["1", "0", "1"],
-        "fruits_leaves": ["0", "1", "1"],
-        "all": ["1", "1", "1"],
-    }
-
-    splits = {}
-    for label, v in triples.items():
-        splits[label] = df[
-            (df["flowers"] == v[0]) & (df["fruits"] == v[1]) & (df["leaves"] == v[2])
-        ]
-
-    splits2 = {}
-    for label in ("flowers", "fruits", "leaves"):
-        splits2[label] = df[df[label] == "1"]
-        splits2["no_" + label] = df[df[label] == "0"]
-
-    print(df.head())
-    print(df.shape)
-
-    for key, df1 in splits.items():
-        print(key, df1.shape)
-
+    train, df2 = train_test_split(
+        df, train_size=args.train_split, random_state=args.seed
+    )
+    test, val = train_test_split(df2, test_size=0.5, random_state=args.seed)
+    print(len(df))
+    print(f"train {len(train)} val {len(val)} test {len(test)}")
+    print(f"sum {len(train) + len(val) + len(test)}")
     print()
 
-    for key, df1 in splits2.items():
-        print(key, df1.shape)
+    splits = {}
+
+    for df2, split in ((train, "train"), (val, "val"), (test, "test")):
+        for label in ("flowers", "fruits", "leaves"):
+            splits[(split, label)] = len(df2[df2[label] == "1"])
+            splits[(split, f"no_{label}")] = len(df2[df2[label] == "0"])
+
+    print(f"{'split':<5} {'label':<10} {'count':<5}")
+    for label in """ flowers no_flowers fruits no_fruits leaves no_leaves """.split():
+        for split in ("train", "val", "test"):
+            n = splits[(split, label)]
+            print(f"{split:<5} {label:<10} {n:5d}")
+        print()
+
+    train["split"] = "train"
+    val["split"] = "val"
+    test["split"] = "test"
+    df = pd.concat([train, val, test])
+    df.to_csv(args.split_csv)
 
     log.finished()
 
@@ -57,7 +52,9 @@ def parse_args():
         allow_abbrev=True,
         fromfile_prefix_chars="@",
         description=textwrap.dedent(
-            """Split the data into training, testing, & validation datasets."""
+            """
+            Split the data into training, testing, & validation datasets.
+            """
         ),
     )
 
@@ -67,16 +64,16 @@ def parse_args():
         metavar="PATH",
         type=Path,
         required=True,
+        action="append",
         help="""Read traits from this CSV file.""",
     )
 
     arg_parser.add_argument(
-        "--image-dir",
-        "-i",
+        "--split-csv",
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Images for the classifications are stored in this directory.""",
+        help="""Output the splits to this CSV file.""",
     )
 
     arg_parser.add_argument(
@@ -86,24 +83,6 @@ def parse_args():
         default=0.6,
         help="""What fraction of records to use for training the model.
             (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--val-split",
-        type=float,
-        metavar="FRACTION",
-        default=0.2,
-        help="""What fraction of records to use for the validation. I.e. evaluating
-            training progress at the end of each epoch. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--test-split",
-        type=float,
-        metavar="FRACTION",
-        default=0.2,
-        help="""What fraction of records to use for the testing. I.e. the holdout
-            data used to evaluate the model after training. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
