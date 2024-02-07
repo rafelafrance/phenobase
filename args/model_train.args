@@ -1,0 +1,3 @@
+--csv-path=data/split.csv
+--image-dir=data/images
+--save-model=data/models

@@ -4,15 +4,18 @@
 VENV=.venv
 PY_VER=python3.11
 PYTHON=./$(VENV)/bin/$(PY_VER)
+PIP_INSTALL=$(PYTHON) -m pip install
 
 test:
 	$(PYTHON) -m unittest discover
 
 install: venv
-	$(PYTHON) -m pip install .
+	$(PIP_INSTALL) -U pip setuptools wheel
+	$(PIP_INSTALL) .
 
 dev: venv
-	$(PYTHON) -m pip install -e .[dev]
+	$(PIP_INSTALL) -U pip setuptools wheel
+	$(PIP_INSTALL) -e .[dev]
 	pre-commit install
 
 venv:
