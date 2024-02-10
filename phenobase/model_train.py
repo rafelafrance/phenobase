@@ -8,10 +8,11 @@ from pathlib import Path
 
 import timm
 import torch
-from pylib import log, util
-from pylib.datasets.labeled_dataset import LabeledDataset
 from torch import nn, optim
 from torch.utils.data import DataLoader
+
+from phenobase.pylib import log, util
+from phenobase.pylib.datasets.labeled_dataset import LabeledDataset
 
 
 @dataclass
@@ -234,7 +235,7 @@ def parse_args():
     arg_parser.add_argument(
         "--base-model",
         required=True,
-        help="""Use this pretrained model as the base.""",
+        help="""Use this pretrained model as the base model.""",
     )
 
     arg_parser.add_argument(

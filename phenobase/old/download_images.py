@@ -11,7 +11,7 @@
 #
 # import pandas as pd
 # import requests
-# from pylib import log
+# from phenobase.pylib import log
 # from tqdm import tqdm
 #
 # BASE_URL = "https://inaturalist-open-data.s3.amazonaws.com/photos/{}/{}.{}"

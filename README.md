@@ -13,9 +13,10 @@ The basic steps are:
 2. Train a neural network(s) to recognize the traits. We are using the [pytorch](https://pytorch.org/) library to build the neural networks.
    1. Supervised multi-class multi-label classifiers.
    2. I am starting with pretrained models and then using transfer learning and fine-tuning to train them for these data.
-3. Use the networks to annotate images.
+3. Use the neural networks to annotate images.
 
 ## Setup
 
 1. `git clone https://github.com/rafelafrance/phenobase.git`
-2. `python -m pip install .`
+2. `cd phenobase`
+3. `make install`
