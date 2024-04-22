@@ -87,6 +87,6 @@ class LabeledDataset(Dataset):
         weights = []
         for i in range(len(util.TARGETS)):
             pos = sum(s.targets[i] for s in dataset.sheets)
-            pos_wt = (len(dataset) - pos) / pos if pos > 0.0 else 1.0  # noqa: PLR2004
+            pos_wt = (len(dataset) - pos) / pos if pos > 0.0 else 1.0
             weights.append(pos_wt)
         return weights

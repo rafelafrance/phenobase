@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from phenobase.pylib import log
+from phenobase.history.pylib import log
 
 
 def main():

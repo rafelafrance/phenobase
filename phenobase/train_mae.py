@@ -12,7 +12,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from phenobase.pylib import log, util
-from phenobase.pylib.datasets.labeled_dataset import LabeledDataset
+from phenobase.pylib.datasets.masked_images import MaskedImages
 
 
 @dataclass
@@ -112,7 +112,7 @@ def one_epoch(model, device, loader, loss_fn, optimizer=None):
 
 
 def get_loss_fn(dataset, device):
-    pos_weight = LabeledDataset.pos_weight(dataset)
+    pos_weight = MaskedImages.pos_weight(dataset)
     pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(device)
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     return loss_fn
@@ -134,7 +134,7 @@ def get_scheduler(optimizer):
 
 def get_train_loader(csv_data, image_dir, image_size, batch_size, workers):
     logging.info("Loading training data.")
-    data = LabeledDataset(csv_data, image_dir, "train", image_size, augment=True)
+    data = MaskedImages(csv_data, image_dir, "train", image_size, augment=True)
     return DataLoader(
         data,
         batch_size=batch_size,
@@ -146,8 +146,8 @@ def get_train_loader(csv_data, image_dir, image_size, batch_size, workers):
 
 def get_val_loader(csv_data, image_dir, image_size, batch_size, workers):
     logging.info("Loading validation data.")
-    dataset = LabeledDataset(csv_data, image_dir, "val", image_size)
-    return DataLoader(
+    dataset = MaskedImages(csv_data, image_dir, "val", image_size)
+    return MaskedImages(
         dataset,
         batch_size=batch_size,
         num_workers=workers,
