@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from .. import util
+from phenobase.pylib import util
 
 
 @dataclass

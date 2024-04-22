@@ -4,7 +4,7 @@ from pathlib import Path
 DbPath = Path | str
 
 
-def select(database: DbPath, sql, one_column=False, **kwargs):
+def select(database: DbPath, sql, *, one_column=False, **kwargs):
     if kwargs.get("limit"):
         sql += " limit :limit"
 
@@ -18,7 +18,7 @@ def select(database: DbPath, sql, one_column=False, **kwargs):
         return [dict(r) for r in rows]
 
 
-def canned_select(database: DbPath, key: str, one_column=False, **kwargs):
+def canned_select(database: DbPath, key: str, *, one_column=False, **kwargs):
     selects = {
         "all_inference_sets": """
             select distinct inference_set
@@ -234,7 +234,7 @@ def create_table(database: DbPath, table="all", *, drop: bool = False):
     }
     with sqlite3.connect(database) as cxn:
         for name, create in tables.items():
-            if table == name or table == "all":
+            if table in (name, "all"):
                 if drop:
                     cxn.executescript(f"""drop table if exists {name};""")
                 cxn.executescript(create)

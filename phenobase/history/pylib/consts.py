@@ -1,9 +1,8 @@
 """Literals used in the system."""
-import os
 from pathlib import Path
 
 # #########################################################################
-CURR_DIR = Path(os.getcwd())
+CURR_DIR = Path.cwd()
 IS_SUBDIR = CURR_DIR.name in ("notebooks", "experiments")
 ROOT_DIR = Path(".." if IS_SUBDIR else ".")
 

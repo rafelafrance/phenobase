@@ -13,6 +13,7 @@ dependencies = [
     "Pillow",
     "git-lfs",
     "ipython",
+    "jupyterlab",
     "matplotlib",
     "numpy",
     "pandas",
@@ -38,8 +39,6 @@ optional-dependencies.dev = [
 ]
 
 [project.scripts]
-train-model = "phenobase.model_train:main"
-split-data = "phenobase.split_data:main"
 
 [tool.setuptools]
 py-modules = []
@@ -53,6 +52,8 @@ namespaces = false
 target-version = "py311"
 
 show-fixes = true
+
+line-length = 88
 
 lint.select = [
     "F",
