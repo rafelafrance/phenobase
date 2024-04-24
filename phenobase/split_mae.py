@@ -29,10 +29,10 @@ def main():
 
 
 def get_image_paths(image_dir: Path) -> list[Path]:
-    paths = image_dir.glob("*")
+    paths = list(image_dir.glob("*"))
     valid = [s for s in tqdm(paths) if util.get_sheet_image(s)]
 
-    msg = f"{len(valid)} / {len(paths)} with {len(valid) - len(valid)} errors"
+    msg = f"{len(valid)} / {len(paths)} with {len(paths) - len(valid)} errors"
     logging.info(msg)
 
     return valid
@@ -46,7 +46,7 @@ def split_images(
     test_split: float,
 ) -> tuple[list[Path], list[Path], list[Path]]:
     random.seed(seed)
-    paths = random.shuffle(paths)
+    random.shuffle(paths)
 
     total = len(paths)
     split1 = round(total * train_split)
