@@ -1,5 +1,6 @@
 import logging
 import warnings
+from pathlib import Path
 
 import torch
 from PIL import Image, UnidentifiedImageError
@@ -25,7 +26,7 @@ def accuracy(preds, targets):
     return torch.mean(equals)
 
 
-def get_sheet_image(path):
+def get_sheet_image(path: Path) -> Image:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
 
@@ -38,3 +39,12 @@ def get_sheet_image(path):
             return None
 
         return image
+
+
+def resize_image(image: Image, size: int) -> Image:
+    try:
+        image = image.resize((size, size))
+    except IMAGE_EXCEPTIONS:
+        return None
+
+    return image

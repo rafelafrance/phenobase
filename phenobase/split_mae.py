@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import csv
-import logging
 import random
 import textwrap
 from pathlib import Path
@@ -10,32 +9,27 @@ from tqdm import tqdm
 
 from phenobase.pylib import log, util
 
-# TODO: Run this in parallel
-
 
 def main():
     log.started()
     args = parse_args()
 
-    paths = get_image_paths(args.image_dir)
+    paths = get_image_paths(args.input_dir)
 
-    train_set, val_split, test_split = split_images(
+    train_set, val_set, test_set = split_images(
         paths, args.seed, args.train_split, args.val_split, args.test_split
     )
 
-    write_csv(args.split_csv, train_set, val_split, test_split)
+    write_csv(
+        args.split_csv, args.output_dir, train_set, val_set, test_set, args.resize
+    )
 
     log.finished()
 
 
-def get_image_paths(image_dir: Path) -> list[Path]:
-    paths = list(image_dir.glob("*"))
-    valid = [s for s in tqdm(paths) if util.get_sheet_image(s)]
-
-    msg = f"{len(valid)} / {len(paths)} with {len(paths) - len(valid)} errors"
-    logging.info(msg)
-
-    return valid
+def get_image_paths(input_dir: Path) -> list[Path]:
+    paths = list(input_dir.glob("*.jpg"))
+    return paths
 
 
 def split_images(
@@ -60,39 +54,77 @@ def split_images(
 
 
 def write_csv(
-    split_csv: Path, train_set: list[Path], val_set: list[Path], test_set: list[Path]
+    split_csv: Path,
+    output_dir: Path,
+    train_set: list[Path],
+    val_set: list[Path],
+    test_set: list[Path],
+    resize: int,
 ) -> None:
     with split_csv.open("w") as f:
         writer = csv.writer(f)
-        writer.writerow(["path", "split"])
+        writer.writerow(["file_name", "split"])
 
-        for path in train_set:
-            writer.writerow([str(path), "train"])
+        split_dir = output_dir / "train"
+        split_dir.mkdir(parents=True, exist_ok=True)
+        for path in tqdm(train_set, desc="train"):
+            writer.writerow([path.name, "train"])
+            image = util.get_sheet_image(path)
+            image = util.resize_image(image, resize)
+            image.save(split_dir / path.name)
 
-        for path in val_set:
-            writer.writerow([str(path), "val"])
+        split_dir = output_dir / "val"
+        split_dir.mkdir(parents=True, exist_ok=True)
+        for path in tqdm(val_set, desc="val  "):
+            writer.writerow([path.name, "val"])
+            image = util.get_sheet_image(path)
+            image = util.resize_image(image, resize)
+            image.save(split_dir / path.name)
 
-        for path in test_set:
-            writer.writerow([str(path), "test"])
+        split_dir = output_dir / "test"
+        split_dir.mkdir(parents=True, exist_ok=True)
+        for path in tqdm(test_set, desc="test "):
+            writer.writerow([path.name, "test"])
+            image = util.get_sheet_image(path)
+            image = util.resize_image(image, resize)
+            image.save(split_dir / path.name)
 
 
-def parse_args():
+def validate_splits(args: argparse.Namespace) -> None:
+    if sum((args.train_split, args.val_split, args.test_split)) != 1.0:
+        msg = "train, val, and test splits must sum to 1.0"
+        raise ValueError(msg)
+
+    if any(
+        s < 0.0 or s > 1.0 for s in (args.train_split, args.val_split, args.test_split)
+    ):
+        msg = "All splits must be [0.0, 1.0]"
+        raise ValueError(msg)
+
+
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         fromfile_prefix_chars="@",
         description=textwrap.dedent(
-            """
-            Split the data into training, testing, & validation datasets.
-            """
+            """Split the data into training, testing, & validation datasets."""
         ),
     )
 
     arg_parser.add_argument(
-        "--image-dir",
+        "--input-dir",
         metavar="PATH",
         type=Path,
         required=True,
         help="""Read images for the MAE in this directory.""",
+    )
+
+    arg_parser.add_argument(
+        "--output-dir",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Write images for the MAE into this directory.""",
     )
 
     arg_parser.add_argument(
@@ -131,6 +163,14 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--resize",
+        type=int,
+        metavar="INT",
+        default=224,
+        help="""Resize images for classification. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
         "--seed",
         type=int,
         metavar="INT",
@@ -140,16 +180,7 @@ def parse_args():
 
     args = arg_parser.parse_args()
 
-    # Validate splits
-    if sum((args.train_split, args.val_split, args.test_split)) != 1.0:
-        msg = "train, val, and test splits must sum to 1.0"
-        raise ValueError(msg)
-
-    if any(
-        s < 0.0 or s > 1.0 for s in (args.train_split, args.val_split, args.test_split)
-    ):
-        msg = "All splits must be [0.0, 1.0]"
-        raise ValueError(msg)
+    validate_splits(args)
 
     return args
 
