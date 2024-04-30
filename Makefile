@@ -2,7 +2,7 @@
 .ONESHELL:
 
 VENV=.venv
-PY_VER=python3.11
+PY_VER=python3.10
 PYTHON=./$(VENV)/bin/$(PY_VER)
 PIP_INSTALL=$(PYTHON) -m pip install
 
@@ -16,7 +16,6 @@ install: venv
 dev: venv
 	$(PIP_INSTALL) -U pip setuptools wheel
 	$(PIP_INSTALL) -e .[dev]
-	pre-commit install
 
 venv:
 	test -d $(VENV) || $(PY_VER) -m venv $(VENV)

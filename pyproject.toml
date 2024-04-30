@@ -8,7 +8,7 @@ version = "0.1.0"
 description = ""
 license = { file = "LICENSE" }
 authors = [{ name = "Raphael LaFrance", email = "rafelafrance@proton.me" }]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "Pillow",
     "git-lfs",
@@ -49,11 +49,15 @@ include = ["phenobase"]
 namespaces = false
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py310"
 
 show-fixes = true
 
 line-length = 88
+
+exclude = [
+    "run_mae.py",  # External code
+]
 
 lint.select = [
     "F",
