@@ -11,6 +11,7 @@ authors = [{ name = "Raphael LaFrance", email = "rafelafrance@proton.me" }]
 requires-python = ">=3.10"
 dependencies = [
     "Pillow",
+    "datasets",
     "git-lfs",
     "ipython",
     "jupyterlab",
