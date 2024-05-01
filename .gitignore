@@ -30,6 +30,7 @@ dist/
 output/
 data/
 secrets/
+logs/
 
 # Temp files
 temp/

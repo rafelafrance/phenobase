@@ -6,21 +6,21 @@
 #SBATCH --mail-type=FAIL,END
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --output=logs/%x_%j.out
+#SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=4gb
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64gb
 #SBATCH --time=00:15:00
 #SBATCH --partition=gpu
 #SBATCH --gpus=a100:1
 
 date;hostname;pwd
 
-export PATH=/blue/guralnick/rafe.lafrance/.conda/vitmae/bin:$PATH
+module purge all
 
-module load conda
+export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
-./examples/pytorch/image-pretraining/run_mae.py \
+python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretraining/run_mae.py \
   --train_dir train.csv \
   --validation_dir validation.csv \
   --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/output \
