@@ -8,9 +8,9 @@
 #SBATCH --ntasks=1
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64gb
-#SBATCH --time=00:15:00
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8gb
+#SBATCH --time=08:00:00
 #SBATCH --partition=gpu
 #SBATCH --gpus=a100:1
 
@@ -28,6 +28,7 @@ python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretra
   --remove_unused_columns False \
   --label_names pixel_values \
   --do_train \
-  --do_eval
+  --do_eval \
+  --model_name_or_path /blue/guralnick/rafe.lafrance/phenobase/data/output/checkpoint-500
 
 date
