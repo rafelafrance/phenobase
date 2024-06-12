@@ -1,8 +1,6 @@
 #!/bin/bash
 
-script="../transformers/examples/pytorch/image-pretraining/run_mae.py"
-
-python $script \
+python ./phenobase/run_mae.py \
     --dataset_name ./data/mae_splits_224 \
     --output_dir ./data/output \
     --remove_unused_columns False \

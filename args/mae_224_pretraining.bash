@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=mae_224_test
+#SBATCH --job-name=mae_224_pretraining
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -20,7 +20,7 @@ module purge all
 
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
-python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretraining/run_mae.py \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
     --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/mae_splits_224 \
     --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/output \
     --remove_unused_columns False \
