@@ -21,14 +21,27 @@ module purge all
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretraining/run_mae.py \
-  --train_dir train.csv \
-  --validation_dir validation.csv \
-  --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/output \
-  --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/mae_splits_224 \
-  --remove_unused_columns False \
-  --label_names pixel_values \
-  --do_train \
-  --do_eval \
-  --model_name_or_path /blue/guralnick/rafe.lafrance/phenobase/data/output/checkpoint-500
+    --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/mae_splits_224 \
+    --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/output \
+    --remove_unused_columns False \
+    --label_names pixel_values \
+    --mask_ratio 0.75 \
+    --norm_pix_loss \
+    --do_train \
+    --do_eval \
+    --base_learning_rate 1.5e-4 \
+    --lr_scheduler_type cosine \
+    --weight_decay 0.05 \
+    --num_train_epochs 10 \
+    --warmup_ratio 0.05 \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
+    --logging_strategy steps \
+    --logging_steps 10 \
+    --eval_strategy epoch \
+    --save_strategy epoch \
+    --load_best_model_at_end True \
+    --save_total_limit 3 \
+    --seed 9742237
 
 date
