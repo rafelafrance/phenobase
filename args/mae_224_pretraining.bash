@@ -8,9 +8,9 @@
 #SBATCH --ntasks=1
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=8gb
-#SBATCH --time=08:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64gb
+#SBATCH --time=72:00:00
 #SBATCH --partition=gpu
 #SBATCH --gpus=a100:1
 
@@ -32,7 +32,7 @@ python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretra
     --base_learning_rate 1.5e-4 \
     --lr_scheduler_type cosine \
     --weight_decay 0.05 \
-    --num_train_epochs 10 \
+    --num_train_epochs 800 \
     --warmup_ratio 0.05 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 8 \
@@ -42,6 +42,6 @@ python3 /blue/guralnick/rafe.lafrance/transformers/examples/pytorch/image-pretra
     --save_strategy epoch \
     --load_best_model_at_end True \
     --save_total_limit 3 \
-    --seed 9742237
+    --seed 9702236
 
 date
