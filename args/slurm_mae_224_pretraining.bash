@@ -12,7 +12,7 @@
 #SBATCH --mem=64gb
 #SBATCH --time=72:00:00
 #SBATCH --partition=gpu
-#SBATCH --gpus=a100:4
+#SBATCH --gpus=a100:1
 
 date;hostname;pwd
 
