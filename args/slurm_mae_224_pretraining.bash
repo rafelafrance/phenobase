@@ -12,7 +12,7 @@
 #SBATCH --mem=64gb
 #SBATCH --time=72:00:00
 #SBATCH --partition=gpu
-#SBATCH --gpus=a100:2
+#SBATCH --gpus=a100:4
 
 date;hostname;pwd
 
@@ -34,8 +34,8 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
     --weight_decay 0.05 \
     --num_train_epochs 800 \
     --warmup_ratio 0.05 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
+    --per_device_train_batch_size 16 \
+    --per_device_eval_batch_size 16 \
     --logging_strategy steps \
     --logging_steps 10 \
     --eval_strategy epoch \
