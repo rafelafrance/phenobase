@@ -3,11 +3,12 @@ import argparse
 import logging
 import textwrap
 from pathlib import Path
-from uuid import UUID
 
 from tqdm import tqdm
 
 from phenobase.pylib import log, util
+
+# from uuid import UUID
 
 
 def main():
@@ -36,12 +37,12 @@ def get_image_paths(sheets_dir: Path) -> list[Path]:
 def cull_bad_paths(paths: list[Path]) -> list[Path]:
     """Good paths contain a valid UUID as the file stem."""
     valid = []
-    for path in paths:
-        try:
-            _ = UUID(path.stem)
-            valid.append(path)
-        except ValueError:
-            pass
+    # for path in paths:
+    #     try:
+    #         _ = UUID(path.stem)
+    #         valid.append(path)
+    #     except ValueError:
+    #         pass
 
     log_error_count("Bad paths", valid, paths)
 
@@ -84,7 +85,7 @@ def parse_args():
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Read herbarim sheets from this directory.""",
+        help="""Read herbarium sheets from this directory.""",
     )
 
     arg_parser.add_argument(

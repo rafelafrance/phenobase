@@ -17,6 +17,7 @@
 date;hostname;pwd
 
 module purge all
+module load pytorch
 
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 

@@ -73,7 +73,7 @@ def parse_args():
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Read herbarim sheets from this directory.""",
+        help="""Read herbarium sheets from this directory.""",
     )
 
     arg_parser.add_argument(
