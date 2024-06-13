@@ -12,11 +12,13 @@
 #SBATCH --mem=64gb
 #SBATCH --time=72:00:00
 #SBATCH --partition=gpu
-#SBATCH --gpus=a100:1
+#SBATCH --gpus=a100:2
 
 date;hostname;pwd
 
 module purge all
+module load ubuntu/22.04
+module load ngc-pytorch/2.3.0
 
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
