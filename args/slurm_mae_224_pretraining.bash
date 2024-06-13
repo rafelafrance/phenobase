@@ -17,10 +17,10 @@
 date;hostname;pwd
 
 module purge all
-module load ubuntu/22.04
 module load ngc-pytorch/2.3.0
+module load conda
 
-export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
+mamba activate /blue/guralnick/rafe.lafrance/.conda/envs/vitmae/
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
     --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/mae_splits_224 \
