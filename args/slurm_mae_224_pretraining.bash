@@ -26,6 +26,8 @@ module load ngc-pytorch/2.3.0
 # module load ubuntu/22.04
 # mamba activate /blue/guralnick/rafe.lafrance/.conda/envs/vitmae/
 
+uname -a
+
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
