@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#SBATCH --account=guralnick
+#SBATCH --qos=guralnick
+
 #SBATCH --job-name=mae_224_pretraining
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
@@ -12,15 +15,15 @@
 #SBATCH --mem=64gb
 #SBATCH --time=72:00:00
 #SBATCH --partition=gpu
-#SBATCH --gpus=a100:1
+#SBATCH --gres=gpu:a100:1
 
 date;hostname;pwd
 
 module purge all
-module load ubuntu/22.04
 module load ngc-pytorch/2.3.0
 
 # module load conda
+# module load ubuntu/22.04
 # mamba activate /blue/guralnick/rafe.lafrance/.conda/envs/vitmae/
 
 export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
