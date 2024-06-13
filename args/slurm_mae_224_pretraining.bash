@@ -34,8 +34,8 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
     --weight_decay 0.05 \
     --num_train_epochs 800 \
     --warmup_ratio 0.05 \
-    --per_device_train_batch_size 16 \
-    --per_device_eval_batch_size 16 \
+    --per_device_train_batch_size 24 \
+    --per_device_eval_batch_size 24 \
     --logging_strategy steps \
     --logging_steps 10 \
     --eval_strategy epoch \
