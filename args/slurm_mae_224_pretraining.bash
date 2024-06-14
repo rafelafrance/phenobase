@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=mae_224_pretraining
+#SBATCH --job-name=pretraining_mae
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
