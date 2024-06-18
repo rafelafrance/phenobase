@@ -1,8 +1,8 @@
 #!/bin/bash
 
 python ./phenobase/run_mae.py \
-    --dataset_name ./data/mae_splits_224 \
-    --output_dir ./data/output \
+    --dataset_name ./data/images/images_224 \
+    --output_dir ./data/pretraining_output \
     --remove_unused_columns False \
     --label_names pixel_values \
     --mask_ratio 0.75 \

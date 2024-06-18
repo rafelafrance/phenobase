@@ -7,29 +7,33 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from phenobase.pylib import log, util
+from phenobase.pylib import log
 
 
 def main():
     log.started()
     args = parse_args()
+    print(args)
+    log.finished()
 
-    paths = get_image_paths(args.input_dir)
+
+def old_main():
+    log.started()
+    args = parse_args()
+
+    paths = list(args.image_dir.glob("*.jpg"))
 
     train_set, val_set, test_set = split_images(
-        paths, args.seed, args.train_split, args.val_split, args.test_split
+        paths, args.seed, args.train_split, args.val_split
     )
 
-    write_csv(
-        args.split_csv, args.output_dir, train_set, val_set, test_set, args.resize
-    )
+    write_csv(args.split_csv, train_set, val_set, test_set)
 
     log.finished()
 
 
-def get_image_paths(input_dir: Path) -> list[Path]:
-    paths = list(input_dir.glob("*.jpg"))
-    return paths
+def get_expert_data(ant_csvs: list[Path]):
+    pass
 
 
 def split_images(
@@ -37,7 +41,6 @@ def split_images(
     seed: int,
     train_split: float,
     val_split: float,
-    test_split: float,
 ) -> tuple[list[Path], list[Path], list[Path]]:
     random.seed(seed)
     random.shuffle(paths)
@@ -55,39 +58,22 @@ def split_images(
 
 def write_csv(
     split_csv: Path,
-    output_dir: Path,
     train_set: list[Path],
     val_set: list[Path],
     test_set: list[Path],
-    resize: int,
 ) -> None:
     with split_csv.open("w") as f:
         writer = csv.writer(f)
         writer.writerow(["file_name", "split"])
 
-        split_dir = output_dir / "train"
-        split_dir.mkdir(parents=True, exist_ok=True)
         for path in tqdm(train_set, desc="train"):
             writer.writerow([path.name, "train"])
-            image = util.get_sheet_image(path)
-            image = util.resize_image(image, resize)
-            image.save(split_dir / path.name)
 
-        split_dir = output_dir / "val"
-        split_dir.mkdir(parents=True, exist_ok=True)
         for path in tqdm(val_set, desc="val  "):
             writer.writerow([path.name, "val"])
-            image = util.get_sheet_image(path)
-            image = util.resize_image(image, resize)
-            image.save(split_dir / path.name)
 
-        split_dir = output_dir / "test"
-        split_dir.mkdir(parents=True, exist_ok=True)
         for path in tqdm(test_set, desc="test "):
             writer.writerow([path.name, "test"])
-            image = util.get_sheet_image(path)
-            image = util.resize_image(image, resize)
-            image.save(split_dir / path.name)
 
 
 def validate_splits(args: argparse.Namespace) -> None:
@@ -112,19 +98,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--input-dir",
+        "--ant-csv",
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Read images for the MAE in this directory.""",
-    )
-
-    arg_parser.add_argument(
-        "--output-dir",
-        metavar="PATH",
-        type=Path,
-        required=True,
-        help="""Write images for the MAE into this directory.""",
+        action="append",
+        help="""These input CSV files hold expert classifications of the traits.
+            Use this argument once for every ant CSV file.""",
     )
 
     arg_parser.add_argument(
@@ -132,7 +112,7 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Output the MAE splits to this CSV file.""",
+        help="""Output the splits to this CSV file.""",
     )
 
     arg_parser.add_argument(
@@ -160,14 +140,6 @@ def parse_args() -> argparse.Namespace:
         default=0.2,
         help="""What fraction of records to use for training the model.
             (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--resize",
-        type=int,
-        metavar="INT",
-        default=224,
-        help="""Resize images for classification. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

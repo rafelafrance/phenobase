@@ -23,16 +23,9 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-# module load ngc-pytorch/2.3.0
-# module load conda
-# conda activate vitmae
-#
-# which python
-# uname -a
-
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
-    --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/mae_splits_224 \
-    --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/output \
+    --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
+    --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/pretraining_output \
     --remove_unused_columns False \
     --label_names pixel_values \
     --mask_ratio 0.75 \
