@@ -1,79 +1,113 @@
 #!/usr/bin/env python3
+
 import argparse
-import csv
+import logging
 import random
 import textwrap
+from collections import defaultdict
 from pathlib import Path
 
-from tqdm import tqdm
+import pandas as pd
 
-from phenobase.pylib import log
+from phenobase.pylib import log, util
 
 
 def main():
     log.started()
     args = parse_args()
-    print(args)
-    log.finished()
 
+    headers = util.trait_2_int(2)
 
-def old_main():
-    log.started()
-    args = parse_args()
-
-    paths = list(args.image_dir.glob("*.jpg"))
-
-    train_set, val_set, test_set = split_images(
-        paths, args.seed, args.train_split, args.val_split
-    )
-
-    write_csv(args.split_csv, train_set, val_set, test_set)
+    records = get_expert_data(args.ant_csv)
+    records = filter_data(records, headers)
+    groups = group_data(records, headers)
+    records = split_data(groups, args.seed, args.train_split, args.val_split)
+    write_csv(args.split_csv, records)
 
     log.finished()
 
 
-def get_expert_data(ant_csvs: list[Path]):
-    pass
+def get_expert_data(ant_csvs: list[Path]) -> list[dict]:
+    dfs = [pd.read_csv(a) for a in ant_csvs]
+    df = pd.concat(dfs)
+
+    del df["time"]
+
+    records = df.to_dict(orient="records")
+
+    msg = f"All records {len(records)}"
+    logging.info(msg)
+
+    return records
 
 
-def split_images(
-    paths: list[Path],
+def filter_data(records: list[dict], headers: list[str]) -> list[dict]:
+    records = [r for r in records if all(r[h] in "01" for h in headers)]
+
+    msg = f"Filtered records {len(records)}"
+    logging.info(msg)
+
+    return records
+
+
+def group_data(records: list[dict], headers: list[str]) -> dict[list[dict]]:
+    groups = defaultdict(list)
+
+    for rec in records:
+        key = " ".join(rec[h] for h in headers)
+        groups[key].append(rec)
+
+    for key, recs in groups.items():
+        msg = f"Group: {key} has {len(recs)} records"
+        logging.info(msg)
+
+    return groups
+
+
+def split_data(
+    groups: dict[list[dict]],
     seed: int,
     train_split: float,
     val_split: float,
-) -> tuple[list[Path], list[Path], list[Path]]:
+) -> list[dict]:
     random.seed(seed)
-    random.shuffle(paths)
 
-    total = len(paths)
-    split1 = round(total * train_split)
-    split2 = split1 + round(total * val_split)
+    records = []
 
-    train_set = paths[:split1]
-    val_set = paths[split1:split2]
-    test_set = paths[split2:]
+    for record_list in groups.values():
+        random.shuffle(record_list)
 
-    return train_set, val_set, test_set
+        total = len(record_list)
+        split1 = round(total * train_split)
+        split2 = split1 + round(total * val_split)
+
+        for i, rec in enumerate(record_list):
+            if i < split1:
+                rec["split"] = "train"
+            elif i < split2:
+                rec["split"] = "val"
+            else:
+                rec["split"] = "test"
+            records.append(rec)
+
+    msg = f"Split   records {len(records)}"
+    logging.info(msg)
+
+    msg = f"  Train records {len([r for r in records if r['split'] == 'train'])}"
+    logging.info(msg)
+
+    msg = f"  Val   records {len([r for r in records if r['split'] == 'val'])}"
+    logging.info(msg)
+
+    msg = f"  Test  records {len([r for r in records if r['split'] == 'test'])}"
+    logging.info(msg)
+
+    return records
 
 
-def write_csv(
-    split_csv: Path,
-    train_set: list[Path],
-    val_set: list[Path],
-    test_set: list[Path],
-) -> None:
-    with split_csv.open("w") as f:
-        writer = csv.writer(f)
-        writer.writerow(["file_name", "split"])
-
-        for path in tqdm(train_set, desc="train"):
-            writer.writerow([path.name, "train"])
-
-        for path in tqdm(val_set, desc="val  "):
-            writer.writerow([path.name, "val"])
-
-        for path in tqdm(test_set, desc="test "):
-            writer.writerow([path.name, "test"])
+def write_csv(split_csv: Path, records: list[dict]) -> None:
+    df = pd.DataFrame(records)
+    df.to_csv(split_csv, index=False)
 
 
 def validate_splits(args: argparse.Namespace) -> None:
@@ -91,7 +125,6 @@ def validate_splits(args: argparse.Namespace) -> None:
 def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        fromfile_prefix_chars="@",
         description=textwrap.dedent(
             """Split the data into training, testing, & validation datasets."""
         ),

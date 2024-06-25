@@ -5,10 +5,10 @@ from pathlib import Path
 import torch
 from PIL import Image, UnidentifiedImageError
 
+TRAITS = " flowers fruits leaves whole_plant reproductive_structure ".split()
+
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD_DEV = (0.229, 0.224, 0.225)
-
-TARGETS = """ flowers fruits leaves """.split()
 
 IMAGE_EXCEPTIONS = (
     UnidentifiedImageError,
@@ -17,6 +17,14 @@ IMAGE_EXCEPTIONS = (
     FileNotFoundError,
     OSError,
 )
+
+
+def trait_2_int(limit=2):
+    return {t: i for i, t in enumerate(TRAITS[:limit])}
+
+
+def trait_2_str(limit=2):
+    return dict(enumerate(TRAITS[:limit]))
 
 
 def accuracy(preds, targets):
