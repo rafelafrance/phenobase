@@ -1,11 +1,16 @@
 import logging
 import warnings
 from pathlib import Path
+from typing import Literal
 
 import torch
 from PIL import Image, UnidentifiedImageError
 
-TRAITS = " flowers fruits leaves whole_plant reproductive_structure ".split()
+TRAITS = "flowers fruits leaves whole_plant reproductive_structure".split()
+TRAIT = Literal["flowers", "fruits", "leaves", "whole_plant", "reproductive_structure"]
+SPLIT = Literal["train", "val", "test"]
+
+IMAGE_SIZE = (224, 224)
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD_DEV = (0.229, 0.224, 0.225)
@@ -19,11 +24,11 @@ IMAGE_EXCEPTIONS = (
 )
 
 
-def trait_2_int(limit=2):
+def trait_str_2_int(*, limit=2):
     return {t: i for i, t in enumerate(TRAITS[:limit])}
 
 
-def trait_2_str(limit=2):
+def trait_int_2_str(*, limit=2):
     return dict(enumerate(TRAITS[:limit]))
 
 

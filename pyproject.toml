@@ -25,6 +25,7 @@ dependencies = [
     "scikit-image",
     "scikit-learn",
     "scipy",
+    "tensorboard",
     "timm",
     "torch",
     "torchmetrics",

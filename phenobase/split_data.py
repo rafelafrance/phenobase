@@ -16,7 +16,7 @@ def main():
     log.started()
     args = parse_args()
 
-    headers = util.trait_2_int(2)
+    headers = util.trait_str_2_int(limit=2)
 
     records = get_expert_data(args.ant_csv)
     records = filter_data(records, headers)
