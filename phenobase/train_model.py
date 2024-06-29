@@ -11,19 +11,84 @@ import torch
 from pylib import log, util
 from pylib.datasets.labeled_traits import LabeledTraits
 from pylib.models.simple_vit import SimpleVit
-from torch import nn, optim
+from torch import FloatTensor, nn, optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+from transformers import Trainer, TrainingArguments, ViTForImageClassification
+
+
+class VitTrainer(Trainer):
+    def __init__(self, *args, pos_weight: FloatTensor | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(self.args.device)
+
+        msg = f"Using multi-label classification with class weights: {pos_weight}"
+        logging.info(msg)
+
+        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    def compute_loss(self, model, inputs, return_outputs=False):  # noqa: FBT002
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+
+        logits = outputs.get("logits")
+        loss = self.loss_fn(logits, labels)
+
+        return (loss, outputs) if return_outputs else loss
+
+
+def new_main():
+    args = parse_args()
+
+    model = ViTForImageClassification.from_pretrained(
+        str(args.pretrained_dir), num_labels=len(args.trait)
+    )
+
+    train_dataset = LabeledTraits(
+        trait_csv=args.trait_csv,
+        image_dir=args.image_dir,
+        traits=args.trait,
+        split="train",
+        augment=True,
+    )
+
+    eval_dataset = LabeledTraits(
+        trait_csv=args.trait_csv,
+        image_dir=args.image_dir,
+        traits=args.trait,
+        split="eval",
+        augment=False,
+    )
+
+    training_args = TrainingArguments(
+        output_dir=args.output_dir,
+        learning_rate=args.learning_rate,
+        per_device_train_batch_size=args.batch_size,
+        per_device_eval_batch_size=args.batch_size,
+        num_train_epochs=args.epochs,
+        weight_decay=0.01,
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        save_total_limit=3,
+    )
+
+    trainer = VitTrainer(
+        pos_weight=train_dataset.pos_weight(),
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+    )
+
+    trainer.train()
 
 
 @dataclass
 class Stats:
     is_best: bool = False
-    best_acc: float = 0.0
     best_loss: float = float("Inf")
-    train_acc: float = 0.0
     train_loss: float = float("Inf")
-    val_acc: float = 0.0
     val_loss: float = float("Inf")
 
 
@@ -33,9 +98,8 @@ def main():
 
     model = SimpleVit(
         traits=args.trait,
-        pretrained_dir=args.pretrained_dir,
         load_model=args.load_model,
-        model_config=args.model_config,
+        pretrained_dir=args.pretrained_dir,
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -50,7 +114,7 @@ def main():
         workers=args.workers,
     )
     val_loader = get_loader(
-        split="val",
+        split="eval",
         trait_csv=args.trait_csv,
         image_dir=args.image_dir,
         traits=args.trait,
@@ -59,41 +123,28 @@ def main():
     )
 
     optimizer = get_optimizer(model, args.learning_rate)
-    scheduler = get_scheduler(optimizer)
     loss_fn = get_loss_fn(train_loader.dataset, device)
 
-    writer = SummaryWriter(args.log_dir)
-
-    stats = Stats(
-        best_acc=model.state.get("accuracy", 0.0),
-        best_loss=model.state.get("best_loss", float("Inf")),
-    )
+    stats = Stats(best_loss=model.state.get("best_loss", float("Inf")))
 
     start_epoch, end_epoch = get_epoch_range(args, model)
 
     logging.info("Training started.")
     for epoch in range(start_epoch, end_epoch):
         model.train()
-        stats.train_acc, stats.train_loss = one_epoch(
-            model, device, train_loader, loss_fn, optimizer
-        )
-
-        if scheduler:
-            scheduler.step()
+        stats.train_loss = one_epoch(model, device, train_loader, loss_fn, optimizer)
 
         model.eval()
-        stats.val_acc, stats.val_loss = one_epoch(model, device, val_loader, loss_fn)
+        stats.val_loss = one_epoch(model, device, val_loader, loss_fn)
 
         save_checkpoint(model, optimizer, args.save_model, stats, epoch)
-        log_stats(writer, stats, epoch)
+        log_stats(stats, epoch)
 
-    writer.close()
     log.finished()
 
 
 def one_epoch(model, device, loader, loss_fn, optimizer=None):
     running_loss = 0.0
-    running_acc = 0.0
 
     for images, targets, _ in loader:
         images = images.to(device)
@@ -101,7 +152,7 @@ def one_epoch(model, device, loader, loss_fn, optimizer=None):
 
         preds = model(images)
 
-        loss = loss_fn(preds, targets)
+        loss = loss_fn(preds.logits, targets)
 
         if optimizer:
             optimizer.zero_grad()
@@ -109,9 +160,15 @@ def one_epoch(model, device, loader, loss_fn, optimizer=None):
             optimizer.step()
 
         running_loss += loss.item()
-        running_acc += util.accuracy(preds, targets)
 
-    return running_acc / len(loader), running_loss / len(loader)
+    return running_loss / len(loader)
+
+
+def get_loss_fn(dataset, device):
+    pos_weight = dataset.pos_weight()
+    pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(device)
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    return loss_fn
 
 
 def get_epoch_range(args, model):
@@ -154,24 +211,10 @@ def get_optimizer(model, lr):
     return optimizer
 
 
-def get_scheduler(optimizer):
-    return optim.lr_scheduler.CyclicLR(
-        optimizer, 0.001, 0.01, step_size_up=10, cycle_momentum=False
-    )
-
-
-def get_loss_fn(dataset, device):
-    pos_weight = dataset.pos_weight()
-    pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(device)
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    return loss_fn
-
-
 def save_checkpoint(model, optimizer, save_model, stats, epoch):
     stats.is_best = False
-    if (stats.val_acc, -stats.val_loss) >= (stats.best_acc, -stats.best_loss):
+    if stats.val_loss <= stats.best_loss:
         stats.is_best = True
-        stats.best_acc = stats.val_acc
         stats.best_loss = stats.val_loss
         torch.save(
             {
@@ -179,31 +222,20 @@ def save_checkpoint(model, optimizer, save_model, stats, epoch):
                 "model_state": model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "best_loss": stats.best_loss,
-                "accuracy": stats.best_acc,
             },
             save_model,
         )
 
 
-def log_stats(writer, stats, epoch):
+def log_stats(stats, epoch):
+    # Must happen after save_checkpoint
     msg = (
         f"{epoch:4}: "
-        f"Train: loss {stats.train_loss:0.6f} acc {stats.train_acc:0.6f} "
-        f"Valid: loss {stats.val_loss:0.6f} acc {stats.val_acc:0.6f}"
+        f"Train: loss {stats.train_loss:0.6f} "
+        f"Valid: loss {stats.val_loss:0.6f}"
         f"{' ++' if stats.is_best else ''}"
     )
     logging.info(msg)
-    writer.add_scalars(
-        "Training vs. Validation",
-        {
-            "Training loss": stats.train_loss,
-            "Training accuracy": stats.train_acc,
-            "Validation loss": stats.val_loss,
-            "Validation accuracy": stats.val_acc,
-        },
-        epoch,
-    )
-    writer.flush()
 
 
 def parse_args():
@@ -228,12 +260,19 @@ def parse_args():
         help="""A path to the directory where the images are.""",
     )
 
+    # arg_parser.add_argument(
+    #     "--save-model",
+    #     type=Path,
+    #     metavar="PATH",
+    #     required=True,
+    #     help="""Save best models to this path.""",
+    # )
+
     arg_parser.add_argument(
-        "--save-model",
+        "--output-dir",
         type=Path,
         metavar="PATH",
-        required=True,
-        help="""Save best models to this path.""",
+        help="""Save training results here.""",
     )
 
     arg_parser.add_argument(
@@ -253,13 +292,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--model-config",
-        type=Path,
-        metavar="PATH",
-        help="""The model configuration JSON file for the model.""",
-    )
-
-    arg_parser.add_argument(
         "--pretrained-dir",
         type=Path,
         metavar="PATH",
@@ -267,17 +299,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--log-dir",
-        type=Path,
-        metavar="DIR",
-        help="""Save tensorboard logs to this directory.""",
-    )
-
-    arg_parser.add_argument(
         "--learning-rate",
         "--lr",
         type=float,
-        default=2e-5,
+        default=3e-4,
         metavar="FLOAT",
         help="""Initial learning rate. (default: %(default)s)""",
     )
@@ -315,4 +340,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    new_main()

@@ -14,7 +14,7 @@ from phenobase.pylib import util
 @dataclass
 class LabeledSheet:
     path: Path
-    target: list[int]
+    target: torch.tensor
 
 
 class LabeledTraits(Dataset):
@@ -34,7 +34,7 @@ class LabeledTraits(Dataset):
             self.sheets = [
                 LabeledSheet(
                     path=image_dir / s["file"],
-                    target=[int(s[t]) for t in traits],
+                    target=torch.tensor([int(s[t]) for t in traits], dtype=torch.float),
                 )
                 for s in reader
                 if s["split"] == split
@@ -43,7 +43,15 @@ class LabeledTraits(Dataset):
     def __len__(self) -> int:
         return len(self.sheets)
 
-    def __getitem__(self, index) -> tuple:
+    def __getitem__(self, index) -> dict:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
+            sheet = self.sheets[index]
+            image = Image.open(sheet.path).convert("RGB")
+            image = self.transform(image)
+        return {"pixel_values": image, "labels": sheet.target, "name": sheet.path.name}
+
+    def old__getitem__(self, index) -> tuple:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
             sheet = self.sheets[index]

@@ -2,7 +2,7 @@
 .ONESHELL:
 
 VENV=.venv
-PY_VER=python3.10
+PY_VER=python3.11
 PYTHON=./$(VENV)/bin/$(PY_VER)
 PIP_INSTALL=$(PYTHON) -m pip install
 

@@ -21,7 +21,7 @@ def main():
     records = get_expert_data(args.ant_csv)
     records = filter_data(records, headers)
     groups = group_data(records, headers)
-    records = split_data(groups, args.seed, args.train_split, args.val_split)
+    records = split_data(groups, args.seed, args.train_split, args.eval_split)
     write_csv(args.split_csv, records)
 
     log.finished()
@@ -85,7 +85,7 @@ def split_data(
             if i < split1:
                 rec["split"] = "train"
             elif i < split2:
-                rec["split"] = "val"
+                rec["split"] = "eval"
             else:
                 rec["split"] = "test"
             records.append(rec)
@@ -96,7 +96,7 @@ def split_data(
     msg = f"  Train records {len([r for r in records if r['split'] == 'train'])}"
     logging.info(msg)
 
-    msg = f"  Val   records {len([r for r in records if r['split'] == 'val'])}"
+    msg = f"  Eval  records {len([r for r in records if r['split'] == 'eval'])}"
     logging.info(msg)
 
     msg = f"  Test  records {len([r for r in records if r['split'] == 'test'])}"
@@ -111,14 +111,14 @@ def write_csv(split_csv: Path, records: list[dict]) -> None:
 
 
 def validate_splits(args: argparse.Namespace) -> None:
-    if sum((args.train_split, args.val_split, args.test_split)) != 1.0:
-        msg = "train, val, and test splits must sum to 1.0"
+    if sum((args.train_split, args.eval_split, args.test_split)) != 1.0:
+        msg = "train, eval, and test splits must sum to 1.0"
         raise ValueError(msg)
 
     if any(
-        s < 0.0 or s > 1.0 for s in (args.train_split, args.val_split, args.test_split)
+        s < 0.0 or s > 1.0 for s in (args.train_split, args.eval_split, args.test_split)
     ):
-        msg = "All splits must be [0.0, 1.0]"
+        msg = "All splits must be in the interval [0.0, 1.0]"
         raise ValueError(msg)
 
 
@@ -126,7 +126,7 @@ def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
-            """Split the data into training, testing, & validation datasets."""
+            """Split the data into training, testing, & evaluation datasets."""
         ),
     )
 
@@ -158,11 +158,11 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--val-split",
+        "--eval-split",
         type=float,
         metavar="FRACTION",
         default=0.2,
-        help="""What fraction of records to use for training the model.
+        help="""What fraction of records to use for evaluating the model.
             (default: %(default)s)""",
     )
 
@@ -171,7 +171,7 @@ def parse_args() -> argparse.Namespace:
         type=float,
         metavar="FRACTION",
         default=0.2,
-        help="""What fraction of records to use for training the model.
+        help="""What fraction of records to use for testing the model.
             (default: %(default)s)""",
     )
 

@@ -8,7 +8,7 @@ from PIL import Image, UnidentifiedImageError
 
 TRAITS = "flowers fruits leaves whole_plant reproductive_structure".split()
 TRAIT = Literal["flowers", "fruits", "leaves", "whole_plant", "reproductive_structure"]
-SPLIT = Literal["train", "val", "test"]
+SPLIT = Literal["train", "eval", "test"]
 
 IMAGE_SIZE = (224, 224)
 

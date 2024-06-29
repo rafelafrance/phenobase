@@ -1,10 +1,12 @@
 #!/bin/bash
 
 python ./phenobase/train_model.py \
-  --trait-csv ./data/splits.csv \
+  --trait-csv ./data/split.csv \
   --image-dir ./data/images/images_224 \
-  --save-model ./data/training_output \
+  --output-dir ./data/training_output \
   --pretrained-dir ./data/pretraining_output \
-  --log-dir ./data/logs \
   --trait flowers \
-  --trait fruits
+  --trait fruits \
+  --batch-size 48 \
+  --lr 1e-4 \
+  --epochs 100
