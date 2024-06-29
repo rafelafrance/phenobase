@@ -51,14 +51,6 @@ class LabeledTraits(Dataset):
             image = self.transform(image)
         return {"pixel_values": image, "labels": sheet.target, "name": sheet.path.name}
 
-    def old__getitem__(self, index) -> tuple:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
-            sheet = self.sheets[index]
-            image = Image.open(sheet.path).convert("RGB")
-            image = self.transform(image)
-        return image, sheet.target, sheet.path.name
-
     @staticmethod
     def build_transforms(*, augment=False):
         xform = [transforms.Resize(util.IMAGE_SIZE)]
