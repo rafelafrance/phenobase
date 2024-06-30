@@ -36,9 +36,12 @@ class VitTrainer(Trainer):
 def main():
     args = parse_args()
 
-    model = ViTForImageClassification.from_pretrained(
-        str(args.pretrained_dir), num_labels=len(args.trait)
-    )
+    if args.pretrained_dir:
+        model = ViTForImageClassification.from_pretrained(
+            str(args.pretrained_dir), num_labels=len(args.trait)
+        )
+    else:
+        model = ViTForImageClassification(num_labels=len(args.trait))
 
     train_dataset = LabeledTraits(
         trait_csv=args.trait_csv,
