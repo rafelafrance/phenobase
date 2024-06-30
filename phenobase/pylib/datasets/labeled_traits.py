@@ -71,7 +71,7 @@ class LabeledTraits(Dataset):
         return transforms.Compose(xform)
 
     def pos_weight(self):
-        """Calculate the weights for the positive & negative cases of the trait."""
+        """Calculate the weights for the positive & negative cases of the traits."""
         weights = []
         for i in range(len(self.traits)):
             pos = sum(s.target[i] for s in self.sheets)

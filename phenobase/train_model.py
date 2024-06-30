@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import sys
 import textwrap
 from pathlib import Path
 
@@ -34,7 +33,7 @@ class VitTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def new_main():
+def main():
     args = parse_args()
 
     model = ViTForImageClassification.from_pretrained(
@@ -82,9 +81,9 @@ def new_main():
 
 
 def parse_args():
-    description = """Train a model to classify phenology traits."""
     arg_parser = argparse.ArgumentParser(
-        description=textwrap.dedent(description), fromfile_prefix_chars="@"
+        allow_abbrev=True,
+        description=textwrap.dedent("""Train a model to classify phenology traits."""),
     )
 
     arg_parser.add_argument(
@@ -120,17 +119,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--load-model",
-        type=Path,
-        metavar="PATH",
-        help="""Continue training with weights from this model.""",
-    )
-
-    arg_parser.add_argument(
         "--pretrained-dir",
         type=Path,
         metavar="PATH",
-        help="""Use this pretrained model to kickoff training.""",
+        help="""Continue training the model in this directory.""",
     )
 
     arg_parser.add_argument(
@@ -167,13 +159,8 @@ def parse_args():
     )
 
     args = arg_parser.parse_args()
-
-    if args.pretrained_dir and args.load_model:
-        sys.exit("Only one of pretrained or load model can be used at a time.")
-
     return args
 
 
 if __name__ == "__main__":
-    # main()
-    new_main()
+    main()
