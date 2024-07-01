@@ -70,6 +70,7 @@ def main():
         save_strategy="epoch",
         load_best_model_at_end=True,
         save_total_limit=3,
+        logging_strategy="epoch",
     )
 
     trainer = VitTrainer(
