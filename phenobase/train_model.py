@@ -38,11 +38,14 @@ def main():
 
     if args.pretrained_dir:
         model = ViTForImageClassification.from_pretrained(
-            str(args.pretrained_dir), num_labels=len(args.trait)
+            str(args.pretrained_dir),
+            num_labels=len(args.trait),
         )
     else:
         model = ViTForImageClassification.from_pretrained(
-            "google/vit-base-patch16-224", num_labels=len(args.trait)
+            "google/vit-base-patch16-224",
+            num_labels=len(args.trait),
+            ignore_mismatched_sizes=True,
         )
 
     train_dataset = LabeledTraits(
