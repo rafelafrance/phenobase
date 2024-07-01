@@ -16,7 +16,7 @@ def main():
     log.started()
     args = parse_args()
 
-    headers = util.trait_str_2_int(limit=2)
+    headers = args.trait
 
     records = get_expert_data(args.ant_csv)
     records = filter_data(records, headers)
@@ -146,6 +146,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         required=True,
         help="""Output the splits to this CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=util.TRAITS,
+        action="append",
+        required=True,
+        help="""Train to classify this trait. Repeat this argument to train
+            multiple trait labels. These are the headers in the --ant-csv file
+            you want to extract.""",
     )
 
     arg_parser.add_argument(

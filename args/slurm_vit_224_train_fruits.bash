@@ -27,7 +27,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/training_output/vit_fruits \
   --pretrained-dir /blue/guralnick/rafe.lafrance/phenobase/data/pretraining_output \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
-  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/splits.csv \
+  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_flowers_fruits.csv \
   --lr 1e-4 \
   --epochs 1200 \
   --batch-size 128 \
