@@ -41,7 +41,9 @@ def main():
             str(args.pretrained_dir), num_labels=len(args.trait)
         )
     else:
-        model = ViTForImageClassification(num_labels=len(args.trait))
+        model = ViTForImageClassification.from_pretrained(
+            "google/vit-base-patch16-224", num_labels=len(args.trait)
+        )
 
     train_dataset = LabeledTraits(
         trait_csv=args.trait_csv,

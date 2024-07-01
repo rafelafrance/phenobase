@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_flowers_no_pretrain
+#SBATCH --job-name=vit_flowers_no_mae
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -24,7 +24,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/training_output/vit_flowers_no_pretrain \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/training_output/vit_flowers_no_mae \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/splits.csv \
   --lr 1e-4 \
