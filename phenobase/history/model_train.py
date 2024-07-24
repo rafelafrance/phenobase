@@ -12,7 +12,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 
 from phenobase.history.pylib import log, util
-from phenobase.history.pylib.datasets.labeled_dataset import LabeledDataset
+from phenobase.history.pylib.labeled_dataset import LabeledDataset
 
 
 @dataclass

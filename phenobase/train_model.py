@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 from pylib import util
-from pylib.datasets.labeled_traits import LabeledTraits
+from pylib.datasets.labeled_dataset import LabeledDataset
 from torch import FloatTensor, nn
 from transformers import Trainer, TrainingArguments, ViTForImageClassification
 
@@ -48,7 +48,7 @@ def main():
             ignore_mismatched_sizes=True,
         )
 
-    train_dataset = LabeledTraits(
+    train_dataset = LabeledDataset(
         trait_csv=args.trait_csv,
         image_dir=args.image_dir,
         traits=args.trait,
@@ -56,7 +56,7 @@ def main():
         augment=True,
     )
 
-    eval_dataset = LabeledTraits(
+    eval_dataset = LabeledDataset(
         trait_csv=args.trait_csv,
         image_dir=args.image_dir,
         traits=args.trait,
