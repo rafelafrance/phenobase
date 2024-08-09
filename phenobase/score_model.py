@@ -4,10 +4,12 @@ import argparse
 import textwrap
 from pathlib import Path
 
+import pandas as pd
 import torch
 from pylib import util
 from pylib.datasets.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from transformers import ViTForImageClassification
 
 
@@ -35,28 +37,33 @@ def main():
         dataset, batch_size=args.batch_size, num_workers=args.workers, pin_memory=True
     )
 
+    data = []
     with torch.no_grad():
-        tp, tn, fp, fn = 0, 0, 0, 0
-        for sheets in loader:
+        for sheets in tqdm(loader):
             images = sheets["pixel_values"].to(device)
             preds = model(images)
             preds = torch.sigmoid(preds.logits)
-            preds = torch.round(preds)
             preds = preds.detach().cpu()
             for pred, actual, name in zip(
                 preds, sheets["labels"], sheets["name"], strict=False
             ):
+                rec = {
+                    "name": name,
+                    "pretrained": args.pretrained_dir,
+                }
+
                 pred = pred.tolist()
                 actual = actual.tolist()
-                for a, p in zip(actual, pred, strict=False):
-                    tp += int(a == 1.0 and p == 1.0)
-                    tn += int(a == 0.0 and p == 0.0)
-                    fp += int(a == 0.0 and p == 1.0)
-                    fn += int(a == 1.0 and p == 0.0)
-                print(f"{name} {actual} {pred}")
+                for a, p, t in zip(actual, pred, args.trait, strict=False):
+                    rec[f"{t}_pred"] = p
+                    rec[f"{t}_actual"] = a
+                data.append(rec)
 
-        print(f"tp = {tp:3d}  fp = {fp:3d}")
-        print(f"fn = {fn:3d}  tn = {tn:3d}")
+    df = pd.DataFrame(data)
+    mode, header = "w", True
+    if args.output_csv.exists():
+        mode, header = "a", False
+    df.to_csv(args.output_csv, mode=mode, header=header, index=False)
 
 
 def parse_args():
@@ -76,18 +83,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--output-csv",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""Output inference results to this CSV.""",
+    )
+
+    arg_parser.add_argument(
         "--image-dir",
         type=Path,
         metavar="PATH",
         required=True,
         help="""A path to the directory where the images are.""",
-    )
-
-    arg_parser.add_argument(
-        "--output-csv",
-        type=Path,
-        metavar="PATH",
-        help="""Save inference results here.""",
     )
 
     arg_parser.add_argument(
