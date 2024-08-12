@@ -24,11 +24,11 @@ IMAGE_EXCEPTIONS = (
 )
 
 
-def trait_str_2_int(*, limit=2):
+def trait_str_2_int(*, limit=2) -> dict[str, int]:
     return {t: i for i, t in enumerate(TRAITS[:limit])}
 
 
-def trait_int_2_str(*, limit=2):
+def trait_int_2_str(*, limit=2) -> dict[int, str]:
     return dict(enumerate(TRAITS[:limit]))
 
 

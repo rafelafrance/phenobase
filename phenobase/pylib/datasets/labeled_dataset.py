@@ -31,13 +31,17 @@ class LabeledDataset(Dataset):
         self.transform = self.build_transforms(augment=augment)
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
+            sheets = [
+                s
+                for s in reader
+                if s["split"] == split and all(s[t] in "01" for t in traits)
+            ]
             self.sheets = [
                 LabeledSheet(
                     path=image_dir / s["file"],
                     target=torch.tensor([int(s[t]) for t in traits], dtype=torch.float),
                 )
-                for s in reader
-                if s["split"] == split
+                for s in sheets
             ]
 
     def __len__(self) -> int:

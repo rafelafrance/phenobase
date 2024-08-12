@@ -4,7 +4,6 @@ import argparse
 import logging
 import random
 import textwrap
-from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
@@ -16,12 +15,8 @@ def main():
     log.started()
     args = parse_args()
 
-    headers = args.trait
-
     records = get_expert_data(args.ant_csv)
-    records = filter_data(records, headers)
-    groups = group_data(records, headers)
-    records = split_data(groups, args.seed, args.train_split, args.eval_split)
+    split_data(records, args.seed, args.train_split, args.eval_split)
     write_csv(args.split_csv, records)
 
     log.finished()
@@ -41,68 +36,58 @@ def get_expert_data(ant_csvs: list[Path]) -> list[dict]:
     return records
 
 
-def filter_data(records: list[dict], headers: list[str]) -> list[dict]:
-    records = [r for r in records if all(r[h] in "01" for h in headers)]
-
-    msg = f"Filtered records {len(records)}"
-    logging.info(msg)
-
-    return records
-
-
-def group_data(records: list[dict], headers: list[str]) -> dict[list[dict]]:
-    groups = defaultdict(list)
-
-    for rec in records:
-        key = " ".join(rec[h] for h in headers)
-        groups[key].append(rec)
-
-    for key, recs in groups.items():
-        msg = f"Group: {key} has {len(recs)} records"
-        logging.info(msg)
-
-    return groups
-
-
 def split_data(
-    groups: dict[list[dict]],
+    records: list[dict],
     seed: int,
     train_split: float,
     val_split: float,
-) -> list[dict]:
+):
     random.seed(seed)
 
-    records = []
+    random.shuffle(records)
 
-    for record_list in groups.values():
-        random.shuffle(record_list)
+    total = len(records)
+    split1 = round(total * train_split)
+    split2 = split1 + round(total * val_split)
 
-        total = len(record_list)
-        split1 = round(total * train_split)
-        split2 = split1 + round(total * val_split)
+    for i, rec in enumerate(records):
+        if i < split1:
+            rec["split"] = "train"
+        elif i < split2:
+            rec["split"] = "eval"
+        else:
+            rec["split"] = "test"
 
-        for i, rec in enumerate(record_list):
-            if i < split1:
-                rec["split"] = "train"
-            elif i < split2:
-                rec["split"] = "eval"
-            else:
-                rec["split"] = "test"
-            records.append(rec)
-
-    msg = f"Split   records {len(records)}"
+    msg = f"Split records {len(records)}"
     logging.info(msg)
 
-    msg = f"  Train records {len([r for r in records if r['split'] == 'train'])}"
+    train = sum(1 for r in records if r["split"] == "train")
+    eval_ = sum(1 for r in records if r["split"] == "eval")
+    test = sum(1 for r in records if r["split"] == "test")
+
+    msg = f"  Train {train}    Eval {eval_}    Test {test}"
     logging.info(msg)
 
-    msg = f"  Eval  records {len([r for r in records if r['split'] == 'eval'])}"
+    msg = "Per trait counts: pos / neg"
     logging.info(msg)
 
-    msg = f"  Test  records {len([r for r in records if r['split'] == 'test'])}"
-    logging.info(msg)
-
-    return records
+    for trait in util.TRAITS:
+        pos_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "1")
+        neg_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "0")
+        pos_eval = sum(1 for r in records if r["split"] == "eval" and r[trait] == "1")
+        neg_eval = sum(1 for r in records if r["split"] == "eval" and r[trait] == "0")
+        pos_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "1")
+        neg_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "0")
+        total_pos = pos_train + pos_eval + pos_test
+        total_neg = neg_train + neg_eval + neg_test
+        total = total_pos + total_neg
+        msg = (
+            f"    {trait:<24} train {pos_train:4d} / {neg_train:4d}"
+            f"    eval {pos_eval:4d} / {neg_eval:4d}"
+            f"    test {pos_test:4d} / {neg_test:4d}"
+            f"    total {total:4d}   {total_pos:4d} / {total_neg:4d}"
+        )
+        logging.info(msg)
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
