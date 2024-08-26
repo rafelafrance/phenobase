@@ -5,11 +5,15 @@ import logging
 import textwrap
 from pathlib import Path
 
+import evaluate
+import numpy as np
 import torch
 from pylib import util
 from pylib.datasets.labeled_dataset import LabeledDataset
 from torch import FloatTensor, nn
 from transformers import Trainer, TrainingArguments, ViTForImageClassification
+
+accuracy = evaluate.load("accuracy")
 
 
 class VitTrainer(Trainer):
@@ -31,6 +35,12 @@ class VitTrainer(Trainer):
         loss = self.loss_fn(logits, labels)
 
         return (loss, outputs) if return_outputs else loss
+
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    return accuracy.compute(predictions=predictions, references=labels)
 
 
 def main():
@@ -66,6 +76,7 @@ def main():
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
+        remove_unused_columns=False,
         learning_rate=args.learning_rate,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
@@ -74,6 +85,7 @@ def main():
         eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
+        metric_for_best_model="accuracy",
         save_total_limit=3,
         logging_strategy="epoch",
     )
@@ -84,6 +96,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
     )
 
     trainer.train()

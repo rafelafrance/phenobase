@@ -16,6 +16,7 @@ dependencies = [
     "evaluate",
     "git-lfs",
     "ipython",
+    "ipywidgets",
     "jupyterlab",
     "matplotlib",
     "numpy",

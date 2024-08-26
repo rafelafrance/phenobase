@@ -9,7 +9,6 @@ import torch
 from pylib import util
 from pylib.datasets.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 from transformers import ViTForImageClassification
 
 
@@ -37,14 +36,14 @@ def main():
         dataset, batch_size=args.batch_size, num_workers=args.workers, pin_memory=True
     )
 
-    data = []
+    new = []
     with torch.no_grad():
-        for sheets in tqdm(loader):
+        for sheets in loader:
             images = sheets["pixel_values"].to(device)
             preds = model(images)
             preds = torch.sigmoid(preds.logits)
             preds = preds.detach().cpu()
-            for pred, actual, name in zip(
+            for pred, true, name in zip(
                 preds, sheets["labels"], sheets["name"], strict=False
             ):
                 rec = {
@@ -53,17 +52,25 @@ def main():
                 }
 
                 pred = pred.tolist()
-                actual = actual.tolist()
-                for a, p, t in zip(actual, pred, args.trait, strict=False):
+                true = true.tolist()
+                for a, p, t in zip(true, pred, args.trait, strict=False):
                     rec[f"{t}_pred"] = p
-                    rec[f"{t}_actual"] = a
-                data.append(rec)
+                    rec[f"{t}_true"] = a
+                new.append(rec)
 
-    df = pd.DataFrame(data)
-    mode, header = "w", True
+    df = pd.DataFrame(new)
+    print(args.trait)
+    print(args.pretrained_dir)
+    correct = [round(rec[f"{t}_pred"]) == rec[f"{t}_true"] for rec in new]
+    print(f"correct  = {sum(correct)}")
+    print(f"total    = {len(new)}")
+    print(f"accuracy = {round(sum(correct) / len(new), 3)}")
+    print()
+
     if args.output_csv.exists():
-        mode, header = "a", False
-    df.to_csv(args.output_csv, mode=mode, header=header, index=False)
+        df_old = pd.read_csv(args.output_csv)
+        df = pd.concat((df_old, df))
+    df.to_csv(args.output_csv, index=False)
 
 
 def parse_args():
