@@ -6,12 +6,12 @@ import textwrap
 from pathlib import Path
 
 import evaluate
-import numpy as np
 import torch
 from pylib import util
-from pylib.datasets.labeled_dataset import LabeledDataset
 from torch import FloatTensor, nn
 from transformers import Trainer, TrainingArguments, ViTForImageClassification
+
+from phenobase.pylib.labeled_dataset import LabeledDataset
 
 accuracy = evaluate.load("accuracy")
 
@@ -38,9 +38,9 @@ class VitTrainer(Trainer):
 
 
 def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    predictions = np.argmax(predictions, axis=1)
-    return accuracy.compute(predictions=predictions, references=labels)
+    logits, trues = eval_pred
+    preds = torch.sigmoid(logits)
+    return accuracy.compute(predictions=preds, references=trues)
 
 
 def main():
@@ -59,44 +59,45 @@ def main():
         )
 
     train_dataset = LabeledDataset(
-        trait_csv=args.trait_csv,
-        image_dir=args.image_dir,
-        traits=args.trait,
-        split="train",
         augment=True,
+        image_dir=args.image_dir,
+        split="train",
+        trait_csv=args.trait_csv,
+        traits=args.trait,
     )
 
     eval_dataset = LabeledDataset(
-        trait_csv=args.trait_csv,
-        image_dir=args.image_dir,
-        traits=args.trait,
-        split="eval",
         augment=False,
+        image_dir=args.image_dir,
+        split="eval",
+        trait_csv=args.trait_csv,
+        traits=args.trait,
     )
 
     training_args = TrainingArguments(
-        output_dir=args.output_dir,
-        remove_unused_columns=False,
-        learning_rate=args.learning_rate,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        num_train_epochs=args.epochs,
-        weight_decay=0.01,
         eval_strategy="epoch",
-        save_strategy="epoch",
+        learning_rate=args.learning_rate,
         load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
-        save_total_limit=3,
         logging_strategy="epoch",
+        metric_for_best_model="accuracy",
+        num_train_epochs=args.epochs,
+        output_dir=args.output_dir,
+        per_device_eval_batch_size=args.batch_size,
+        per_device_train_batch_size=args.batch_size,
+        push_to_hub=False,
+        remove_unused_columns=False,
+        save_strategy="epoch",
+        save_total_limit=3,
+        weight_decay=0.01,
     )
 
     trainer = VitTrainer(
-        pos_weight=train_dataset.pos_weight(),
-        model=model,
         args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
+        eval_dataset=eval_dataset,
+        model=model,
+        pos_weight=train_dataset.pos_weight(),
+        train_dataset=train_dataset,
     )
 
     trainer.train()
