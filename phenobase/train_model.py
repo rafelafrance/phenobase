@@ -38,7 +38,8 @@ class VitTrainer(Trainer):
 
 def compute_metrics(eval_pred):
     logits, trues = eval_pred
-    preds = torch.sigmoid(logits)
+    preds = torch.sigmoid(torch.tensor(logits))
+    preds = torch.round(preds)
     return accuracy.compute(predictions=preds, references=trues)
 
 
@@ -75,12 +76,14 @@ def main():
 
     training_args = TrainingArguments(
         eval_strategy="epoch",
+        greater_is_better=True,
         learning_rate=args.learning_rate,
         load_best_model_at_end=True,
         logging_strategy="epoch",
-        metric_for_best_model="accuracy",
+        metric_for_best_model="eval_accuracy",
         num_train_epochs=args.epochs,
         output_dir=args.output_dir,
+        overwrite_output_dir=True,
         per_device_eval_batch_size=args.batch_size,
         per_device_train_batch_size=args.batch_size,
         push_to_hub=False,
