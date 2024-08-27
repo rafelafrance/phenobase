@@ -8,10 +8,9 @@ from pathlib import Path
 import evaluate
 import torch
 from pylib import util
+from pylib.labeled_dataset import LabeledDataset
 from torch import FloatTensor, nn
 from transformers import Trainer, TrainingArguments, ViTForImageClassification
-
-from phenobase.pylib.labeled_dataset import LabeledDataset
 
 accuracy = evaluate.load("accuracy")
 
