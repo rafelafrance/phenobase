@@ -95,11 +95,11 @@ def main():
 
     trainer = VitTrainer(
         args=training_args,
-        compute_metrics=compute_accuracy,
+        # compute_metrics=compute_accuracy,
         eval_dataset=eval_dataset,
         model=model,
         pos_weight=train_dataset.pos_weight(),
-        # train_dataset=train_dataset,
+        train_dataset=train_dataset,
     )
 
     trainer.train()
