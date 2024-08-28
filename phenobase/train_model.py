@@ -36,7 +36,7 @@ class VitTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def compute_metrics(eval_pred):
+def compute_accuracy(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
     preds = torch.round(preds)
@@ -80,7 +80,7 @@ def main():
         learning_rate=args.learning_rate,
         load_best_model_at_end=True,
         logging_strategy="epoch",
-        metric_for_best_model="eval_accuracy",
+        metric_for_best_model="accuracy",
         num_train_epochs=args.epochs,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -95,7 +95,7 @@ def main():
 
     trainer = VitTrainer(
         args=training_args,
-        compute_metrics=compute_metrics,
+        compute_metrics=compute_accuracy,
         eval_dataset=eval_dataset,
         model=model,
         pos_weight=train_dataset.pos_weight(),
