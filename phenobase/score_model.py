@@ -17,60 +17,65 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = ViTForImageClassification.from_pretrained(
-        str(args.pretrained_dir),
-        num_labels=len(args.trait),
-    )
+    for checkpoint in sorted(args.pretrained_dir.glob("**/checkpoint-*")):
+        model = ViTForImageClassification.from_pretrained(
+            str(checkpoint),
+            num_labels=len(args.trait),
+        )
 
-    model.to(device)
-    model.eval()
+        model.to(device)
+        model.eval()
 
-    dataset = LabeledDataset(
-        trait_csv=args.trait_csv,
-        image_dir=args.image_dir,
-        traits=args.trait,
-        split="test",
-    )
+        dataset = LabeledDataset(
+            trait_csv=args.trait_csv,
+            image_dir=args.image_dir,
+            image_size=args.image_size,
+            traits=args.trait,
+            split="test",
+        )
 
-    loader = DataLoader(
-        dataset, batch_size=args.batch_size, num_workers=args.workers, pin_memory=True
-    )
+        loader = DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            num_workers=args.workers,
+            pin_memory=True,
+        )
 
-    new = []
-    with torch.no_grad():
-        for sheets in loader:
-            images = sheets["pixel_values"].to(device)
-            preds = model(images)
-            preds = torch.sigmoid(preds.logits)
-            preds = preds.detach().cpu()
-            for pred, true, name in zip(
-                preds, sheets["labels"], sheets["name"], strict=False
-            ):
-                rec = {
-                    "name": name,
-                    "pretrained": args.pretrained_dir,
-                }
+        new = []
+        with torch.no_grad():
+            for sheets in loader:
+                images = sheets["pixel_values"].to(device)
+                preds = model(images)
+                preds = torch.sigmoid(preds.logits)
+                preds = preds.detach().cpu()
+                for pred, true, name in zip(
+                    preds, sheets["labels"], sheets["name"], strict=False
+                ):
+                    rec = {
+                        "name": name,
+                        "pretrained": args.pretrained_dir,
+                    }
 
-                pred = pred.tolist()
-                true = true.tolist()
-                for a, p, t in zip(true, pred, args.trait, strict=False):
-                    rec[f"{t}_pred"] = p
-                    rec[f"{t}_true"] = a
-                new.append(rec)
+                    pred = pred.tolist()
+                    true = true.tolist()
+                    for a, p, t in zip(true, pred, args.trait, strict=False):
+                        rec[f"{t}_pred"] = p
+                        rec[f"{t}_true"] = a
+                    new.append(rec)
 
-    df = pd.DataFrame(new)
-    print(args.trait)
-    print(args.pretrained_dir)
-    correct = [round(rec[f"{t}_pred"]) == rec[f"{t}_true"] for rec in new]
-    print(f"correct  = {sum(correct)}")
-    print(f"total    = {len(new)}")
-    print(f"accuracy = {round(sum(correct) / len(new), 3)}")
-    print()
+        df = pd.DataFrame(new)
+        print(args.trait)
+        print(checkpoint)
+        correct = [round(rec[f"{t}_pred"]) == rec[f"{t}_true"] for rec in new]
+        print(f"correct  = {sum(correct)}")
+        print(f"total    = {len(new)}")
+        print(f"accuracy = {round(sum(correct) / len(new), 3)}")
+        print()
 
-    if args.output_csv.exists():
-        df_old = pd.read_csv(args.output_csv)
-        df = pd.concat((df_old, df))
-    df.to_csv(args.output_csv, index=False)
+        if args.output_csv.exists():
+            df_old = pd.read_csv(args.output_csv)
+            df = pd.concat((df_old, df))
+        df.to_csv(args.output_csv, index=False)
 
 
 def parse_args():
@@ -106,6 +111,14 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--image-size",
+        type=int,
+        metavar="INT",
+        default=224,
+        help="""Images are this size (pixels). (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
         "--trait",
         choices=util.TRAITS,
         action="append",
@@ -117,7 +130,7 @@ def parse_args():
         "--pretrained-dir",
         type=Path,
         metavar="PATH",
-        help="""The directory containing the pretrained model.""",
+        help="""The directory containing the trained model.""",
     )
 
     arg_parser.add_argument(

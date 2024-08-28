@@ -36,27 +36,21 @@ class VitTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def compute_accuracy(eval_pred):
-    logits, trues = eval_pred
-    preds = torch.sigmoid(torch.tensor(logits))
-    preds = torch.round(preds)
-    return accuracy.compute(predictions=preds, references=trues)
+# def compute_accuracy(eval_pred):
+#     logits, trues = eval_pred
+#     preds = torch.sigmoid(torch.tensor(logits))
+#     preds = torch.round(preds)
+#     return accuracy.compute(predictions=preds, references=trues)
 
 
 def main():
     args = parse_args()
 
-    if args.pretrained_dir:
-        model = ViTForImageClassification.from_pretrained(
-            str(args.pretrained_dir),
-            num_labels=len(args.trait),
-        )
-    else:
-        model = ViTForImageClassification.from_pretrained(
-            "google/vit-base-patch16-224",
-            num_labels=len(args.trait),
-            ignore_mismatched_sizes=True,
-        )
+    model = ViTForImageClassification.from_pretrained(
+        args.finetune,
+        num_labels=len(args.trait),
+        ignore_mismatched_sizes=True,
+    )
 
     train_dataset = LabeledDataset(
         augment=True,
@@ -64,6 +58,7 @@ def main():
         split="train",
         trait_csv=args.trait_csv,
         traits=args.trait,
+        image_size=args.image_size,
     )
 
     eval_dataset = LabeledDataset(
@@ -72,15 +67,15 @@ def main():
         split="eval",
         trait_csv=args.trait_csv,
         traits=args.trait,
+        image_size=args.image_size,
     )
 
     training_args = TrainingArguments(
         eval_strategy="epoch",
-        # greater_is_better=True,
         learning_rate=args.learning_rate,
         load_best_model_at_end=True,
         logging_strategy="epoch",
-        # metric_for_best_model="accuracy",
+        metric_for_best_model="loss",
         num_train_epochs=args.epochs,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -89,7 +84,7 @@ def main():
         push_to_hub=False,
         remove_unused_columns=False,
         save_strategy="epoch",
-        save_total_limit=4,
+        save_total_limit=5,
         weight_decay=0.01,
     )
 
@@ -144,10 +139,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--pretrained-dir",
+        "--finetune",
         type=Path,
+        default="google/vit-base-patch16-224",
         metavar="PATH",
-        help="""Continue training the model in this directory.""",
+        help="""Finetune this model.""",
+    )
+
+    arg_parser.add_argument(
+        "--image-size",
+        type=int,
+        metavar="INT",
+        default=224,
+        help="""Images are this size (pixels). (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

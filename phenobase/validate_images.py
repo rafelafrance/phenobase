@@ -17,6 +17,9 @@ def main():
     paths = list(args.sheets_dir.glob("*"))
     good_images = paths.copy()
 
+    if args.resize_dir:
+        args.resize_dir.mkdir(parents=True, exist_ok=True)
+
     if args.cull_bad_paths:
         good_images = cull_bad_paths(good_images)
 
@@ -77,7 +80,6 @@ def log_error_count(what: str, good_images: list[Path], paths: list[Path]) -> No
 def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        fromfile_prefix_chars="@",
         description=textwrap.dedent("""Cull bad images from the image directory."""),
     )
 

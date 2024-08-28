@@ -26,9 +26,10 @@ class LabeledDataset(Dataset):
         traits: list[util.TRAIT],
         split: util.SPLIT,
         augment: bool = False,
+        image_size: int = util.IMAGE_SIZE,
     ) -> None:
         self.traits = traits
-        self.transform = self.build_transforms(augment=augment)
+        self.transform = self.build_transforms(image_size, augment=augment)
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
             sheets = [
@@ -56,8 +57,8 @@ class LabeledDataset(Dataset):
         return {"pixel_values": image, "labels": sheet.target, "name": sheet.path.name}
 
     @staticmethod
-    def build_transforms(*, augment=False):
-        xform = [transforms.Resize(util.IMAGE_SIZE)]
+    def build_transforms(image_size, *, augment=False):
+        xform = [transforms.Resize(image_size)]
 
         if augment:
             xform += [
