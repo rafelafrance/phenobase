@@ -76,11 +76,11 @@ def main():
 
     training_args = TrainingArguments(
         eval_strategy="epoch",
-        greater_is_better=True,
+        # greater_is_better=True,
         learning_rate=args.learning_rate,
         load_best_model_at_end=True,
         logging_strategy="epoch",
-        metric_for_best_model="accuracy",
+        # metric_for_best_model="accuracy",
         num_train_epochs=args.epochs,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -89,7 +89,7 @@ def main():
         push_to_hub=False,
         remove_unused_columns=False,
         save_strategy="epoch",
-        save_total_limit=3,
+        save_total_limit=4,
         weight_decay=0.01,
     )
 
@@ -99,7 +99,7 @@ def main():
         eval_dataset=eval_dataset,
         model=model,
         pos_weight=train_dataset.pos_weight(),
-        train_dataset=train_dataset,
+        # train_dataset=train_dataset,
     )
 
     trainer.train()

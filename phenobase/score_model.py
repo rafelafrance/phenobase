@@ -7,10 +7,9 @@ from pathlib import Path
 import pandas as pd
 import torch
 from pylib import util
+from pylib.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
 from transformers import ViTForImageClassification
-
-from phenobase.pylib.labeled_dataset import LabeledDataset
 
 
 def main():
