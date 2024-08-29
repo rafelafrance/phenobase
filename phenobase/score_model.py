@@ -17,7 +17,9 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    print(args.pretrained_dir)
     for checkpoint in sorted(args.pretrained_dir.glob("**/checkpoint-*")):
+        print(checkpoint)
         model = ViTForImageClassification.from_pretrained(
             str(checkpoint),
             num_labels=len(args.trait),

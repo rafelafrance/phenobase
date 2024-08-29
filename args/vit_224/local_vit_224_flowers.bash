@@ -7,4 +7,4 @@ python ./phenobase/train_vit.py \
   --trait flowers \
   --batch-size 48 \
   --lr 1e-4 \
-  --epochs 100
+  --epochs 50

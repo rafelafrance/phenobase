@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_384_whole_plant
+#SBATCH --job-name=vit_384_reproductive_condition
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -24,14 +24,14 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_vit.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_whole_plant \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_reproductive_condition \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_384 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
-  --epochs 100 \
+  --epochs 200 \
   --lr 1e-4 \
   --batch-size 128 \
-  --trait whole_plant
+  --trait reproductive_condition
 
 date

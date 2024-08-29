@@ -9,4 +9,4 @@ python ./phenobase/train_vit.py \
   --image-size 384 \
   --batch-size 48 \
   --lr 1e-4 \
-  --epochs 100
+  --epochs 50
