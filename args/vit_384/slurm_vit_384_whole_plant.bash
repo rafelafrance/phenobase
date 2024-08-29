@@ -29,7 +29,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_vit.py \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
-  --epochs 2400 \
+  --epochs 100 \
   --lr 1e-4 \
   --batch-size 128 \
   --trait whole_plant

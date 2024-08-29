@@ -71,30 +71,29 @@ def main():
     )
 
     training_args = TrainingArguments(
-        eval_strategy="epoch",
+        remove_unused_columns=False,
         learning_rate=args.learning_rate,
-        load_best_model_at_end=True,
-        logging_strategy="epoch",
-        metric_for_best_model="loss",
-        num_train_epochs=args.epochs,
-        output_dir=args.output_dir,
-        overwrite_output_dir=True,
+        weight_decay=0.01,
         per_device_eval_batch_size=args.batch_size,
         per_device_train_batch_size=args.batch_size,
-        push_to_hub=False,
-        remove_unused_columns=False,
+        num_train_epochs=args.epochs,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        output_dir=args.output_dir,
+        overwrite_output_dir=True,
+        eval_strategy="epoch",
+        logging_strategy="epoch",
         save_strategy="epoch",
-        save_total_limit=5,
-        weight_decay=0.01,
+        save_total_limit=2,
+        push_to_hub=False,
     )
 
     trainer = VitTrainer(
         args=training_args,
-        # compute_metrics=compute_accuracy,
-        eval_dataset=eval_dataset,
         model=model,
-        pos_weight=train_dataset.pos_weight(),
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        pos_weight=train_dataset.pos_weight(),
     )
 
     trainer.train()

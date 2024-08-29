@@ -28,7 +28,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_vit.py \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --lr 1e-4 \
-  --epochs 2400 \
+  --epochs 100 \
   --batch-size 128 \
   --trait flowers
 
