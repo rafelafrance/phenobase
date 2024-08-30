@@ -3,11 +3,9 @@ import warnings
 from pathlib import Path
 from typing import Literal
 
-import torch
 from PIL import Image, UnidentifiedImageError
 
-TRAITS = "flowers fruits leaves whole_plant reproductive_structure".split()
-TRAIT = Literal["flowers", "fruits", "leaves", "whole_plant", "reproductive_structure"]
+TRAITS = "flowers fruits leaves".split()
 SPLIT = Literal["train", "eval", "test"]
 
 IMAGE_SIZE = (224, 224)
@@ -22,21 +20,6 @@ IMAGE_EXCEPTIONS = (
     FileNotFoundError,
     OSError,
 )
-
-
-def trait_str_2_int(*, limit=2) -> dict[str, int]:
-    return {t: i for i, t in enumerate(TRAITS[:limit])}
-
-
-def trait_int_2_str(*, limit=2) -> dict[int, str]:
-    return dict(enumerate(TRAITS[:limit]))
-
-
-def accuracy(preds, targets):
-    """Calculate the accuracy of the model."""
-    pred = torch.round(torch.sigmoid(preds))
-    equals = (pred == targets).type(torch.float)
-    return torch.mean(equals)
 
 
 def get_sheet_image(path: Path) -> Image:

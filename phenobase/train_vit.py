@@ -1,54 +1,35 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import textwrap
 from pathlib import Path
 
 import evaluate
 import torch
-from pylib import util
+import transformers
 from pylib.labeled_dataset import LabeledDataset
-from torch import FloatTensor, nn
+from pylib.util import TRAITS
 from transformers import Trainer, TrainingArguments, ViTForImageClassification
 
 accuracy = evaluate.load("accuracy")
-
-
-class VitTrainer(Trainer):
-    def __init__(self, *args, pos_weight: FloatTensor | None = None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(self.args.device)
-
-        msg = f"Using multi-label classification with class weights: {pos_weight}"
-        logging.info(msg)
-
-        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-
-    def compute_loss(self, model, inputs, return_outputs=False):  # noqa: FBT002
-        labels = inputs.pop("labels")
-        outputs = model(**inputs)
-
-        logits = outputs.get("logits")
-        loss = self.loss_fn(logits, labels)
-
-        return (loss, outputs) if return_outputs else loss
 
 
 def compute_accuracy(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
     preds = torch.round(preds)
-    return accuracy.compute(predictions=preds, references=trues)
+    trues = torch.tensor(trues)
+    return accuracy.compute(predictions=preds.flatten(), references=trues.flatten())
 
 
 def main():
     args = parse_args()
 
+    transformers.set_seed(args.seed)
+
     model = ViTForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(args.trait),
+        num_labels=len(TRAITS),
         ignore_mismatched_sizes=True,
     )
 
@@ -57,7 +38,6 @@ def main():
         image_dir=args.image_dir,
         split="train",
         trait_csv=args.trait_csv,
-        traits=args.trait,
         image_size=args.image_size,
     )
 
@@ -66,7 +46,6 @@ def main():
         image_dir=args.image_dir,
         split="eval",
         trait_csv=args.trait_csv,
-        traits=args.trait,
         image_size=args.image_size,
     )
 
@@ -78,7 +57,8 @@ def main():
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
+        metric_for_best_model="eval_accuracy",
+        greater_is_better=True,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
         eval_strategy="epoch",
@@ -88,12 +68,12 @@ def main():
         push_to_hub=False,
     )
 
-    trainer = VitTrainer(
+    trainer = Trainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        pos_weight=train_dataset.pos_weight(),
+        compute_metrics=compute_accuracy,
     )
 
     trainer.train()
@@ -126,15 +106,6 @@ def parse_args():
         type=Path,
         metavar="PATH",
         help="""Save training results here.""",
-    )
-
-    arg_parser.add_argument(
-        "--trait",
-        choices=util.TRAITS,
-        action="append",
-        required=True,
-        help="""Train to classify this trait. Repeat this argument to train
-            multiple trait labels.""",
     )
 
     arg_parser.add_argument(
@@ -184,6 +155,14 @@ def parse_args():
         default=100,
         metavar="INT",
         help="""How many epochs to train. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--seed",
+        type=int,
+        metavar="INT",
+        default=8174997,
+        help="""Seed used for random number generator. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()

@@ -17,9 +17,9 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print(args.pretrained_dir)
     for checkpoint in sorted(args.pretrained_dir.glob("**/checkpoint-*")):
         print(checkpoint)
+
         model = ViTForImageClassification.from_pretrained(
             str(checkpoint),
             num_labels=len(args.trait),
@@ -32,7 +32,6 @@ def main():
             trait_csv=args.trait_csv,
             image_dir=args.image_dir,
             image_size=args.image_size,
-            traits=args.trait,
             split="test",
         )
 
@@ -53,26 +52,25 @@ def main():
                 for pred, true, name in zip(
                     preds, sheets["labels"], sheets["name"], strict=False
                 ):
-                    rec = {
-                        "name": name,
-                        "pretrained": args.pretrained_dir,
-                    }
+                    rec = {"name": name, "pretrained": checkpoint}
 
                     pred = pred.tolist()
                     true = true.tolist()
-                    for a, p, t in zip(true, pred, args.trait, strict=False):
+                    for a, p, t in zip(true, pred, util.TRAITS, strict=False):
                         rec[f"{t}_pred"] = p
                         rec[f"{t}_true"] = a
                     new.append(rec)
 
-        df = pd.DataFrame(new)
-        print(args.trait)
         print(checkpoint)
-        correct = [round(rec[f"{t}_pred"]) == rec[f"{t}_true"] for rec in new]
-        print(f"correct  = {sum(correct)}")
-        print(f"total    = {len(new)}")
-        print(f"accuracy = {round(sum(correct) / len(new), 3)}")
+        total = len(new)
+        print(f"total = {total}")
+        for trait in util.TRAITS:
+            correct = sum(1 for r in new if r[f"{trait}_pred"] == r[f"{trait}_true"])
+            accuracy = round(correct / total, 3)
+            print(f"{trait:<8} correct = {correct}   accuracy = {accuracy}")
         print()
+
+        df = pd.DataFrame(new)
 
         if args.output_csv.exists():
             df_old = pd.read_csv(args.output_csv)
@@ -97,19 +95,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--output-csv",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Output inference results to this CSV.""",
-    )
-
-    arg_parser.add_argument(
         "--image-dir",
         type=Path,
         metavar="PATH",
         required=True,
         help="""A path to the directory where the images are.""",
+    )
+
+    arg_parser.add_argument(
+        "--output-csv",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""Output inference results to this CSV.""",
     )
 
     arg_parser.add_argument(
@@ -121,18 +119,11 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--trait",
-        choices=util.TRAITS,
-        action="append",
-        required=True,
-        help="""Infer this trait. Repeat this argument to infer multiple traits.""",
-    )
-
-    arg_parser.add_argument(
         "--pretrained-dir",
         type=Path,
+        required=True,
         metavar="PATH",
-        help="""The directory containing the trained model.""",
+        help="""Directory containing the training checkpoints.""",
     )
 
     arg_parser.add_argument(
