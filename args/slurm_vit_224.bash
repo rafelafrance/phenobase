@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_224
+#SBATCH --job-name=vit_224_large
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -28,6 +28,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_vit.py \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/vit-large-patch16-224" \
+  --image-size 384 \
   --lr 1e-4 \
   --epochs 100 \
   --batch-size 128
