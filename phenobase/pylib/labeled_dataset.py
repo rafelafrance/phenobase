@@ -25,8 +25,8 @@ class LabeledDataset(Dataset):
         trait_csv: Path,
         image_dir: Path,
         split: util.SPLIT,
+        image_size: int,
         augment: bool = False,
-        image_size: int = util.IMAGE_SIZE,
     ) -> None:
         self.transform = self.build_transforms(image_size, augment=augment)
         with trait_csv.open() as csv_in:

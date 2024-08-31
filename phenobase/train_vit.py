@@ -14,6 +14,12 @@ from transformers import Trainer, TrainingArguments, ViTForImageClassification
 accuracy = evaluate.load("accuracy")
 
 
+class VitTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loss_fn = torch.nn.BCEWithLogitsLoss()
+
+
 def compute_accuracy(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
@@ -68,7 +74,7 @@ def main():
         push_to_hub=False,
     )
 
-    trainer = Trainer(
+    trainer = VitTrainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,

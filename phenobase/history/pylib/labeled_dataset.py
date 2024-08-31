@@ -33,7 +33,7 @@ class LabeledDataset(Dataset):
         for sheet in csv_data:
             if sheet["split"] != split:
                 continue
-            targets = [self.str_to_target(sheet[t]) for t in util.TARGETS]
+            targets = [self.str_to_target(sheet[t]) for t in util.TRAITS]
             self.sheets.append(
                 LabeledSheet(
                     image_path=image_dir / sheet["file"],
@@ -85,7 +85,7 @@ class LabeledDataset(Dataset):
     @staticmethod
     def pos_weight(dataset):
         weights = []
-        for i in range(len(util.TARGETS)):
+        for i in range(len(util.TRAITS)):
             pos = sum(s.targets[i] for s in dataset.sheets)
             pos_wt = (len(dataset) - pos) / pos if pos > 0.0 else 1.0
             weights.append(pos_wt)
