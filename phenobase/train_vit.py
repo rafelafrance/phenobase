@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import textwrap
 from pathlib import Path
 
@@ -15,9 +16,15 @@ accuracy = evaluate.load("accuracy")
 
 
 class VitTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, pos_weight: torch.FloatTensor | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.loss_fn = torch.nn.BCEWithLogitsLoss()
+
+        pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(self.args.device)
+
+        msg = f"Using multi-label classification with class weights: {pos_weight}"
+        logging.info(msg)
+
+        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
 
 def compute_accuracy(eval_pred):
