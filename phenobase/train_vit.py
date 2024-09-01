@@ -87,6 +87,7 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_accuracy,
+        pos_weight=train_dataset.pos_weight(),
     )
 
     trainer.train()
