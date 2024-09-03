@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import textwrap
 from pathlib import Path
 
@@ -10,29 +9,17 @@ import torch
 import transformers
 from pylib.labeled_dataset import LabeledDataset
 from pylib.util import TRAITS
-from transformers import Trainer, TrainingArguments, ViTForImageClassification
+from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-accuracy = evaluate.load("accuracy")
-
-
-class VitTrainer(Trainer):
-    def __init__(self, *args, pos_weight: torch.FloatTensor | None = None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(self.args.device)
-
-        msg = f"Using multi-label classification with class weights: {pos_weight}"
-        logging.info(msg)
-
-        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+metrics = evaluate.combine(["accuracy", "f1", "precision", "recall"])
 
 
-def compute_accuracy(eval_pred):
+def compute_metrics(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
-    preds = torch.round(preds)
-    trues = torch.tensor(trues)
-    return accuracy.compute(predictions=preds.flatten(), references=trues.flatten())
+    preds = torch.round(preds).flatten()
+    trues = torch.tensor(trues).flatten()
+    return metrics.compute(predictions=preds, references=trues)
 
 
 def main():
@@ -40,26 +27,27 @@ def main():
 
     transformers.set_seed(args.seed)
 
-    model = ViTForImageClassification.from_pretrained(
+    model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
         num_labels=len(TRAITS),
+        problem_type="multi_label_classification",
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = LabeledDataset(
-        augment=True,
+        trait_csv=args.trait_csv,
         image_dir=args.image_dir,
         split="train",
-        trait_csv=args.trait_csv,
         image_size=args.image_size,
+        augment=True,
     )
 
     eval_dataset = LabeledDataset(
-        augment=False,
+        trait_csv=args.trait_csv,
         image_dir=args.image_dir,
         split="eval",
-        trait_csv=args.trait_csv,
         image_size=args.image_size,
+        augment=False,
     )
 
     training_args = TrainingArguments(
@@ -81,13 +69,12 @@ def main():
         push_to_hub=False,
     )
 
-    trainer = VitTrainer(
+    trainer = Trainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=compute_accuracy,
-        pos_weight=train_dataset.pos_weight(),
+        compute_metrics=compute_metrics,
     )
 
     trainer.train()
