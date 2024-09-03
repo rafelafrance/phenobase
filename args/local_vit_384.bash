@@ -3,7 +3,7 @@
 python ./phenobase/train_vit.py \
   --trait-csv ./data/split_all_3.csv \
   --image-dir ./data/images/images_384 \
-  --output-dir ./data/local/vit_384_hf \
+  --output-dir ./data/local/vit_384_auto_base_hf_f1 \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
   --batch-size 48 \

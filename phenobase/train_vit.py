@@ -11,7 +11,7 @@ from pylib.labeled_dataset import LabeledDataset
 from pylib.util import TRAITS
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-metrics = evaluate.combine(["accuracy", "f1", "precision", "recall"])
+metrics = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 def compute_metrics(eval_pred):
@@ -58,7 +58,7 @@ def main():
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_accuracy",
+        metric_for_best_model="eval_f1",
         greater_is_better=True,
         output_dir=args.output_dir,
         overwrite_output_dir=True,

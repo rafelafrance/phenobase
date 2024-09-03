@@ -9,7 +9,7 @@ import torch
 from pylib import util
 from pylib.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
-from transformers import ViTForImageClassification
+from transformers import AutoModelForImageClassification
 
 
 def main():
@@ -17,12 +17,13 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    for checkpoint in sorted(args.pretrained_dir.glob("**/checkpoint-*")):
-        print(checkpoint)
-
-        model = ViTForImageClassification.from_pretrained(
+    checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
+    for checkpoint in sorted(checkpoints):
+        model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            num_labels=len(args.trait),
+            num_labels=len(util.TRAITS),
+            problem_type="multi_label_classification",
+            ignore_mismatched_sizes=True,
         )
 
         model.to(device)
@@ -48,6 +49,7 @@ def main():
                 images = sheets["pixel_values"].to(device)
                 preds = model(images)
                 preds = torch.sigmoid(preds.logits)
+                preds = torch.round(preds)
                 preds = preds.detach().cpu()
                 for pred, true, name in zip(
                     preds, sheets["labels"], sheets["name"], strict=False
@@ -111,19 +113,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--model-dir",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""Directory containing the training checkpoints.""",
+    )
+
+    arg_parser.add_argument(
         "--image-size",
         type=int,
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--pretrained-dir",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Directory containing the training checkpoints.""",
     )
 
     arg_parser.add_argument(
