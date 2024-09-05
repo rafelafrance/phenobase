@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 from pylib import util
 from pylib.labeled_dataset import LabeledDataset
+from sklearn import metrics
 from torch.utils.data import DataLoader
 from transformers import AutoModelForImageClassification
 
@@ -43,7 +44,10 @@ def main():
             pin_memory=True,
         )
 
-        new = []
+        new_rows = []
+        y_true = []
+        y_pred = []
+
         with torch.no_grad():
             for sheets in loader:
                 images = sheets["pixel_values"].to(device)
@@ -54,30 +58,40 @@ def main():
                 for pred, true, name in zip(
                     preds, sheets["labels"], sheets["name"], strict=False
                 ):
-                    rec = {"name": name, "pretrained": checkpoint}
+                    new_row = {"name": name, "pretrained": checkpoint}
 
-                    pred = pred.tolist()
                     true = true.tolist()
-                    for a, p, t in zip(true, pred, util.TRAITS, strict=False):
-                        rec[f"{t}_pred"] = p
-                        rec[f"{t}_true"] = a
-                    new.append(rec)
+                    pred = pred.tolist()
+
+                    y_true.append(true)
+                    y_pred.append(pred)
+
+                    for t, p, trait in zip(true, pred, util.TRAITS, strict=False):
+                        pred_key = f"{trait}_pred"
+                        true_key = f"{trait}_true"
+                        new_row[true_key] = t
+                        new_row[pred_key] = p
+
+                    new_rows.append(new_row)
 
         print(checkpoint)
-        total = len(new)
-        print(f"total = {total}")
-        for trait in util.TRAITS:
-            correct = sum(1 for r in new if r[f"{trait}_pred"] == r[f"{trait}_true"])
-            accuracy = round(correct / total, 3)
-            print(f"{trait:<8} correct = {correct}   accuracy = {accuracy}")
+        print(metrics.multilabel_confusion_matrix(y_true, y_pred))
         print()
+        f1 = metrics.f1_score(y_true, y_pred, average=None)
+        for i, trait in enumerate(util.TRAITS):
+            true = [t[i] for t in y_true]
+            pred = [p[i] for p in y_pred]
+            accuracy = metrics.accuracy_score(true, pred)
+            print(f"{trait:<7} accuracy = {round(accuracy, 3)}")
+            print(f"{trait:<7} f1       = {round(f1[i], 3)}")
+            print()
 
-        df = pd.DataFrame(new)
-
-        if args.output_csv.exists():
-            df_old = pd.read_csv(args.output_csv)
-            df = pd.concat((df_old, df))
-        df.to_csv(args.output_csv, index=False)
+        if args.output_csv:
+            df = pd.DataFrame(new_rows)
+            if args.output_csv.exists():
+                df_old = pd.read_csv(args.output_csv)
+                df = pd.concat((df_old, df))
+            df.to_csv(args.output_csv, index=False)
 
 
 def parse_args():
@@ -107,7 +121,6 @@ def parse_args():
     arg_parser.add_argument(
         "--output-csv",
         type=Path,
-        required=True,
         metavar="PATH",
         help="""Output inference results to this CSV.""",
     )

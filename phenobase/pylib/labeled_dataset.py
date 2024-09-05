@@ -61,15 +61,15 @@ class LabeledDataset(Dataset):
 
         if augment:
             xform += [
-                transforms.AutoAugment(),
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),
+                transforms.AutoAugment(),
             ]
 
         xform += [
             transforms.ToTensor(),
             transforms.ConvertImageDtype(torch.float),
-            transforms.Normalize(util.IMAGENET_MEAN, util.IMAGENET_STD_DEV),
+            # transforms.Normalize(util.IMAGENET_MEAN, util.IMAGENET_STD_DEV),
         ]
 
         return transforms.Compose(xform)
