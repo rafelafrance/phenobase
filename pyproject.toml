@@ -13,6 +13,7 @@ dependencies = [
     "Pillow",
     "accelerate",
     "datasets",
+    "duckdb",
     "evaluate",
     "git-lfs",
     "ipython",

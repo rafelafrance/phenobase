@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 import torch
 from pylib import util
+from pylib.binary_metrics import Metrics
 from pylib.labeled_dataset import LabeledDataset
-from sklearn import metrics
 from torch.utils.data import DataLoader
 from transformers import AutoModelForImageClassification
 
@@ -53,7 +53,6 @@ def main():
                 images = sheets["pixel_values"].to(device)
                 preds = model(images)
                 preds = torch.sigmoid(preds.logits)
-                preds = torch.round(preds)
                 preds = preds.detach().cpu()
                 for pred, true, name in zip(
                     preds, sheets["labels"], sheets["name"], strict=False
@@ -69,21 +68,23 @@ def main():
                     for t, p, trait in zip(true, pred, util.TRAITS, strict=False):
                         pred_key = f"{trait}_pred"
                         true_key = f"{trait}_true"
-                        new_row[true_key] = t
+                        new_row[true_key] = float(t)
                         new_row[pred_key] = p
 
                     new_rows.append(new_row)
 
-        print(checkpoint)
-        print(metrics.multilabel_confusion_matrix(y_true, y_pred))
-        print()
-        f1 = metrics.f1_score(y_true, y_pred, average=None)
+        print(checkpoint, "\n")
+        metrics = Metrics()
         for i, trait in enumerate(util.TRAITS):
-            true = [t[i] for t in y_true]
-            pred = [p[i] for p in y_pred]
-            accuracy = metrics.accuracy_score(true, pred)
-            print(f"{trait:<7} accuracy = {round(accuracy, 3)}")
-            print(f"{trait:<7} f1       = {round(f1[i], 3)}")
+            for true, pred in zip(y_true, y_pred, strict=True):
+                metrics.add(true[i], pred[i])
+            metrics.count()
+            print(trait)
+            metrics.display()
+            print(f"accuracy = {metrics.accuracy:0.3f}")
+            print(f"f1       = {metrics.f1:0.3f}")
+            print(f"ppv      = {metrics.ppv:0.3f}")
+            print(f"npv      = {metrics.npv:0.3f}")
             print()
 
         if args.output_csv:

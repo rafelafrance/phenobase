@@ -1,6 +1,9 @@
-"""Wrap scikit-learn's confusion metrics."""
+"""Wrap scikit-learn's metrics."""
 
 from dataclasses import dataclass, field
+from typing import Literal
+
+COMPARE = Literal["ge", "le"]
 
 
 @dataclass
@@ -14,21 +17,23 @@ class Metrics:
 
     def display(self):
         print(
-            f"tp = {self.tp:4d}    tn = {self.tn:4d}    "
-            f"fp = {self.fp:4d}    fn = {self.fn:4d}"
+            f"tp = {self.tp:4.0f}    fn = {self.fn:4.0f}\n"
+            f"fp = {self.fp:4.0f}    tn = {self.tn:4.0f}"
         )
 
     def add(self, true, pred):
         self.y_true.append(true)
         self.y_pred.append(pred)
 
-    def count(self):
+    def count(self, lo: float = 0.5, hi: float = 0.5):
         self.tp, self.tn, self.fn, self.fp = 0.0, 0.0, 0.0, 0.0
         for true, pred in zip(self.y_true, self.y_pred, strict=True):
-            self.tp += 1.0 if (true == 1.0 and pred == 1.0) else 0.0
-            self.tn += 1.0 if (true == 0.0 and pred == 0.0) else 0.0
-            self.fn += 1.0 if (true == 1.0 and pred == 0.0) else 0.0
-            self.fp += 1.0 if (true == 0.0 and pred == 1.0) else 0.0
+            if lo <= pred < hi:
+                continue
+            self.tp += 1.0 if (true == 1.0 and pred >= hi) else 0.0
+            self.tn += 1.0 if (true == 0.0 and pred < lo) else 0.0
+            self.fn += 1.0 if (true == 1.0 and pred < lo) else 0.0
+            self.fp += 1.0 if (true == 0.0 and pred >= hi) else 0.0
 
     @property
     def total(self):
@@ -36,19 +41,22 @@ class Metrics:
 
     @property
     def accuracy(self):
-        return (self.tp + self.tn) / self.total
+        return (self.tp + self.tn) / self.total if self.total > 0.0 else 0.0
 
     @property
     def f1(self):
-        return (2.0 * self.tp) / ((2.0 * self.tp) + self.fp + self.fn)
+        denominator = (2.0 * self.tp) + self.fp + self.fn
+        return (2.0 * self.tp) / denominator if denominator > 0.0 else 0.0
 
     @property
     def precision(self):
-        return self.tp / (self.tp + self.fp)
+        denominator = self.tp + self.fp
+        return self.tp / denominator if denominator > 0.0 else 0.0
 
     @property
     def recall(self):
-        return self.tp / (self.tp + self.fn)
+        denominator = self.tp + self.fn
+        return self.tp / denominator if denominator > 0.0 else 0.0
 
     @property
     def sensitivity(self):
@@ -56,7 +64,8 @@ class Metrics:
 
     @property
     def specificity(self):
-        return self.tn / (self.tn / self.fp)
+        denominator = self.tn + self.fp
+        return self.tn / denominator if denominator > 0.0 else 0.0
 
     @property
     def tnr(self):
@@ -80,4 +89,5 @@ class Metrics:
     @property
     def npv(self):
         """Negative predictive value."""
-        return self.tn / (self.tn + self.fn)
+        denominator = self.tn + self.fn
+        return self.tn / denominator if denominator > 0.0 else 0.0
