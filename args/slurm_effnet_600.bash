@@ -31,6 +31,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --image-size 600 \
   --epochs 200 \
   --lr 1e-4 \
-  --batch-size 128
+  --batch-size 16
 
 date
