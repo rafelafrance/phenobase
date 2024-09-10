@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_224_large_hf_f1
+#SBATCH --job-name=vit_224_large_prec
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -23,8 +23,8 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_vit.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_224_large_hf_f1 \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_224_large_prec \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/vit-large-patch16-224" \

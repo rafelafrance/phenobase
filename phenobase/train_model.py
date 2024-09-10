@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import textwrap
 from pathlib import Path
 
@@ -11,7 +12,31 @@ from pylib.labeled_dataset import LabeledDataset
 from pylib.util import TRAITS
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-metrics = evaluate.combine(["f1", "precision", "recall", "accuracy"])
+metrics = evaluate.combine(["precision", "f1", "recall", "accuracy"])
+
+
+class WeightedTrainer(Trainer):
+    def __init__(self, *args, pos_weight: torch.FloatTensor | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if pos_weight is not None:
+            pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(
+                self.args.device
+            )
+
+            msg = f"Using multi-label classification with class weights: {pos_weight}"
+            logging.info(msg)
+
+        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    def compute_loss(self, model, inputs, return_outputs=False):  # noqa: FBT002
+        labels = inputs.get("labels")
+        outputs = model(**inputs)
+
+        logits = outputs.get("logits")
+        loss = self.loss_fn(logits.squeeze(), labels.squeeze())
+
+        return (loss, outputs) if return_outputs else loss
 
 
 def compute_metrics(eval_pred):
@@ -58,7 +83,7 @@ def main():
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_f1",
+        metric_for_best_model="eval_precision",
         greater_is_better=True,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -69,12 +94,13 @@ def main():
         push_to_hub=False,
     )
 
-    trainer = Trainer(
+    trainer = WeightedTrainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
+        # pos_weight=train_dataset.pos_weight(),
     )
 
     trainer.train()

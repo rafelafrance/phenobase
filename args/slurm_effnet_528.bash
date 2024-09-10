@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=effnet_528_f1_wt
+#SBATCH --job-name=effnet_528_prec
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -23,8 +23,8 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_effnet.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_f1_wt \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_prec \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/efficientnet-b6" \

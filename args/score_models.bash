@@ -9,6 +9,14 @@
   --batch-size 1 \
   --model-dir data/tuned/effnet_528_f1
 
+./phenobase/score_model.py \
+  --trait-csv data/split_all_3.csv \
+  --image-dir data/images/images_600 \
+  --output-csv data/score.csv \
+  --image-size 528 \
+  --batch-size 1 \
+  --model-dir data/tuned/effnet_528_f1_wt
+
 #---------------------------------------------------------------------------------------------
 ./phenobase/score_model.py \
   --trait-csv data/split_all_3.csv \

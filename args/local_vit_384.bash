@@ -1,9 +1,9 @@
 #!/bin/bash
 
-python ./phenobase/train_vit.py \
+python ./phenobase/train_model.py \
   --trait-csv ./data/split_all_3.csv \
   --image-dir ./data/images/images_384 \
-  --output-dir ./data/local/vit_384_auto_base_hf_f1 \
+  --output-dir ./data/local/vit_384_base_prec \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
   --batch-size 48 \
