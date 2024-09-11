@@ -22,7 +22,7 @@ def main():
     for checkpoint in sorted(checkpoints):
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            num_labels=len(util.TRAITS),
+            num_labels=len(args.traits),
             problem_type="multi_label_classification",
             ignore_mismatched_sizes=True,
         )
@@ -35,6 +35,7 @@ def main():
             image_dir=args.image_dir,
             image_size=args.image_size,
             split="test",
+            traits=args.traits,
         )
 
         loader = DataLoader(
@@ -65,7 +66,7 @@ def main():
                     y_true.append(true)
                     y_pred.append(pred)
 
-                    for t, p, trait in zip(true, pred, util.TRAITS, strict=False):
+                    for t, p, trait in zip(true, pred, args.traits, strict=False):
                         pred_key = f"{trait}_pred"
                         true_key = f"{trait}_true"
                         new_row[true_key] = float(t)
@@ -75,7 +76,7 @@ def main():
 
         print(checkpoint, "\n")
         metrics = Metrics()
-        for i, trait in enumerate(util.TRAITS):
+        for i, trait in enumerate(args.traits):
             for true, pred in zip(y_true, y_pred, strict=True):
                 metrics.add(true[i], pred[i])
             metrics.count()
@@ -158,7 +159,18 @@ def parse_args():
         help="""Number of workers for loading data. (default: %(default)s)""",
     )
 
+    arg_parser.add_argument(
+        "--traits",
+        choices=util.TRAITS,
+        action="append",
+        help="""Train to classify this trait. Repeat this argument to train
+            multiple trait labels.""",
+    )
+
     args = arg_parser.parse_args()
+
+    args.traits = args.traits if args.traits else util.TRAITS
+
     return args
 
 

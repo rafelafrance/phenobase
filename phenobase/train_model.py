@@ -1,40 +1,35 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import textwrap
 from pathlib import Path
 
 import evaluate
 import torch
 import transformers
+from pylib import util
 from pylib.labeled_dataset import LabeledDataset
-from pylib.util import TRAITS
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-metrics = evaluate.combine(["precision", "f1", "recall", "accuracy"])
+metrics = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 class WeightedTrainer(Trainer):
-    def __init__(self, *args, pos_weight: torch.FloatTensor | None = None, **kwargs):
+    def __init__(self, *args, pos_weight: torch.FloatTensor, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pos_weight is not None:
-            pos_weight = torch.tensor(pos_weight, dtype=torch.float).to(
-                self.args.device
-            )
+        self.pos_weight = pos_weight.to(self.args.device)
 
-            msg = f"Using multi-label classification with class weights: {pos_weight}"
-            logging.info(msg)
+        print(f"Using multi-label classification with positive weights: {pos_weight}")
 
-        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
 
     def compute_loss(self, model, inputs, return_outputs=False):  # noqa: FBT002
         labels = inputs.get("labels")
         outputs = model(**inputs)
 
         logits = outputs.get("logits")
-        loss = self.loss_fn(logits.squeeze(), labels.squeeze())
+        loss = self.loss_fn(logits, labels)
 
         return (loss, outputs) if return_outputs else loss
 
@@ -54,7 +49,7 @@ def main():
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(TRAITS),
+        num_labels=len(args.traits),
         problem_type="multi_label_classification",
         ignore_mismatched_sizes=True,
     )
@@ -65,6 +60,7 @@ def main():
         split="train",
         image_size=args.image_size,
         augment=True,
+        traits=args.traits,
     )
 
     eval_dataset = LabeledDataset(
@@ -73,6 +69,7 @@ def main():
         split="eval",
         image_size=args.image_size,
         augment=False,
+        traits=args.traits,
     )
 
     training_args = TrainingArguments(
@@ -83,7 +80,7 @@ def main():
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_precision",
+        metric_for_best_model="eval_f1",
         greater_is_better=True,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -94,13 +91,17 @@ def main():
         push_to_hub=False,
     )
 
+    pos_weight = torch.ones(len(args.traits))
+    if args.use_weights:
+        pos_weight = train_dataset.pos_weight()
+
     trainer = WeightedTrainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
-        # pos_weight=train_dataset.pos_weight(),
+        pos_weight=pos_weight,
     )
 
     trainer.train()
@@ -185,6 +186,20 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--use-weights",
+        action="store_true",
+        help="""Use positive weights when training.""",
+    )
+
+    arg_parser.add_argument(
+        "--traits",
+        choices=util.TRAITS,
+        action="append",
+        help="""Train to classify this trait. Repeat this argument to train
+            multiple trait labels.""",
+    )
+
+    arg_parser.add_argument(
         "--seed",
         type=int,
         metavar="INT",
@@ -193,6 +208,9 @@ def parse_args():
     )
 
     args = arg_parser.parse_args()
+
+    args.traits = args.traits if args.traits else util.TRAITS
+
     return args
 
 

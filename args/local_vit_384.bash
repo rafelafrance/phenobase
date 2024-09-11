@@ -8,4 +8,4 @@ python ./phenobase/train_model.py \
   --image-size 384 \
   --batch-size 48 \
   --lr 1e-4 \
-  --epochs 50
+  --epochs 25

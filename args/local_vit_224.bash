@@ -7,4 +7,4 @@ python ./phenobase/train_model.py \
   --finetune "google/vit-base-patch16-224" \
   --batch-size 48 \
   --lr 1e-4 \
-  --epochs 50
+  --epochs 25

@@ -9,7 +9,6 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 from phenobase.pylib import util
-from phenobase.pylib.util import TRAITS
 
 
 @dataclass
@@ -26,20 +25,25 @@ class LabeledDataset(Dataset):
         image_dir: Path,
         split: util.SPLIT,
         image_size: int,
+        traits: list[str],
         augment: bool = False,
     ) -> None:
         self.transform = self.build_transforms(image_size, augment=augment)
+        self.traits = traits if traits else util.TRAITS
+
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
             sheets = [
                 s
                 for s in reader
-                if s["split"] == split and all(s[t] in "01" for t in TRAITS)
+                if s["split"] == split and all(s[t] in "01" for t in self.traits)
             ]
             self.sheets = [
                 LabeledSheet(
                     path=image_dir / s["file"],
-                    target=torch.tensor([int(s[t]) for t in TRAITS], dtype=torch.float),
+                    target=torch.tensor(
+                        [int(s[t]) for t in self.traits], dtype=torch.float
+                    ),
                 )
                 for s in sheets
             ]
@@ -77,9 +81,9 @@ class LabeledDataset(Dataset):
     def pos_weight(self):
         """Calculate the weights for the positive & negative cases of the traits."""
         weights = []
-        for i in range(len(TRAITS)):
+        for i in range(len(self.traits)):
             pos = sum(s.target[i] for s in self.sheets)
             neg = len(self) - pos
             pos_wt = neg / pos if pos > 0 else 1.0
-            weights.append(pos_wt)
-        return weights
+            weights.append(pos_wt.item())
+        return torch.tensor(weights, dtype=torch.float)
