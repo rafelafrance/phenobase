@@ -1,9 +1,6 @@
 """Wrap scikit-learn's metrics."""
 
 from dataclasses import dataclass, field
-from typing import Literal
-
-COMPARE = Literal["ge", "le"]
 
 
 @dataclass
@@ -15,7 +12,7 @@ class Metrics:
     y_true: list[float] = field(default_factory=list)
     y_pred: list[float] = field(default_factory=list)
 
-    def display(self):
+    def display_matrix(self):
         print(
             f"tp = {self.tp:4.0f}    fn = {self.fn:4.0f}\n"
             f"fp = {self.fp:4.0f}    tn = {self.tn:4.0f}"
@@ -25,15 +22,15 @@ class Metrics:
         self.y_true.append(true)
         self.y_pred.append(pred)
 
-    def count(self, lo: float = 0.5, hi: float = 0.5):
+    def remove_equiv(self, threshold_lo: float = 0.5, threshold_hi: float = 0.5):
         self.tp, self.tn, self.fn, self.fp = 0.0, 0.0, 0.0, 0.0
         for true, pred in zip(self.y_true, self.y_pred, strict=True):
-            if lo <= pred < hi:
+            if threshold_lo <= pred < threshold_hi:
                 continue
-            self.tp += 1.0 if (true == 1.0 and pred >= hi) else 0.0
-            self.tn += 1.0 if (true == 0.0 and pred < lo) else 0.0
-            self.fn += 1.0 if (true == 1.0 and pred < lo) else 0.0
-            self.fp += 1.0 if (true == 0.0 and pred >= hi) else 0.0
+            self.tp += 1.0 if (true == 1.0 and pred >= threshold_hi) else 0.0
+            self.tn += 1.0 if (true == 0.0 and pred < threshold_lo) else 0.0
+            self.fn += 1.0 if (true == 1.0 and pred < threshold_lo) else 0.0
+            self.fp += 1.0 if (true == 0.0 and pred >= threshold_hi) else 0.0
 
     @property
     def total(self):

@@ -29,7 +29,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all_3.csv \
   --finetune "google/efficientnet-b6" \
   --image-size 528 \
-  --epochs 200 \
+  --epochs 50 \
   --lr 1e-4 \
   --use-weights \
   --traits leaves \

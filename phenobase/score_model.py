@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+import shutil
 import textwrap
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -18,82 +20,89 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
-    for checkpoint in sorted(checkpoints):
-        model = AutoModelForImageClassification.from_pretrained(
-            str(checkpoint),
-            num_labels=len(args.traits),
-            problem_type="multi_label_classification",
-            ignore_mismatched_sizes=True,
-        )
+    new_rows = []
 
-        model.to(device)
-        model.eval()
+    for model_dir in args.model_dir:
+        checkpoints = [p for p in model_dir.glob("checkpoint-*") if p.is_dir()]
+        for checkpoint in sorted(checkpoints):
+            model = AutoModelForImageClassification.from_pretrained(
+                str(checkpoint),
+                num_labels=len(args.traits),
+                problem_type="multi_label_classification",
+                ignore_mismatched_sizes=True,
+            )
 
-        dataset = LabeledDataset(
-            trait_csv=args.trait_csv,
-            image_dir=args.image_dir,
-            image_size=args.image_size,
-            split="test",
-            traits=args.traits,
-        )
+            model.to(device)
+            model.eval()
 
-        loader = DataLoader(
-            dataset,
-            batch_size=args.batch_size,
-            num_workers=args.workers,
-            pin_memory=True,
-        )
+            dataset = LabeledDataset(
+                trait_csv=args.trait_csv,
+                image_dir=args.image_dir,
+                image_size=args.image_size,
+                split="test",
+                traits=args.traits,
+            )
 
-        new_rows = []
-        y_true = []
-        y_pred = []
+            loader = DataLoader(
+                dataset,
+                batch_size=args.batch_size,
+                num_workers=args.workers,
+                pin_memory=True,
+            )
 
-        with torch.no_grad():
-            for sheets in loader:
-                images = sheets["pixel_values"].to(device)
-                preds = model(images)
-                preds = torch.sigmoid(preds.logits)
-                preds = preds.detach().cpu()
-                for pred, true, name in zip(
-                    preds, sheets["labels"], sheets["name"], strict=False
-                ):
-                    new_row = {"name": name, "pretrained": checkpoint}
+            y_true = []
+            y_pred = []
 
-                    true = true.tolist()
-                    pred = pred.tolist()
+            with torch.no_grad():
+                for sheets in loader:
+                    images = sheets["pixel_values"].to(device)
+                    preds = model(images)
+                    preds = torch.sigmoid(preds.logits)
+                    preds = preds.detach().cpu()
+                    for pred, true, name in zip(
+                        preds, sheets["labels"], sheets["name"], strict=False
+                    ):
+                        new_row = {"name": name, "pretrained": checkpoint}
 
-                    y_true.append(true)
-                    y_pred.append(pred)
+                        true = true.tolist()
+                        pred = pred.tolist()
 
-                    for t, p, trait in zip(true, pred, args.traits, strict=False):
-                        pred_key = f"{trait}_pred"
-                        true_key = f"{trait}_true"
-                        new_row[true_key] = float(t)
-                        new_row[pred_key] = p
+                        y_true.append(true)
+                        y_pred.append(pred)
 
-                    new_rows.append(new_row)
+                        for t, p, trait in zip(true, pred, args.traits, strict=False):
+                            new_row[f"{trait}_true"] = float(t)
+                            new_row[f"{trait}_pred"] = p
 
-        print(checkpoint, "\n")
-        metrics = Metrics()
-        for i, trait in enumerate(args.traits):
-            for true, pred in zip(y_true, y_pred, strict=True):
-                metrics.add(true[i], pred[i])
-            metrics.count()
-            print(trait)
-            metrics.display()
-            print(f"accuracy = {metrics.accuracy:0.3f}")
-            print(f"f1       = {metrics.f1:0.3f}")
-            print(f"ppv      = {metrics.ppv:0.3f}")
-            print(f"npv      = {metrics.npv:0.3f}")
-            print()
+                        new_rows.append(new_row)
 
-        if args.output_csv:
-            df = pd.DataFrame(new_rows)
-            if args.output_csv.exists():
-                df_old = pd.read_csv(args.output_csv)
-                df = pd.concat((df_old, df))
-            df.to_csv(args.output_csv, index=False)
+            print(checkpoint, "\n")
+            metrics = Metrics()
+            for i, trait in enumerate(args.traits):
+                for true, pred in zip(y_true, y_pred, strict=True):
+                    metrics.add(true[i], pred[i])
+                metrics.remove_equiv()
+                print(trait)
+                metrics.display_matrix()
+                print(f"accuracy = {metrics.accuracy:0.3f}")
+                print(f"f1       = {metrics.f1:0.3f}")
+                print(f"npv      = {metrics.npv:0.3f}")
+                print(f"ppv      = {metrics.ppv:0.3f}")
+                print()
+
+    if args.output_csv:
+        df = pd.DataFrame(new_rows)
+
+        if args.output_csv.exists():
+            now = datetime.now().isoformat(sep="_", timespec="minutes")
+            stem = f"{args.output_csv.stem}_{now}"
+            dst = args.output_csv.with_stem(stem)
+            shutil.copyfile(args.output_csv, dst)
+
+            df_old = pd.read_csv(args.output_csv)
+            df = pd.concat((df_old, df))
+
+        df.to_csv(args.output_csv, index=False)
 
 
 def parse_args():
@@ -130,6 +139,7 @@ def parse_args():
     arg_parser.add_argument(
         "--model-dir",
         type=Path,
+        action="append",
         required=True,
         metavar="PATH",
         help="""Directory containing the training checkpoints.""",

@@ -11,7 +11,7 @@ from pylib import util
 from pylib.labeled_dataset import LabeledDataset
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-metrics = evaluate.combine(["f1", "precision", "recall", "accuracy"])
+metrics = evaluate.combine(["precision", "f1", "recall", "accuracy"])
 
 
 class WeightedTrainer(Trainer):
@@ -80,7 +80,7 @@ def main():
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_f1",
+        metric_for_best_model=f"eval_{args.best_metric}",
         greater_is_better=True,
         output_dir=args.output_dir,
         overwrite_output_dir=True,
@@ -156,7 +156,7 @@ def parse_args():
         "--learning-rate",
         "--lr",
         type=float,
-        default=3e-4,
+        default=5e-5,
         metavar="FLOAT",
         help="""Initial learning rate. (default: %(default)s)""",
     )
@@ -197,6 +197,13 @@ def parse_args():
         action="append",
         help="""Train to classify this trait. Repeat this argument to train
             multiple trait labels.""",
+    )
+
+    arg_parser.add_argument(
+        "--best-metric",
+        choices=["precision", "f1", "accuracy", "loss"],
+        default="precision",
+        help="""Model evaluation strategy.""",
     )
 
     arg_parser.add_argument(
