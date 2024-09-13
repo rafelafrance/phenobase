@@ -22,7 +22,7 @@ class Metrics:
         self.y_true.append(true)
         self.y_pred.append(pred)
 
-    def remove_equiv(self, threshold_lo: float = 0.5, threshold_hi: float = 0.5):
+    def remove_equivocal(self, threshold_lo: float = 0.5, threshold_hi: float = 0.5):
         self.tp, self.tn, self.fn, self.fp = 0.0, 0.0, 0.0, 0.0
         for true, pred in zip(self.y_true, self.y_pred, strict=True):
             if threshold_lo <= pred < threshold_hi:
