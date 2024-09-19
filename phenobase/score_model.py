@@ -6,6 +6,7 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from pylib import util
@@ -50,9 +51,6 @@ def main():
                 pin_memory=True,
             )
 
-            y_true = []
-            y_pred = []
-
             with torch.no_grad():
                 for sheets in loader:
                     images = sheets["pixel_values"].to(device)
@@ -67,9 +65,6 @@ def main():
                         true = true.tolist()
                         pred = pred.tolist()
 
-                        y_true.append(true)
-                        y_pred.append(pred)
-
                         for t, p, trait in zip(true, pred, args.traits, strict=False):
                             new_row[f"{trait}_true"] = float(t)
                             new_row[f"{trait}_pred"] = p
@@ -77,11 +72,11 @@ def main():
                         new_rows.append(new_row)
 
             print(checkpoint, "\n")
-            metrics = Metrics()
-            for i, trait in enumerate(args.traits):
-                for true, pred in zip(y_true, y_pred, strict=True):
-                    metrics.add(true[i], pred[i])
-                metrics.remove_equiv()
+            for trait in args.traits:
+                y_true = np.array(row[f"{trait}_true"] for row in new_rows)
+                y_pred = np.array(row[f"{trait}_pred"] for row in new_rows)
+                metrics = Metrics(y_true=y_true, y_pred=y_pred)
+                metrics.classify()
                 print(trait)
                 metrics.display_matrix()
                 print(f"accuracy = {metrics.accuracy:0.3f}")
