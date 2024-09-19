@@ -75,6 +75,17 @@ class Metrics:
         return self.precision
 
     @property
+    def fpr(self):
+        """False positive rate."""
+        denominator = self.tn + self.fp
+        return self.fp / denominator if denominator > 0.0 else 0.0
+
+    @property
+    def tss(self):
+        """True skills statistics, aka Youden's J statistic."""
+        return self.tpr - self.fpr
+
+    @property
     def balanced_accuracy(self):
         return (self.tpr + self.tnr) / 2.0
 

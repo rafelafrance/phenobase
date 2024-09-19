@@ -24,7 +24,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_all_prec \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_all_prec_wt \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_384 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/split_all_3.csv \
   --finetune "google/vit-large-patch16-384" \

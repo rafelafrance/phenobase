@@ -86,8 +86,7 @@ def main():
                 metrics.display_matrix()
                 print(f"accuracy = {metrics.accuracy:0.3f}")
                 print(f"f1       = {metrics.f1:0.3f}")
-                print(f"npv      = {metrics.npv:0.3f}")
-                print(f"ppv      = {metrics.ppv:0.3f}")
+                print(f"tss      = {metrics.tss:0.3f}")
                 print()
 
     if args.output_csv:
