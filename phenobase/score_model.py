@@ -73,15 +73,15 @@ def main():
 
             print(checkpoint, "\n")
             for trait in args.traits:
-                y_true = np.array(row[f"{trait}_true"] for row in new_rows)
-                y_pred = np.array(row[f"{trait}_pred"] for row in new_rows)
+                y_true = np.array([row[f"{trait}_true"] for row in new_rows])
+                y_pred = np.array([row[f"{trait}_pred"] for row in new_rows])
                 metrics = Metrics(y_true=y_true, y_pred=y_pred)
-                metrics.classify()
+                metrics.filter_y()
                 print(trait)
                 metrics.display_matrix()
                 print(f"accuracy = {metrics.accuracy:0.3f}")
                 print(f"f1       = {metrics.f1:0.3f}")
-                print(f"tss      = {metrics.tss:0.3f}")
+                print(f"tss      = {metrics.true_skills_statistics:0.3f}")
                 print()
 
     if args.output_csv:
