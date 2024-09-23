@@ -25,8 +25,8 @@ module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers_prec_wt \
-  --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_384 \
-  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/split_all_3.csv \
+  --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
+  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/splits.csv \
   --finetune "google/vit-large-patch16-384" \
   --image-size 384 \
   --epochs 200 \

@@ -2,35 +2,35 @@
 
 #---------------------------------------------------------------------------------------------
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
+  --trait-csv splits/splits.csv \
   --image-dir data/images/images_600 \
-  --output-csv data/score2.csv \
+  --output-csv data/score.csv \
   --image-size 528 \
   --batch-size 1 \
   --model-dir data/tuned/effnet_528_all_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
+  --trait-csv splits/splits.csv \
   --image-dir data/images/images_600 \
-  --output-csv data/score2.csv \
+  --output-csv data/score.csv \
   --image-size 528 \
   --batch-size 1 \
   --traits flowers \
   --model-dir data/tuned/effnet_528_flowers_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
+  --trait-csv splits/splits.csv \
   --image-dir data/images/images_600 \
-  --output-csv data/score2.csv \
+  --output-csv data/score.csv \
   --image-size 528 \
   --batch-size 1 \
   --traits fruits \
   --model-dir data/tuned/effnet_528_fruits_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
+  --trait-csv splits/splits.csv \
   --image-dir data/images/images_600 \
-  --output-csv data/score2.csv \
+  --output-csv data/score.csv \
   --image-size 528 \
   --batch-size 1 \
   --traits leaves \
@@ -38,35 +38,35 @@
 
 #---------------------------------------------------------------------------------------------
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
-  --image-dir data/images/images_384 \
-  --output-csv data/score2.csv \
+  --trait-csv splits/splits.csv \
+  --image-dir data/images/images_600 \
+  --output-csv data/score.csv \
   --image-size 384 \
   --batch-size 1 \
   --model-dir data/tuned/vit_384_lg_all_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
-  --image-dir data/images/images_384 \
-  --output-csv data/score2.csv \
+  --trait-csv splits/splits.csv \
+  --image-dir data/images/images_600 \
+  --output-csv data/score.csv \
   --image-size 384 \
   --batch-size 1 \
   --traits flowers \
   --model-dir data/tuned/vit_384_lg_flowers_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
-  --image-dir data/images/images_384 \
-  --output-csv data/score2.csv \
+  --trait-csv splits/splits.csv \
+  --image-dir data/images/images_600 \
+  --output-csv data/score.csv \
   --image-size 384 \
   --batch-size 1 \
   --traits fruits \
   --model-dir data/tuned/vit_384_lg_fruits_prec_wt
 
 ./phenobase/score_model.py \
-  --trait-csv splits/test_split.csv \
-  --image-dir data/images/images_384 \
-  --output-csv data/score2.csv \
+  --trait-csv splits/splits.csv \
+  --image-dir data/images/images_600 \
+  --output-csv data/score.csv \
   --image-size 384 \
   --batch-size 1 \
   --traits leaves \

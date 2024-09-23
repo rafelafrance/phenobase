@@ -16,7 +16,8 @@ class Metrics:
     def display_matrix(self) -> None:
         print(
             f"tp = {self.tp:4.0f}    fn = {self.fn:4.0f}\n"
-            f"fp = {self.fp:4.0f}    tn = {self.tn:4.0f}"
+            f"fp = {self.fp:4.0f}    tn = {self.tn:4.0f}\n"
+            f"total = {self.total:4.0f}"
         )
 
     def filter_y(self, thresh_lo: float = 0.5, thresh_hi: float = 0.5) -> None:

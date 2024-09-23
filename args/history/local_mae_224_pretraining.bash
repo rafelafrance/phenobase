@@ -1,7 +1,7 @@
 #!/bin/bash
 
 python ./phenobase/run_mae.py \
-    --dataset_name ./data/images/images_224 \
+    --dataset_name ./data/images/images_600 \
     --output_dir ./data/pretraining_output \
     --remove_unused_columns False \
     --label_names pixel_values \

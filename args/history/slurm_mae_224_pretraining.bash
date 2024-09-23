@@ -24,7 +24,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/run_mae.py \
-    --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
+    --dataset_name /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
     --output_dir /blue/guralnick/rafe.lafrance/phenobase/data/pretraining_output \
     --remove_unused_columns False \
     --label_names pixel_values \

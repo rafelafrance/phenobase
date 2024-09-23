@@ -1,7 +1,7 @@
 #!/bin/bash
 
 python ./phenobase/train_model.py \
-  --trait-csv ./splits/split_all_3.csv \
+  --trait-csv ./splits/splits.csv \
   --image-dir ./data/images/images_600 \
   --output-dir ./data/local/effnet_456_flowers_prec_wt \
   --finetune "google/efficientnet-b5" \

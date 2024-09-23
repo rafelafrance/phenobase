@@ -26,7 +26,7 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/training_output/vit_all \
   --pretrained-dir /blue/guralnick/rafe.lafrance/phenobase/data/pretraining_output \
-  --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_224 \
+  --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/data/split_all.csv \
   --lr 1e-4 \
   --epochs 1200 \

@@ -26,7 +26,7 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_leaves_prec_wt \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
-  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/split_all_3.csv \
+  --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/splits.csv \
   --finetune "google/efficientnet-b6" \
   --image-size 528 \
   --epochs 200 \
