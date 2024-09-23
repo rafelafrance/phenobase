@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import shutil
 import textwrap
-from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import torch
 from pylib import util
-from pylib.binary_metrics import Metrics
 from pylib.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
 from transformers import AutoModelForImageClassification
@@ -21,11 +17,13 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    new_rows = []
+    rows = []
 
     for model_dir in args.model_dir:
         checkpoints = [p for p in model_dir.glob("checkpoint-*") if p.is_dir()]
         for checkpoint in sorted(checkpoints):
+            print(checkpoint)
+
             model = AutoModelForImageClassification.from_pretrained(
                 str(checkpoint),
                 num_labels=len(args.traits),
@@ -60,42 +58,25 @@ def main():
                     for pred, true, name in zip(
                         preds, sheets["labels"], sheets["name"], strict=False
                     ):
-                        new_row = {"name": name, "pretrained": checkpoint}
-
                         true = true.tolist()
                         pred = pred.tolist()
 
                         for t, p, trait in zip(true, pred, args.traits, strict=False):
-                            new_row[f"{trait}_true"] = float(t)
-                            new_row[f"{trait}_pred"] = p
-
-                        new_rows.append(new_row)
-
-            print(checkpoint, "\n")
-            for trait in args.traits:
-                y_true = np.array([row[f"{trait}_true"] for row in new_rows])
-                y_pred = np.array([row[f"{trait}_pred"] for row in new_rows])
-                metrics = Metrics(y_true=y_true, y_pred=y_pred)
-                metrics.filter_y()
-                print(trait)
-                metrics.display_matrix()
-                print(f"accuracy = {metrics.accuracy:0.3f}")
-                print(f"f1       = {metrics.f1:0.3f}")
-                print(f"tss      = {metrics.true_skills_statistics:0.3f}")
-                print()
+                            rows.append(
+                                {
+                                    "name": name,
+                                    "checkpoint": checkpoint,
+                                    "trait": trait,
+                                    "y_true": float(t),
+                                    "y_pred": p,
+                                }
+                            )
 
     if args.output_csv:
-        df = pd.DataFrame(new_rows)
-
+        df = pd.DataFrame(rows)
         if args.output_csv.exists():
-            now = datetime.now().isoformat(sep="_", timespec="minutes")
-            stem = f"{args.output_csv.stem}_{now}"
-            dst = args.output_csv.with_stem(stem)
-            shutil.copyfile(args.output_csv, dst)
-
             df_old = pd.read_csv(args.output_csv)
             df = pd.concat((df_old, df))
-
         df.to_csv(args.output_csv, index=False)
 
 
