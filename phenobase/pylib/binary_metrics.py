@@ -109,3 +109,8 @@ class Metrics:
     def f1(self) -> np.float32:
         denominator = (2.0 * self.tp) + self.fp + self.fn
         return (2.0 * self.tp) / denominator if denominator > 0.0 else 0.0
+
+    def f_beta(self, beta: np.float32 = 1.0) -> np.float32:
+        beta_sq = beta * beta
+        numerator = (1 + beta_sq) * self.precision * self.recall
+        return numerator / ((beta_sq * self.precision) + self.recall)
