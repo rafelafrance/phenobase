@@ -75,7 +75,7 @@ def download(image_id, suffix, image_dir, image_size, attempts):
             image = requests.get(url, timeout=DELAY).content
             with path.open("wb") as out_file:
                 out_file.write(image)
-        except (TimeoutError, ConnectionError):
+        except (TimeoutError, ConnectionError):  # noqa: PERF203
             time.sleep(DELAY)
         else:
             return "download"
