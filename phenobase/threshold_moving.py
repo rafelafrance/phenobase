@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pylib import log
+from pylib import log, util
 from pylib.binary_metrics import Metrics
 
 
@@ -28,20 +28,28 @@ def main():
     df = pd.read_csv(args.score_csv)
 
     checkpoints = df["checkpoint"].unique()
-    traits = df["trait"].unique()
+    traits = [args.trait] if args.trait else df["trait"].unique()
 
-    scores = score_models(df, traits, checkpoints, recall_limit=args.recall_limit)
-    display_best(df, scores, traits, checkpoints, count=args.count)
+    scores = score_models(
+        df,
+        traits,
+        checkpoints,
+        recall_limit=args.recall_limit,
+        min_threshold=args.min_threshold,
+    )
+    display_best(df, scores, traits, count=args.count)
+
+    log.finished()
 
 
-def score_models(df, traits, checkpoints, recall_limit):
+def score_models(df, traits, checkpoints, recall_limit, min_threshold):
     scores = defaultdict(list)
     for trait in traits:
         for checkpoint in checkpoints:
             df1 = df.loc[(df["checkpoint"] == checkpoint) & (df["trait"] == trait)]
             if len(df) > 0:
                 metrics = Metrics(y_true=df1["y_true"], y_pred=df1["y_pred"])
-                score = find_best_score(metrics, recall_limit)
+                score = find_best_score(metrics, recall_limit, min_threshold)
                 scores[trait].append(
                     Score(
                         score=score.score,
@@ -55,9 +63,9 @@ def score_models(df, traits, checkpoints, recall_limit):
     }
 
 
-def find_best_score(metrics, recall_limit):
+def find_best_score(metrics, recall_limit, min_threshold):
     best = Score(0.0, 0.0)
-    for threshold in np.arange(0.01, 1.0, 0.01):
+    for threshold in np.arange(min_threshold, 1.0, 0.01):
         metrics.filter_y(thresh_lo=threshold, thresh_hi=threshold)
         if (
             metrics.precision >= best.score
@@ -68,7 +76,7 @@ def find_best_score(metrics, recall_limit):
     return best
 
 
-def display_best(df, scores, traits, checkpoints, count=5):
+def display_best(df, scores, traits, count=5):
     for trait in traits:
         print("-" * 80)
         for i in range(count):
@@ -124,6 +132,20 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="""How many of the top models to display per each trait.
             (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--min-threshold",
+        type=float,
+        default=0.5,
+        help="""The minimum threshold for finding the best model.
+            (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=util.TRAITS,
+        help="""The trait to examine.""",
     )
 
     args = arg_parser.parse_args()

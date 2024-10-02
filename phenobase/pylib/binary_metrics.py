@@ -12,6 +12,7 @@ class Metrics:
     tn: np.float32 = 0.0
     fp: np.float32 = 0.0
     fn: np.float32 = 0.0
+    ids: np.ndarray = None
 
     def display_matrix(self) -> None:
         print(
@@ -20,12 +21,28 @@ class Metrics:
             f"total = {self.total:4.0f}"
         )
 
+    def get_tp(self, thresh_hi: float = 0.5):
+        y: np.ndarray = np.stack((self.y_true, self.y_pred, self.ids))
+        return y[:, (y[0, :] == 1.0) & (y[1, :] >= thresh_hi)]
+
+    def get_fn(self, thresh_lo: float = 0.5):
+        y: np.ndarray = np.stack((self.y_true, self.y_pred, self.ids))
+        return y[:, (y[0, :] == 1.0) & (y[1, :] < thresh_lo)]
+
+    def get_fp(self, thresh_hi: float = 0.5):
+        y: np.ndarray = np.stack((self.y_true, self.y_pred, self.ids))
+        return y[:, (y[0, :] == 0.0) & (y[1, :] >= thresh_hi)]
+
+    def get_tn(self, thresh_lo: float = 0.5):
+        y: np.ndarray = np.stack((self.y_true, self.y_pred, self.ids))
+        return y[:, (y[0, :] == 0.0) & (y[1, :] < thresh_lo)]
+
     def filter_y(self, thresh_lo: float = 0.5, thresh_hi: float = 0.5) -> None:
         y: np.ndarray = np.stack((self.y_true, self.y_pred))
         self.tp = np.where((y[0, :] == 1.0) & (y[1, :] >= thresh_hi), 1.0, 0.0).sum()
-        self.tn = np.where((y[0, :] == 0.0) & (y[1, :] < thresh_lo), 1.0, 0.0).sum()
         self.fn = np.where((y[0, :] == 1.0) & (y[1, :] < thresh_lo), 1.0, 0.0).sum()
         self.fp = np.where((y[0, :] == 0.0) & (y[1, :] >= thresh_hi), 1.0, 0.0).sum()
+        self.tn = np.where((y[0, :] == 0.0) & (y[1, :] < thresh_lo), 1.0, 0.0).sum()
 
     @property
     def total(self) -> np.float32:
