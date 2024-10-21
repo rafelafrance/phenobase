@@ -3,7 +3,8 @@ import torch
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD_DEV = (0.229, 0.224, 0.225)
 
-TARGETS = """ flowers fruits leaves """.split()
+TRAITS = "flowers fruits leaves".split()
+TARGETS = TRAITS
 
 
 def accuracy(logits, targets):

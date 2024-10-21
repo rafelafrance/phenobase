@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
-from phenobase.history.pylib import log
+# from phenobase.history.pylib import log
 
 # aws s3 --no-sign-request --region us-east-1 cp
 # s3://inaturalist-open-data/photos/37504/medium.jpg
@@ -22,7 +22,7 @@ DELAY = 10  # Seconds to delay between attempts to download an image
 
 
 def main():
-    log.started()
+    # log.started()
 
     args = parse_args()
 
@@ -62,7 +62,7 @@ def main():
                 else:
                     bar.update(1)
 
-    log.finished()
+    # log.finished()
 
 
 def download(image_id, suffix, image_dir, image_size, attempts):
