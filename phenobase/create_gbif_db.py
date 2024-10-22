@@ -33,7 +33,7 @@ def create_multimedia(gbif_db, multimedia_tsv):
         '.separator "\t" "\n"',
         f".import {multimedia_tsv} multimedia",
     ]
-    subprocess.run(cmd, check=False)  # noqa: S603
+    subprocess.run(cmd, check=False)
 
     with sqlite3.connect(gbif_db) as cxn:
         logging.info("Deleting non-image multimedia records")
@@ -46,17 +46,18 @@ def create_multimedia(gbif_db, multimedia_tsv):
         cxn.executescript("create index multimedia_gbifid on multimedia (gbifid);")
 
 
-def create_occurrence(gbif_db, occurrence_tsv):
+def create_occurrence(gbif_db: Path, occurrence_tsv: Path):
     logging.info("Creating occurrence table")
-    cmd = [
-        "sqlite3",
-        str(gbif_db),
-        "-cmd",
-        ".mode ascii",
-        '.separator "\t" "\n"',
-        f".import {occurrence_tsv} occurrence",
-    ]
-    subprocess.run(cmd, check=False)  # noqa: S603
+    if gbif_db.exists() and occurrence_tsv.exists():
+        cmd = [
+            "sqlite3",
+            str(gbif_db),
+            "-cmd",
+            ".mode ascii",
+            '.separator "\t" "\n"',
+            f".import {occurrence_tsv} occurrence",
+        ]
+        subprocess.run(cmd, check=False)
 
     with sqlite3.connect(gbif_db) as cxn:
         logging.info("Creating occurrence index")

@@ -63,6 +63,7 @@ line-length = 88
 
 exclude = [
     "run_mae.py",  # External code
+    "**/external/*.py", # External code
 ]
 
 lint.select = [
@@ -140,6 +141,7 @@ lint.ignore = [
     "PT009",  # Use a regular assert instead of unittest-style {assertion}
     "RET504",  # Unnecessary assignment to {name} before return statement
     "RUF001",  # String contains ambiguous {}. Did you mean {}?
+    "S603",  # subprocess call: check for execution of untrusted input
     "SIM114",  # Combine if branches using logical or operator
     "SIM117",  # Use a single with statement with multiple contexts instead of nested with statements
     "SLF001",  # Private member accessed: {access}
