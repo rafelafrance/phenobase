@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import logging
 import sqlite3
 import subprocess
 import textwrap
+from collections import defaultdict
 from pathlib import Path
 
 from phenobase.pylib import log
+
+CACHE = "https://api.gbif.org/v1/image/cache/occurrence/{}/media/{}"
 
 
 def main():
@@ -18,7 +22,9 @@ def main():
     create_occurrence(args.gbif_db, args.occurrence_tsv)
 
     # The downloaded data only has plants so there is no need to filter on that
-    # plants_only()
+
+    add_multimedia_tiebreaker(args.gbif_db)
+    add_multimedia_cache_link(args.gbif_db)
 
     log.finished()
 
@@ -66,12 +72,56 @@ def create_occurrence(gbif_db: Path, occurrence_tsv: Path):
         logging.info("Deleting occurrence records without multimedia")
         cxn.execute(
             """
-            delete from occurrence where gbifid not in (select gbifid from multimedia);
-        """
+           delete from occurrence where gbifid not in (select gbifid from multimedia);
+            """
         )
 
         logging.info("Vacuuming")
         cxn.executescript("vacuum;")
+
+
+def add_multimedia_tiebreaker(gbif_db: Path):
+    """Add column as a tiebreaker for multiple multimedia records per gbifID."""
+    logging.info("Add multimedia tiebreakers")
+
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        cxn.execute("alter table multimedia add column 'tiebreaker' 'int';")
+
+        tiebreakers = defaultdict(int)
+        select = "select rowid, gbifid from multimedia;"
+
+        params = []
+        for row in cxn.execute(select):
+            tiebreakers[row["gbifid"]] += 1
+            params.append((tiebreakers[row["gbifid"]], row["rowid"]))
+
+        update = "update multimedia set tiebreaker = ? where rowid = ?;"
+        cxn.executemany(update, params)
+
+
+def add_multimedia_cache_link(gbif_db: Path):
+    logging.info("Add multimedia cache links")
+
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        cxn.execute("alter table multimedia add column 'cache' 'text';")
+
+        select = "select rowid, gbifid, identifier from multimedia;"
+
+        params = []
+        for row in cxn.execute(select):
+            url = row["identifier"]
+
+            cache = ""
+            if url:
+                md5 = hashlib.md5(url.encode("utf-8")).hexdigest()  # noqa: S324
+                cache = CACHE.format(row["gbifid"], md5)
+
+            params.append((cache, row["rowid"]))
+
+        update = "update multimedia set cache = ? where rowid = ?;"
+        cxn.executemany(update, params)
 
 
 def parse_args():

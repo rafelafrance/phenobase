@@ -109,7 +109,7 @@ def parse_args():
         "--max-images",
         metavar="INT",
         type=int,
-        default=1000,
+        default=10_000,
         help="""How many images to download for each classification group.
             Groups are: phylogenetic order x phenology class
             (default: %(default)s)""",
@@ -121,13 +121,6 @@ def parse_args():
         type=int,
         default=100,
         help="""How many worker threads to spawn. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--image-size",
-        choices=["medium", "large", "original"],
-        default="medium",
-        help="""Download image size. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
