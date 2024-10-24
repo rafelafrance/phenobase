@@ -13,7 +13,6 @@ from tqdm import tqdm
 
 DELAY = 5  # Seconds to delay between attempts to download an image
 
-
 ERRORS = (TimeoutError, ConnectionError, requests.exceptions.ReadTimeout)
 
 
