@@ -11,7 +11,10 @@ import requests
 from pylib import log
 from tqdm import tqdm
 
-DELAY = 10  # Seconds to delay between attempts to download an image
+DELAY = 5  # Seconds to delay between attempts to download an image
+
+
+ERRORS = (TimeoutError, ConnectionError, requests.exceptions.ReadTimeout)
 
 
 def main():
@@ -63,7 +66,7 @@ def download(gbifid, tiebreaker, url, image_dir, attempts):
             image = requests.get(url, timeout=DELAY).content
             with path.open("wb") as out_file:
                 out_file.write(image)
-        except (TimeoutError, ConnectionError):  # noqa: PERF203
+        except ERRORS:  # noqa: PERF203
             time.sleep(DELAY)
         else:
             return "download"
@@ -113,7 +116,7 @@ def parse_args():
         "--max-workers",
         metavar="INT",
         type=int,
-        default=100,
+        default=1,
         help="""How many worker threads to spawn. (default: %(default)s)""",
     )
 

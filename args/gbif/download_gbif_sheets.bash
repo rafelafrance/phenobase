@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=create_gbif_db
+#SBATCH --job-name=download_gbif_sheets
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -23,8 +23,8 @@ module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/download_gbif_sheets.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-23.sqlite \
-  --image-dir /blue/guralnick/share/phenobase/phenobase_specimen_data/images/cache_001 \
+  --image-dir /blue/guralnick/share/phenobase_specimen_data/images/cache_0002 \
   --limit 10000 \
-  --offset 0
+  --offset 10000
 
 date

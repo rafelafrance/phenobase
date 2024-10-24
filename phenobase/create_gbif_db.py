@@ -18,13 +18,13 @@ def main():
 
     args = parse_args()
 
-    # create_multimedia(args.gbif_db, args.multimedia_tsv)
-    # create_occurrence(args.gbif_db, args.occurrence_tsv)
+    create_multimedia(args.gbif_db, args.multimedia_tsv)
+    create_occurrence(args.gbif_db, args.occurrence_tsv)
 
     # The downloaded data only has plants so there is no need to filter on that
 
-    # add_multimedia_tiebreaker(args.gbif_db)
-    # add_multimedia_cache_link(args.gbif_db)
+    add_multimedia_tiebreaker(args.gbif_db)
+    add_multimedia_cache_link(args.gbif_db)
     add_multimedia_directory(args.gbif_db)
 
     log.finished()
