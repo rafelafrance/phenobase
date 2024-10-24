@@ -18,13 +18,14 @@ def main():
 
     args = parse_args()
 
-    create_multimedia(args.gbif_db, args.multimedia_tsv)
-    create_occurrence(args.gbif_db, args.occurrence_tsv)
+    # create_multimedia(args.gbif_db, args.multimedia_tsv)
+    # create_occurrence(args.gbif_db, args.occurrence_tsv)
 
     # The downloaded data only has plants so there is no need to filter on that
 
-    add_multimedia_tiebreaker(args.gbif_db)
-    add_multimedia_cache_link(args.gbif_db)
+    # add_multimedia_tiebreaker(args.gbif_db)
+    # add_multimedia_cache_link(args.gbif_db)
+    add_multimedia_directory(args.gbif_db)
 
     log.finished()
 
@@ -122,6 +123,19 @@ def add_multimedia_cache_link(gbif_db: Path):
 
         update = "update multimedia set cache = ? where rowid = ?;"
         cxn.executemany(update, params)
+
+
+def add_multimedia_directory(gbif_db: Path):
+    """Add column as a tiebreaker for multiple multimedia records per gbifID."""
+    logging.info("Add multimedia directory")
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.execute("alter table multimedia add column 'dir' 'int';")
+
+        update = "update multimedia set dir = 0;"
+        cxn.execute(update)
+
+        logging.info("Vacuuming")
+        cxn.executescript("vacuum;")
 
 
 def parse_args():

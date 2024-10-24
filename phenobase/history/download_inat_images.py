@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
+import sqlite3
 import textwrap
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -10,7 +12,7 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
-# from phenobase.history.pylib import log
+from phenobase.history.pylib import log
 
 # aws s3 --no-sign-request --region us-east-1 cp
 # s3://inaturalist-open-data/photos/37504/medium.jpg
@@ -22,9 +24,13 @@ DELAY = 10  # Seconds to delay between attempts to download an image
 
 
 def main():
-    # log.started()
+    log.started()
 
     args = parse_args()
+
+    with sqlite3.connect(args.gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        cxn.execute("alter table multimedia add column 'cache' 'text';")
 
     df = pd.read_parquet(args.observations)
 
@@ -57,12 +63,13 @@ def main():
                 )
             for future in as_completed(futures):
                 results[future.result()] += 1
-                if args.print_results:
-                    print(results)
-                else:
-                    bar.update(1)
+                bar.update(1)
 
-    # log.finished()
+    for key, value in results.items():
+        msg = f"Count {key} = {value}"
+        logging.info(msg)
+
+    log.finished()
 
 
 def download(image_id, suffix, image_dir, image_size, attempts):
@@ -130,12 +137,6 @@ def parse_args():
         default=3,
         help="""How many times to try downloading the image.
           (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--print-results",
-        action="store_true",
-        help="Print result categories instead of a tqdm status bar.",
     )
 
     args = arg_parser.parse_args()
