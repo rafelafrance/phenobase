@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import sqlite3
 import textwrap
 import time
@@ -9,7 +10,6 @@ from pathlib import Path
 
 import requests
 from pylib import log
-from tqdm import tqdm
 
 DELAY = 5  # Seconds to delay between attempts to download an image
 
@@ -35,22 +35,25 @@ def main():
 
     results = {"exists": 0, "download": 0, "error": 0}
 
-    with tqdm(total=len(rows)) as bar:
-        with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = [
-                executor.submit(
-                    download,
-                    row["gbifID"],
-                    row["tiebreaker"],
-                    row["cache"],
-                    args.image_dir,
-                    args.attempts,
-                )
-                for row in rows
-            ]
-            for future in as_completed(futures):
-                results[future.result()] += 1
-                bar.update(1)
+    with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        futures = [
+            executor.submit(
+                download,
+                row["gbifID"],
+                row["tiebreaker"],
+                row["cache"],
+                args.image_dir,
+                args.attempts,
+            )
+            for row in rows
+        ]
+        for future in as_completed(futures):
+            results[future.result()] += 1
+
+    for key, value in results.items():
+        msg = f"Count {key} = {value}"
+        logging.info(msg)
+
     log.finished()
 
 
