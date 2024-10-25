@@ -35,18 +35,22 @@ def main():
 
     results = {"exists": 0, "download": 0, "error": 0}
 
+    next_dir = get_last_dir(args.image_dir) + 1
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-        futures = [
-            executor.submit(
-                download,
-                row["gbifID"],
-                row["tiebreaker"],
-                row["cache"],
-                args.image_dir,
-                args.attempts,
+        futures = []
+        for i, row in enumerate(rows):
+            idx = int(i / args.per_dir) + next_dir
+            subdir = f"cache_{idx:04d}"
+            futures.append(
+                executor.submit(
+                    download,
+                    row["gbifID"],
+                    row["tiebreaker"],
+                    row["cache"],
+                    args.image_dir / subdir,
+                    args.attempts,
+                )
             )
-            for row in rows
-        ]
         for future in as_completed(futures):
             results[future.result()] += 1
 
@@ -55,6 +59,12 @@ def main():
         logging.info(msg)
 
     log.finished()
+
+
+def get_last_dir(image_dir) -> int:
+    # Names formatted like "cache_0001"
+    dirs = sorted(image_dir.glob("cache_*"))
+    return int(dirs[-1].stem.split("_")[-1])
 
 
 def download(gbifid, tiebreaker, url, image_dir, attempts):
@@ -76,10 +86,9 @@ def download(gbifid, tiebreaker, url, image_dir, attempts):
 
 
 def parse_args():
-    description = """Download GBIF images."""
-
     arg_parser = argparse.ArgumentParser(
-        description=textwrap.dedent(description), fromfile_prefix_chars="@"
+        allow_abbrev=True,
+        description=textwrap.dedent("""Download GBIF images."""),
     )
 
     arg_parser.add_argument(
@@ -87,7 +96,7 @@ def parse_args():
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Output the merged GBIF data to this SQLite DB.""",
+        help="""This SQLite DB data contains the cached image links.""",
     )
 
     arg_parser.add_argument(
@@ -101,9 +110,9 @@ def parse_args():
     arg_parser.add_argument(
         "--limit",
         type=int,
-        default=10_000,
+        default=100_000,
         metavar="INT",
-        help="""Limit to this many completed downloads.""",
+        help="""Limit to this many completed downloads. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
@@ -111,7 +120,17 @@ def parse_args():
         type=int,
         default=0,
         metavar="INT",
-        help="""Start counting records in the --limit from this offset.""",
+        help="""Start counting records in the --limit from this offset.
+            (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--per-dir",
+        type=int,
+        default=10_000,
+        metavar="INT",
+        help="""How many images to put into each subdirectory.
+            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

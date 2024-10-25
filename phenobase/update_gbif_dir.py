@@ -16,7 +16,7 @@ def main():
     params = []
 
     for path in args.image_dir.glob("cache_*/*.jpg"):
-        dir_ = int(path.parent.stem.split("_")[1])
+        dir_ = int(path.parent.stem.split("_")[-1])
         gbifid, tiebreaker = path.stem.split("_")
         params.append((dir_, gbifid, tiebreaker))
 
@@ -28,10 +28,11 @@ def main():
 
 
 def parse_args():
-    description = """Download GBIF images."""
-
     arg_parser = argparse.ArgumentParser(
-        description=textwrap.dedent(description),
+        allow_abbrev=True,
+        description=textwrap.dedent(
+            """Update the directory field in the multimedia table."""
+        ),
     )
 
     arg_parser.add_argument(
@@ -39,7 +40,7 @@ def parse_args():
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Output the merged GBIF data to this SQLite DB.""",
+        help="""Update the multimedia table in this SQLite DB.""",
     )
 
     arg_parser.add_argument(
@@ -47,7 +48,7 @@ def parse_args():
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Place downloaded images into subdirectories of this directory.""",
+        help="""Search subdirectories of this directory for image files.""",
     )
 
     args = arg_parser.parse_args()
