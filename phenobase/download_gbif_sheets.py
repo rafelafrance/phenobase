@@ -2,18 +2,43 @@
 
 import argparse
 import logging
+import socket
 import sqlite3
 import textwrap
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import defaultdict
+from io import BytesIO
+from multiprocessing import Pool
 from pathlib import Path
 
 import requests
+from PIL import Image
 from pylib import log
+
+# Set a timeout for requests
+TIMEOUT = 10
+socket.setdefaulttimeout(TIMEOUT)
 
 DELAY = 5  # Seconds to delay between attempts to download an image
 
-ERRORS = (TimeoutError, ConnectionError, requests.exceptions.ReadTimeout)
+ERRORS = (
+    AttributeError,
+    BufferError,
+    ConnectionError,
+    Image.DecompressionBombWarning,
+    EOFError,
+    FileNotFoundError,
+    IOError,
+    IndexError,
+    OSError,
+    RuntimeError,
+    SyntaxError,
+    TimeoutError,
+    TypeError,
+    Image.UnidentifiedImageError,
+    ValueError,
+    requests.exceptions.ReadTimeout,
+)
 
 
 def main():
@@ -26,35 +51,54 @@ def main():
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
         select = """
-            select gbifid, tiebreaker, cache
+            select gbifid, tiebreaker, identifier
             from multimedia
-            where dir = 0
-            limit ? offset ?;
+            where state is null
+            order by random()
+            limit ?;
             """
-        rows = [dict(r) for r in cxn.execute(select, (args.limit, args.offset))]
+        rows = [dict(r) for r in cxn.execute(select, (args.limit,))]
 
-    results = {"exists": 0, "download": 0, "error": 0}
+    counts = defaultdict(int)
 
     next_dir = get_last_dir(args.image_dir) + 1
-    with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-        futures = []
-        for i, row in enumerate(rows):
-            idx = int(i / args.per_dir) + next_dir
-            subdir = f"cache_{idx:04d}"
-            futures.append(
-                executor.submit(
-                    download,
+    subdir = args.image_dir / f"images_{next_dir:04d}"
+    subdir.mkdir(parents=True, exist_ok=True)
+
+    with Pool(processes=args.processes) as pool:
+        results = [
+            pool.apply_async(
+                download,
+                (
                     row["gbifID"],
                     row["tiebreaker"],
-                    row["cache"],
-                    args.image_dir / subdir,
+                    row["identifier"],
+                    subdir,
                     args.attempts,
-                )
+                    args.max_width,
+                ),
             )
-        for future in as_completed(futures):
-            results[future.result()] += 1
+            for row in rows
+        ]
+        for result in results:
+            print(result.get())
+            counts[result.get()] += 1
 
-    for key, value in results.items():
+    # results = [
+    #     download(
+    #         row["gbifID"],
+    #         row["tiebreaker"],
+    #         row["identifier"],
+    #         subdir,
+    #         args.attempts,
+    #         args.max_width,
+    #     )
+    #     for row in rows
+    # ]
+    # for result in results:
+    #     counts[result] += 1
+
+    for key, value in counts.items():
         msg = f"Count {key} = {value}"
         logging.info(msg)
 
@@ -62,27 +106,47 @@ def main():
 
 
 def get_last_dir(image_dir) -> int:
-    # Names formatted like "cache_0001"
-    dirs = sorted(image_dir.glob("cache_*"))
-    return int(dirs[-1].stem.split("_")[-1])
+    # Names formatted like "images_0001"
+    dirs = sorted(image_dir.glob("images_*"))
+    return int(dirs[-1].stem.split("_")[-1]) if dirs else 0
 
 
-def download(gbifid, tiebreaker, url, image_dir, attempts):
-    path = image_dir / f"{gbifid}_{tiebreaker}.jpg"
+def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
+    path: Path = subdir / f"{gbifid}_{tiebreaker}.jpg"
 
     if path.exists():
         return "exists"
 
     for _attempt in range(attempts):
         try:
-            image = requests.get(url, timeout=DELAY).content
-            with path.open("wb") as out_file:
-                out_file.write(image)
-        except ERRORS:  # noqa: PERF203
+            req = requests.get(url, timeout=DELAY)
+            break
+        except ERRORS:
             time.sleep(DELAY)
-        else:
-            return "download"
-    return "error"
+    else:
+        error = path.with_stem(f"{path.stem}.download_error")
+        error.touch()
+        return "download_error"
+
+    try:
+        with Image.open(BytesIO(req.content)) as image:
+            width, height = image.size
+            if max_width < width < height:
+                height = int(height * (max_width / width))
+                width = max_width
+            elif max_width < height:
+                width = int(width * (max_width / height))
+                height = max_width
+
+            image = image.resize((width, height))
+            image.save(path)
+
+    except ERRORS:
+        error = path.with_stem(f"{path.stem}.image_error")
+        error.touch()
+        return "image_error"
+
+    return "download"
 
 
 def parse_args():
@@ -96,7 +160,7 @@ def parse_args():
         type=Path,
         required=True,
         metavar="PATH",
-        help="""This SQLite DB data contains the cached image links.""",
+        help="""This SQLite DB data contains the image image links.""",
     )
 
     arg_parser.add_argument(
@@ -116,29 +180,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--offset",
+        "--max-width",
         type=int,
-        default=0,
-        metavar="INT",
-        help="""Start counting records in the --limit from this offset.
-            (default: %(default)s)""",
+        default=1024,
+        metavar="PIXELS",
+        help="""Resize the image to this width, short edge. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
-        "--per-dir",
-        type=int,
-        default=10_000,
-        metavar="INT",
-        help="""How many images to put into each subdirectory.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--max-workers",
+        "--processes",
         metavar="INT",
         type=int,
         default=1,
-        help="""How many worker threads to spawn. (default: %(default)s)""",
+        help="""How many worker processes to spawn. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

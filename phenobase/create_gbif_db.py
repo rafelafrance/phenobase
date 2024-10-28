@@ -21,11 +21,10 @@ def main():
     create_multimedia(args.gbif_db, args.multimedia_tsv)
     create_occurrence(args.gbif_db, args.occurrence_tsv)
 
-    # The downloaded data only has plants so there is no need to filter on that
-
     add_multimedia_tiebreaker(args.gbif_db)
-    add_multimedia_cache_link(args.gbif_db)
-    add_multimedia_directory(args.gbif_db)
+    add_multimedia_state(args.gbif_db)
+
+    vacuum(args.gbif_db)
 
     log.finished()
 
@@ -45,9 +44,6 @@ def create_multimedia(gbif_db, multimedia_tsv):
     with sqlite3.connect(gbif_db) as cxn:
         logging.info("Deleting non-image multimedia records")
         cxn.execute("delete from multimedia where type != 'StillImage';")
-
-        logging.info("Vacuuming")
-        cxn.executescript("vacuum;")
 
         logging.info("Creating multimedia index")
         cxn.executescript("create index multimedia_gbifid on multimedia (gbifid);")
@@ -73,12 +69,9 @@ def create_occurrence(gbif_db: Path, occurrence_tsv: Path):
         logging.info("Deleting occurrence records without multimedia")
         cxn.execute(
             """
-           delete from occurrence where gbifid not in (select gbifid from multimedia);
+            delete from occurrence where gbifid not in (select gbifid from multimedia);
             """
         )
-
-        logging.info("Vacuuming")
-        cxn.executescript("vacuum;")
 
 
 def add_multimedia_tiebreaker(gbif_db: Path):
@@ -98,6 +91,26 @@ def add_multimedia_tiebreaker(gbif_db: Path):
             params.append((tiebreakers[row["gbifid"]], row["rowid"]))
 
         update = "update multimedia set tiebreaker = ? where rowid = ?;"
+        cxn.executemany(update, params)
+
+
+def add_multimedia_state(gbif_db: Path):
+    """Add column to hold the image download state."""
+    logging.info("Add multimedia state")
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+
+        cxn.execute("alter table multimedia add column 'state' 'text';")
+
+        select = """select rowid, identifier from multimedia;"""
+
+        params = [
+            ("no url", r["rowid"])
+            for r in cxn.execute(select)
+            if r["identifier"] == "" or r["identifier"].endswith("/None")
+        ]
+
+        update = "update multimedia set state = ? where rowid = ?;"
         cxn.executemany(update, params)
 
 
@@ -125,16 +138,9 @@ def add_multimedia_cache_link(gbif_db: Path):
         cxn.executemany(update, params)
 
 
-def add_multimedia_directory(gbif_db: Path):
-    """Add column as a tiebreaker for multiple multimedia records per gbifID."""
-    logging.info("Add multimedia directory")
+def vacuum(gbif_db):
+    logging.info("Vacuuming")
     with sqlite3.connect(gbif_db) as cxn:
-        cxn.execute("alter table multimedia add column 'dir' 'int';")
-
-        update = "update multimedia set dir = 0;"
-        cxn.execute(update)
-
-        logging.info("Vacuuming")
         cxn.executescript("vacuum;")
 
 
@@ -147,10 +153,17 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--multimedia-tsv",
+        "--gbif-db",
         metavar="PATH",
         type=Path,
         required=True,
+        help="""Output the merged GBIF data to this SQLite DB.""",
+    )
+
+    arg_parser.add_argument(
+        "--multimedia-tsv",
+        metavar="PATH",
+        type=Path,
         help="""Read multimedia data from this TSV file.""",
     )
 
@@ -158,16 +171,7 @@ def parse_args():
         "--occurrence-tsv",
         metavar="PATH",
         type=Path,
-        required=True,
         help="""Read occurrence data from this TSV file.""",
-    )
-
-    arg_parser.add_argument(
-        "--gbif-db",
-        metavar="PATH",
-        type=Path,
-        required=True,
-        help="""Output the merged GBIF data to this SQLite DB.""",
     )
 
     args = arg_parser.parse_args()
