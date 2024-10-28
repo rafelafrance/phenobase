@@ -131,9 +131,14 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
     try:
         with Image.open(BytesIO(req.content)) as image:
             width, height = image.size
+
+            if width * height < 10_000:
+                raise ValueError
+
             if max_width < width < height:
                 height = int(height * (max_width / width))
                 width = max_width
+
             elif max_width < height:
                 width = int(width * (max_width / height))
                 height = max_width
