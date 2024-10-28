@@ -24,6 +24,6 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/create_gbif_db.py \
   --multimedia-tsv /blue/guralnick/rafe.lafrance/phenobase/data/gbif_metadata/multimedia.txt \
   --occurrence-tsv /blue/guralnick/rafe.lafrance/phenobase/data/gbif_metadata/occurrence.txt \
-  --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-23.sqlite
+  --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite
 
 date
