@@ -124,7 +124,7 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
         except ERRORS:
             time.sleep(DELAY)
     else:
-        error = path.with_stem(f"{path.stem}.download_error")
+        error = path.with_stem(f"{path.stem}_download_error")
         error.touch()
         return "download_error"
 
@@ -147,7 +147,7 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
             image.save(path)
 
     except ERRORS:
-        error = path.with_stem(f"{path.stem}.image_error")
+        error = path.with_stem(f"{path.stem}_image_error")
         error.touch()
         return "image_error"
 

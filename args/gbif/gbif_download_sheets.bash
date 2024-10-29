@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=update_gbif_dir
+#SBATCH --job-name=download_gbif_sheets
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -11,8 +11,8 @@
 #SBATCH --ntasks=1
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=16gb
+#SBATCH --cpus-per-task=64
+#SBATCH --mem-per-cpu=1gb
 #SBATCH --time=16:00:00
 
 date;hostname;pwd
@@ -21,8 +21,10 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/update_gbif_dir.py \
-  --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-23.sqlite \
-  --image-dir /blue/guralnick/share/phenobase_specimen_data/images
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_download_sheets.py \
+  --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
+  --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
+  --max-workers processes 64 \
+  --limit 20000
 
 date
