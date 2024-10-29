@@ -21,7 +21,7 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_download_sheets.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-  --max-workers processes 32 \
+  --processes 32 \
   --limit 20000
 
 date
