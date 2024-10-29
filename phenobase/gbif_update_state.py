@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import sqlite3
 import textwrap
+from collections import defaultdict
 from pathlib import Path
 
 from pylib import log
@@ -14,6 +16,7 @@ def main():
     args = parse_args()
 
     params = []
+    counts = defaultdict(int)
 
     for path in args.image_dir.glob("imges_*/*.jpg"):
         gbifid, tiebreaker, *_ = path.stem.split("_")
@@ -24,9 +27,15 @@ def main():
         elif path.stem.endswith("_image_error"):
             state = "image error"
 
+        counts[state] += 1
+
         params.append((state, gbifid, tiebreaker))
 
-    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?"""
+    for state, count in counts.items():
+        msg = f"State {state} count {count}"
+        logging.info(msg)
+
+    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.executemany(update, params)
 
