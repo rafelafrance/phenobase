@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=create_gbif_db
+#SBATCH --job-name=gbif_create_db
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
