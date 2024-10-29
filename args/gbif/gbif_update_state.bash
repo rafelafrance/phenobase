@@ -23,6 +23,6 @@ module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_update_state.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
-  --image-dir /blue/guralnick/share/phenobase_specimen_data/images
+  --image-dir /blue/guralnick/share/phenobase_specimen_data/images/images_0002
 
 date

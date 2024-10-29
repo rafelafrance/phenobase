@@ -18,7 +18,7 @@ def main():
     params = []
     counts = defaultdict(int)
 
-    for path in args.image_dir.glob("images_*/*.jpg"):
+    for path in args.image_dir.glob("*.jpg"):
         gbifid, tiebreaker, *_ = path.stem.split("_")
 
         state = path.parent.stem
