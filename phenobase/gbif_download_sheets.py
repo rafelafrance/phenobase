@@ -49,55 +49,19 @@ def main():
     args = parse_args()
 
     args.image_dir.mkdir(parents=True, exist_ok=True)
-
-    with sqlite3.connect(args.gbif_db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        select = """
-            select gbifid, tiebreaker, identifier
-            from multimedia
-            where state is null
-            order by random()
-            limit ?;
-            """
-        rows = [dict(r) for r in cxn.execute(select, (args.limit,))]
-
     counts = defaultdict(int)
 
-    next_dir = get_last_dir(args.image_dir) + 1
-    subdir = args.image_dir / f"images_{next_dir:04d}"
-    subdir.mkdir(parents=True, exist_ok=True)
+    for _i in args.batches:
+        rows = get_multimedia_recs(args.gbif_db, args.limit)
+        subdir = mk_subdir(args.image_dir)
 
-    with Pool(processes=args.processes) as pool:
-        results = [
-            pool.apply_async(
-                download,
-                (
-                    row["gbifID"],
-                    row["tiebreaker"],
-                    row["identifier"],
-                    subdir,
-                    args.attempts,
-                    args.max_width,
-                ),
-            )
-            for row in rows
-        ]
+        results = parallel_download(
+            subdir, rows, args.processes, args.attempts, args.max_width
+        )
         for result in results:
             counts[result.get()] += 1
 
-    # results = [
-    #     download(
-    #         row["gbifID"],
-    #         row["tiebreaker"],
-    #         row["identifier"],
-    #         subdir,
-    #         args.attempts,
-    #         args.max_width,
-    #     )
-    #     for row in rows
-    # ]
-    # for result in results:
-    #     counts[result] += 1
+        update_multimedia_states(subdir, args.gbif_db)
 
     for key, value in counts.items():
         msg = f"Count {key} = {value}"
@@ -106,10 +70,66 @@ def main():
     log.finished()
 
 
-def get_last_dir(image_dir) -> int:
+def update_multimedia_states(subdir, gbif_db):
+    params = []
+    for path in subdir.glob("*.jpg"):
+        gbifid, tiebreaker, *_ = path.stem.split("_")
+
+        state = path.parent.stem
+        if path.stem.endswith("_download_error"):
+            state = "download error"
+        elif path.stem.endswith("_image_error"):
+            state = "image error"
+
+        params.append((state, gbifid, tiebreaker))
+
+    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.executemany(update, params)
+
+
+def parallel_download(subdir, rows, processes, attempts, max_width):
+    with Pool(processes=processes) as pool:
+        results = [
+            pool.apply_async(
+                download,
+                (
+                    row["gbifID"],
+                    row["tiebreaker"],
+                    row["identifier"],
+                    subdir,
+                    attempts,
+                    max_width,
+                ),
+            )
+            for row in rows
+        ]
+        return results
+
+
+def get_multimedia_recs(gbif_db, limit):
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        select = """
+            select gbifid, tiebreaker, identifier
+            from multimedia
+            where state is null
+            order by random()
+            limit ?;
+            """
+        return [dict(r) for r in cxn.execute(select, (limit,))]
+
+
+def mk_subdir(image_dir):
     # Names formatted like "images_0001"
     dirs = sorted(image_dir.glob("images_*"))
-    return int(dirs[-1].stem.split("_")[-1]) if dirs else 0
+
+    next_dir = int(dirs[-1].stem.split("_")[-1]) if dirs else 0
+    next_dir += 1
+
+    subdir = image_dir / f"images_{next_dir:04d}"
+    subdir.mkdir(parents=True, exist_ok=True)
+    return subdir
 
 
 def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
@@ -186,6 +206,14 @@ def parse_args():
         default=100_000,
         metavar="INT",
         help="""Limit to this many completed downloads. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--batches",
+        type=int,
+        default=10,
+        metavar="INT",
+        help="""How many batches of size --limit to run. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
