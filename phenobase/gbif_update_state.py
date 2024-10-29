@@ -15,12 +15,18 @@ def main():
 
     params = []
 
-    for path in args.image_dir.glob("cache_*/*.jpg"):
-        dir_ = int(path.parent.stem.split("_")[-1])
-        gbifid, tiebreaker = path.stem.split("_")
-        params.append((dir_, gbifid, tiebreaker))
+    for path in args.image_dir.glob("imges_*/*.jpg"):
+        gbifid, tiebreaker, *_ = path.stem.split("_")
 
-    update = """update multimedia set dir = ? where gbifid = ? and tiebreaker = ?"""
+        state = path.parent.stem
+        if path.stem.endswith("_download_error"):
+            state = "download error"
+        elif path.stem.endswith("_image_error"):
+            state = "image error"
+
+        params.append((state, gbifid, tiebreaker))
+
+    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?"""
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.executemany(update, params)
 

@@ -6,6 +6,7 @@ import socket
 import sqlite3
 import textwrap
 import time
+import warnings
 from collections import defaultdict
 from io import BytesIO
 from multiprocessing import Pool
@@ -14,6 +15,8 @@ from pathlib import Path
 import requests
 from PIL import Image
 from pylib import log
+
+Image.MAX_IMAGE_PIXELS = 300_000_000
 
 # Set a timeout for requests
 TIMEOUT = 10
@@ -25,7 +28,7 @@ ERRORS = (
     AttributeError,
     BufferError,
     ConnectionError,
-    Image.DecompressionBombWarning,
+    Image.DecompressionBombError,
     EOFError,
     FileNotFoundError,
     IOError,
@@ -47,7 +50,6 @@ def main():
 
     args.image_dir.mkdir(parents=True, exist_ok=True)
 
-    rows = []
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
         select = """
@@ -81,7 +83,6 @@ def main():
             for row in rows
         ]
         for result in results:
-            print(result.get())
             counts[result.get()] += 1
 
     # results = [
@@ -128,28 +129,31 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
         error.touch()
         return "download_error"
 
-    try:
-        with Image.open(BytesIO(req.content)) as image:
-            width, height = image.size
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
 
-            if width * height < 10_000:
-                raise ValueError
+        try:
+            with Image.open(BytesIO(req.content)) as image:
+                width, height = image.size
 
-            if max_width < width < height:
-                height = int(height * (max_width / width))
-                width = max_width
+                if width * height < 10_000:
+                    raise ValueError
 
-            elif max_width < height:
-                width = int(width * (max_width / height))
-                height = max_width
+                if max_width < width < height:
+                    height = int(height * (max_width / width))
+                    width = max_width
 
-            image = image.resize((width, height))
-            image.save(path)
+                elif max_width < height:
+                    width = int(width * (max_width / height))
+                    height = max_width
 
-    except ERRORS:
-        error = path.with_stem(f"{path.stem}_image_error")
-        error.touch()
-        return "image_error"
+                image = image.resize((width, height))
+                image.save(path)
+
+        except ERRORS:
+            error = path.with_stem(f"{path.stem}_image_error")
+            error.touch()
+            return "image_error"
 
     return "download"
 

@@ -105,7 +105,7 @@ def add_multimedia_state(gbif_db: Path):
         select = """select rowid, identifier from multimedia;"""
 
         params = [
-            ("no url", r["rowid"])
+            ("no_url", r["rowid"])
             for r in cxn.execute(select)
             if r["identifier"] == "" or r["identifier"].endswith("/None")
         ]
