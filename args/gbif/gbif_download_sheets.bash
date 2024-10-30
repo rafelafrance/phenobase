@@ -4,13 +4,16 @@
 #SBATCH --qos=guralnick
 
 #SBATCH --job-name=gbif_download_sheets
+#SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
-#SBATCH --ntasks=64
-#SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
-#SBATCH --time=5-00:00:00
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=64
+
+#SBATCH --time=72:00:00
+#SBATCH --mem-per-cpu=2mb
 
 date;hostname;pwd
 
