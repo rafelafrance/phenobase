@@ -2,6 +2,8 @@
 
 import argparse
 import logging
+import random
+import re
 import socket
 import sqlite3
 import textwrap
@@ -23,6 +25,8 @@ TIMEOUT = 10
 socket.setdefaulttimeout(TIMEOUT)
 
 DELAY = 5  # Seconds to delay between attempts to download an image
+
+IMAGES_PER_DIR = 100_000
 
 ERRORS = (
     AttributeError,
@@ -51,15 +55,19 @@ def main():
     args.image_dir.mkdir(parents=True, exist_ok=True)
     counts = defaultdict(int)
 
-    for _i in range(args.batches):
-        rows = get_multimedia_recs(args.gbif_db, args.limit)
-        subdir = mk_subdir(args.image_dir)
+    rows = get_multimedia_recs(args.gbif_db, args.limit, args.offset)
+    random.shuffle(rows)  # A feeble attempt to not overload image servers
 
-        results = parallel_download(
-            subdir, rows, args.processes, args.attempts, args.max_width
+    row_chunks = [
+        rows[i : i + IMAGES_PER_DIR] for i in range(0, len(rows), IMAGES_PER_DIR)
+    ]
+
+    for row_chunk in row_chunks:
+        subdir = mk_subdir(args.image_dir, args.dir_suffix)
+
+        parallel_download(
+            subdir, row_chunk, args.processes, args.attempts, args.max_width
         )
-        for result in results:
-            counts[result.get()] += 1
 
         update_multimedia_states(subdir, args.gbif_db)
 
@@ -70,22 +78,28 @@ def main():
     log.finished()
 
 
-def update_multimedia_states(subdir, gbif_db):
-    params = []
-    for path in subdir.glob("*.jpg"):
-        gbifid, tiebreaker, *_ = path.stem.split("_")
-
-        state = path.parent.stem
-        if path.stem.endswith("_download_error"):
-            state = "download error"
-        elif path.stem.endswith("_image_error"):
-            state = "image error"
-
-        params.append((state, gbifid, tiebreaker))
-
-    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
+def get_multimedia_recs(gbif_db, limit, offset):
     with sqlite3.connect(gbif_db) as cxn:
-        cxn.executemany(update, params)
+        cxn.row_factory = sqlite3.Row
+        select = """
+            select gbifid, tiebreaker, identifier
+            from multimedia
+            where state is null
+            limit ? OFFSET ?;
+            """
+        return [dict(r) for r in cxn.execute(select, (limit, offset))]
+
+
+def mk_subdir(image_dir, dir_suffix):
+    # Names formatted like "images_0001a"
+    dirs = sorted(image_dir.glob("images_*"))
+
+    dir_next = int(re.sub(r"\D", "", dirs[-1].stem)) if dirs else 0
+    dir_next += 1
+
+    subdir = image_dir / f"images_{dir_next:04d}{dir_suffix}"
+    subdir.mkdir(parents=True, exist_ok=True)
+    return subdir
 
 
 def parallel_download(subdir, rows, processes, attempts, max_width):
@@ -107,29 +121,22 @@ def parallel_download(subdir, rows, processes, attempts, max_width):
         return results
 
 
-def get_multimedia_recs(gbif_db, limit):
+def update_multimedia_states(subdir, gbif_db):
+    params = []
+    for path in subdir.glob("*.jpg"):
+        gbifid, tiebreaker, *_ = path.stem.split("_")
+
+        state = path.parent.stem
+        if path.stem.endswith("_download_error"):
+            state = "download error"
+        elif path.stem.endswith("_image_error"):
+            state = "image error"
+
+        params.append((state, gbifid, tiebreaker))
+
+    update = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
     with sqlite3.connect(gbif_db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        select = """
-            select gbifid, tiebreaker, identifier
-            from multimedia
-            where state is null
-            order by random()
-            limit ?;
-            """
-        return [dict(r) for r in cxn.execute(select, (limit,))]
-
-
-def mk_subdir(image_dir):
-    # Names formatted like "images_0001"
-    dirs = sorted(image_dir.glob("images_*"))
-
-    next_dir = int(dirs[-1].stem.split("_")[-1]) if dirs else 0
-    next_dir += 1
-
-    subdir = image_dir / f"images_{next_dir:04d}"
-    subdir.mkdir(parents=True, exist_ok=True)
-    return subdir
+        cxn.executemany(update, params)
 
 
 def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
@@ -201,20 +208,26 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--dir-suffix",
+        default="",
+        help="""Prevent directory names colliding with multiple jobs.""",
+    )
+
+    arg_parser.add_argument(
         "--limit",
         type=int,
-        default=100_000,
+        default=1_000_000,
         metavar="INT",
         help="""Limit to this many completed downloads per batch.
             (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
-        "--batches",
+        "--offset",
         type=int,
-        default=10,
+        default=0,
         metavar="INT",
-        help="""How many batches of size --limit to run. (default: %(default)s)""",
+        help="""Read records after this offset. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
