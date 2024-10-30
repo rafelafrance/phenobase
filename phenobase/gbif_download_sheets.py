@@ -28,17 +28,17 @@ ERRORS = (
     AttributeError,
     BufferError,
     ConnectionError,
-    Image.DecompressionBombError,
     EOFError,
     FileNotFoundError,
     IOError,
+    Image.DecompressionBombError,
+    Image.UnidentifiedImageError,
     IndexError,
     OSError,
     RuntimeError,
     SyntaxError,
     TimeoutError,
     TypeError,
-    Image.UnidentifiedImageError,
     ValueError,
     requests.exceptions.ReadTimeout,
 )
@@ -205,7 +205,8 @@ def parse_args():
         type=int,
         default=100_000,
         metavar="INT",
-        help="""Limit to this many completed downloads. (default: %(default)s)""",
+        help="""Limit to this many completed downloads per batch.
+            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

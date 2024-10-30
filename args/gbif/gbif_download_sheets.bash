@@ -9,9 +9,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --ntasks=32
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
-#SBATCH --mem=1gb
 
-#SBATCH --time=24:00:00
+#SBATCH --time=5-00:00:00
 
 date;hostname;pwd
 
@@ -22,7 +21,6 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_download_sheets.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-  --processes 32 \
-  --limit 100000
+  --processes 32
 
 date
