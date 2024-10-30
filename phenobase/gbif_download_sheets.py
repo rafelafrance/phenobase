@@ -51,7 +51,7 @@ def main():
     args.image_dir.mkdir(parents=True, exist_ok=True)
     counts = defaultdict(int)
 
-    for _i in args.batches:
+    for _i in range(args.batches):
         rows = get_multimedia_recs(args.gbif_db, args.limit)
         subdir = mk_subdir(args.image_dir)
 
