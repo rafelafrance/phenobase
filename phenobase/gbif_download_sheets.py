@@ -85,7 +85,7 @@ def get_multimedia_recs(gbif_db, limit, offset):
             select gbifid, tiebreaker, identifier
             from multimedia
             where state is null
-            limit ? OFFSET ?;
+            limit ? offset ?;
             """
         return [dict(r) for r in cxn.execute(select, (limit, offset))]
 
@@ -118,7 +118,7 @@ def parallel_download(subdir, rows, processes, attempts, max_width):
             )
             for row in rows
         ]
-        return results
+        _ = [r.get() for r in results]
 
 
 def update_multimedia_states(subdir, gbif_db):
