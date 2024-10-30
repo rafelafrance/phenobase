@@ -118,7 +118,8 @@ def parallel_download(subdir, rows, processes, attempts, max_width):
             )
             for row in rows
         ]
-        _ = [r.get() for r in results]
+        results = [r.get() for r in results]
+    return results
 
 
 def update_multimedia_states(subdir, gbif_db):
@@ -131,6 +132,9 @@ def update_multimedia_states(subdir, gbif_db):
             state = "download error"
         elif path.stem.endswith("_image_error"):
             state = "image error"
+        # Being a small image is not really an error, but should be noted and fixed
+        elif path.stem.endswith("_small"):
+            state = f"{state} small"
 
         params.append((state, gbifid, tiebreaker))
 
@@ -174,7 +178,11 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
                     width = int(width * (max_width / height))
                     height = max_width
 
-                image = image.resize((width, height))
+                if width < max_width and height < max_width:
+                    path = path.with_stem(f"{path.stem}_small")
+                else:
+                    image = image.resize((width, height))
+
                 image.save(path)
 
         except ERRORS:
