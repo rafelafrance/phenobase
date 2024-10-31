@@ -24,8 +24,8 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_download_multitasking.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-  --dir-suffix c \
-  --offset 0 \
-  --max-workers 32
+  --dir-suffix b \
+  --offset 1000000 \
+  --max-workers 128
 
 date
