@@ -9,11 +9,9 @@
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
 
+#SBATCH --mem=64gb
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-
 #SBATCH --time=96:00:00
-###########SBATCH --mem-per-cpu=2gb
 
 date;hostname;pwd
 
@@ -26,6 +24,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_download_multitas
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
   --dir-suffix b \
   --offset 1000000 \
-  --max-workers 128
+  --max-workers 64
 
 date
