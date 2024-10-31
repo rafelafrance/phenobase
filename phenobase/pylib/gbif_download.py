@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import logging
 import random
@@ -9,21 +7,13 @@ import sqlite3
 import textwrap
 import time
 import warnings
-from collections import defaultdict
 from io import BytesIO
-from multiprocessing import Pool
 from pathlib import Path
 
 import requests
 from PIL import Image
-from pylib import log
 
-Image.MAX_IMAGE_PIXELS = 300_000_000
-
-# Set a timeout for requests
-TIMEOUT = 10
-socket.setdefaulttimeout(TIMEOUT)
-
+TIMEOUT = 10  # Seconds to wait for a server reply
 DELAY = 5  # Seconds to delay between attempts to download an image
 
 IMAGES_PER_DIR = 100_000
@@ -47,38 +37,14 @@ ERRORS = (
     requests.exceptions.ReadTimeout,
 )
 
+Image.MAX_IMAGE_PIXELS = 300_000_000
 
-def main():
-    log.started()
-    args = parse_args()
-
-    args.image_dir.mkdir(parents=True, exist_ok=True)
-    counts = defaultdict(int)
-
-    rows = get_multimedia_recs(args.gbif_db, args.limit, args.offset)
-    random.shuffle(rows)  # A feeble attempt to not overload image servers
-
-    row_chunks = [
-        rows[i : i + IMAGES_PER_DIR] for i in range(0, len(rows), IMAGES_PER_DIR)
-    ]
-
-    for row_chunk in row_chunks:
-        subdir = mk_subdir(args.image_dir, args.dir_suffix)
-
-        parallel_download(
-            subdir, row_chunk, args.processes, args.attempts, args.max_width
-        )
-
-        update_multimedia_states(subdir, args.gbif_db)
-
-    for key, value in counts.items():
-        msg = f"Count {key} = {value}"
-        logging.info(msg)
-
-    log.finished()
+# Set a timeout for requests
+socket.setdefaulttimeout(TIMEOUT)
 
 
 def get_multimedia_recs(gbif_db, limit, offset):
+    """Get records and put them into batches/chunks that will fit in a directory."""
     with sqlite3.connect(gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
         select = """
@@ -87,7 +53,13 @@ def get_multimedia_recs(gbif_db, limit, offset):
             where state is null
             limit ? offset ?;
             """
-        return [dict(r) for r in cxn.execute(select, (limit, offset))]
+        rows = [dict(r) for r in cxn.execute(select, (limit, offset))]
+        random.shuffle(rows)  # A feeble attempt to not overload image servers;
+
+        row_chunks = [
+            rows[i : i + IMAGES_PER_DIR] for i in range(0, len(rows), IMAGES_PER_DIR)
+        ]
+        return row_chunks
 
 
 def mk_subdir(image_dir, dir_suffix):
@@ -100,26 +72,6 @@ def mk_subdir(image_dir, dir_suffix):
     subdir = image_dir / f"images_{dir_next:04d}{dir_suffix}"
     subdir.mkdir(parents=True, exist_ok=True)
     return subdir
-
-
-def parallel_download(subdir, rows, processes, attempts, max_width):
-    with Pool(processes=processes) as pool:
-        results = [
-            pool.apply_async(
-                download,
-                (
-                    row["gbifID"],
-                    row["tiebreaker"],
-                    row["identifier"],
-                    subdir,
-                    attempts,
-                    max_width,
-                ),
-            )
-            for row in rows
-        ]
-        results = [r.get() for r in results]
-    return results
 
 
 def update_multimedia_states(subdir, gbif_db):
@@ -193,6 +145,12 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
     return "download"
 
 
+def log_counts(counts):
+    for key, value in counts.items():
+        msg = f"Count {key} = {value}"
+        logging.info(msg)
+
+
 def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
@@ -247,11 +205,11 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--processes",
+        "--max-workers",
         metavar="INT",
         type=int,
         default=1,
-        help="""How many worker processes to spawn. (default: %(default)s)""",
+        help="""How many workers to spawn. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
@@ -265,7 +223,3 @@ def parse_args():
 
     args = arg_parser.parse_args()
     return args
-
-
-if __name__ == "__main__":
-    main()
