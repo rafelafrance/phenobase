@@ -2,14 +2,11 @@
 
 import argparse
 import logging
-import sqlite3
 import textwrap
 from collections import defaultdict
 from pathlib import Path
 
 from pylib import log
-
-UPDATE = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
 
 
 def main():
@@ -17,47 +14,18 @@ def main():
 
     args = parse_args()
 
-    counts: dict[str, int] = defaultdict(int)
+    dupes: dict[tuple[str, str], list[Path]] = defaultdict(list)
 
     for dir_ in args.image_dir.glob(args.subdir_glob):
-        params = []
         for path in dir_.glob("*.jpg"):
             gbifid, tiebreaker, *_ = path.stem.split("_")
+            dupes[(gbifid, tiebreaker)].append(path)
 
-            state = get_state(path)
-
-            counts[state] += 1
-            params.append((state, gbifid, tiebreaker))
-
-        if not args.count_only:
-            with sqlite3.connect(args.gbif_db) as cxn:
-                cxn.executemany(UPDATE, params)
-
-    log_counts(counts)
-
-    log.finished()
-
-
-def log_counts(counts: dict[str, int]) -> None:
-    total = 0
-    for state, count in counts.items():
-        if "error" not in state:
-            total += count
-        msg = f"State '{state}' count {count}"
-        logging.info(msg)
-    msg = f"Total downloaded {total}"
+    total = sum(c for v in dupes.values() if (c := len(v)) > 1)
+    msg = f"Total duplicates {total}"
     logging.info(msg)
 
-
-def get_state(path: Path) -> str:
-    state = path.parent.stem
-    if path.stem.endswith("_download_error"):
-        state = f"{state} download error"
-    elif path.stem.endswith("_image_error"):
-        state = f"{state} image error"
-    elif path.stem.endswith("_small"):
-        state = f"{state} small"
-    return state
+    log.finished()
 
 
 def parse_args():
@@ -71,6 +39,7 @@ def parse_args():
     arg_parser.add_argument(
         "--gbif-db",
         type=Path,
+        required=True,
         metavar="PATH",
         help="""Update the multimedia table in this SQLite DB.""",
     )
@@ -88,12 +57,6 @@ def parse_args():
         default="images_*",
         metavar="GLOB",
         help="""Use this to find subdirectories within the --image-dir.""",
-    )
-
-    arg_parser.add_argument(
-        "--count-only",
-        action="store_true",
-        help="Do not update the database, only count the results.",
     )
 
     args = arg_parser.parse_args()
