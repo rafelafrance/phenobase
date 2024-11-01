@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python ./phenobase/train_model.py \
+python ./phenobase/model_train.py \
   --trait-csv ./splits/splits.csv \
   --image-dir ./data/images/images_600 \
   --output-dir ./data/local/vit_224_base_prec \

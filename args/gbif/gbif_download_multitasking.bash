@@ -11,7 +11,7 @@
 
 #SBATCH --mem=64gb
 #SBATCH --nodes=1
-#SBATCH --time=96:00:00
+#SBATCH --time=10-00:00:00
 
 date;hostname;pwd
 

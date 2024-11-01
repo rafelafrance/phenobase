@@ -39,17 +39,19 @@ def main():
 
 
 def log_counts(counts: dict[str, int]) -> None:
-    total, errors = 0, 0
+    success, errors = 0, 0
     for state, count in counts.items():
         if "error" in state:
             errors += count
         else:
-            total += count
+            success += count
         msg = f"State '{state}' count {count}"
         logging.info(msg)
-    msg = f"Total downloaded {total}"
+
+    msg = f"Successful downloads {success:7,d}"
     logging.info(msg)
-    msg = f"Total errors     {errors}"
+
+    msg = f"Download errors      {errors:7,d}"
     logging.info(msg)
 
 

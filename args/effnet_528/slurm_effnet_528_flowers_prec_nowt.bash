@@ -23,7 +23,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/train_model.py \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_flowers_prec_nowt \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/images_600 \
   --trait-csv /blue/guralnick/rafe.lafrance/phenobase/splits/splits.csv \
