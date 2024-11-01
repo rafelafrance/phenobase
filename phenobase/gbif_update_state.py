@@ -39,13 +39,16 @@ def main():
 
 
 def log_counts(counts: dict[str, int]) -> None:
-    total = 0
+    total, errors = 0, 0
     for state, count in counts.items():
-        if "error" not in state:
+        if "error" in state:
+            errors += count
+        else:
             total += count
         msg = f"State '{state}' count {count}"
         logging.info(msg)
     msg = f"Total downloaded {total}"
+    msg = f"Total errors     {errors}"
     logging.info(msg)
 
 
