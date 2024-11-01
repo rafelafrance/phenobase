@@ -37,14 +37,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--gbif-db",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Update the multimedia table in this SQLite DB.""",
-    )
-
-    arg_parser.add_argument(
         "--image-dir",
         type=Path,
         required=True,

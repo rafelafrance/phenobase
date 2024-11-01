@@ -7,13 +7,12 @@
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=FAIL,END
 
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 
 #SBATCH --time=96:00:00
-###########SBATCH --mem-per-cpu=2gb
 
 date;hostname;pwd
 
