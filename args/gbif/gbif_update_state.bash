@@ -12,8 +12,8 @@
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8gb
-#SBATCH --time=1:00:00
+#SBATCH --mem=32gb
+#SBATCH --time=4:00:00
 
 date;hostname;pwd
 
@@ -23,8 +23,6 @@ module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_update_state.py \
   --gbif-db /blue/guralnick/rafe.lafrance/phenobase/data/gbif_2024-10-28.sqlite \
-  --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-  --subdir-glob 'images_*[a-z]' \
-  --count-only
+  --image-dir /blue/guralnick/share/phenobase_specimen_data/images
 
 date

@@ -20,6 +20,8 @@ def main():
     counts: dict[str, int] = defaultdict(int)
 
     for dir_ in args.image_dir.glob(args.subdir_glob):
+        msg = f"Updating {dir_.stem}"
+        logging.info(msg)
         params = []
         for path in dir_.glob("*.jpg"):
             gbifid, tiebreaker, *_ = path.stem.split("_")
