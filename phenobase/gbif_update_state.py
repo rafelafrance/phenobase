@@ -48,6 +48,7 @@ def log_counts(counts: dict[str, int]) -> None:
         msg = f"State '{state}' count {count}"
         logging.info(msg)
     msg = f"Total downloaded {total}"
+    logging.info(msg)
     msg = f"Total errors     {errors}"
     logging.info(msg)
 
