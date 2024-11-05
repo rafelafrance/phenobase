@@ -16,6 +16,7 @@ def main():
     log.started()
 
     args = parse_args()
+    logging.info(args)
 
     counts: dict[str, int] = defaultdict(int)
 
