@@ -12,7 +12,7 @@
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=32gb
+#SBATCH --mem=4gb
 #SBATCH --time=4:00:00
 
 date;hostname;pwd
