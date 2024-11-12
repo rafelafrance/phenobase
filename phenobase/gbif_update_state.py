@@ -20,7 +20,9 @@ def main():
 
     counts: dict[str, int] = defaultdict(int)
 
-    for dir_ in args.image_dir.glob(args.subdir_glob):
+    sub_dirs = sorted(args.image_dir.glob(args.subdir_glob))
+
+    for dir_ in sub_dirs:
         msg = f"Updating {dir_.stem}"
         logging.info(msg)
         params = []
