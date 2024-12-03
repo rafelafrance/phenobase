@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from pylib import gbif_download, log
@@ -8,6 +9,7 @@ from pylib import gbif_download, log
 def main():
     log.started()
     args = gbif_download.parse_args()
+    logging.info(args)
 
     args.image_dir.mkdir(parents=True, exist_ok=True)
 
