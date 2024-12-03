@@ -13,16 +13,19 @@ def main():
     log.started()
 
     args = parse_args()
+    logging.info(args)
 
-    dupes: dict[tuple[str, str], list[Path]] = defaultdict(list)
+    dupes: dict[tuple[str, str], list[str]] = defaultdict(list)
 
     for dir_ in args.image_dir.glob(args.subdir_glob):
         for path in dir_.glob("*.jpg"):
-            gbifid, tiebreaker, *_ = path.stem.split("_")
-            dupes[(gbifid, tiebreaker)].append(path)
+            gbifid, tiebreaker, *_ = path.stem.split("_", maxsplit=2)
 
-    total = sum(c for v in dupes.values() if (c := len(v)) > 1)
-    msg = f"Total duplicates {total}"
+            tail = f"{path.parent}/{path.name}"
+            dupes[(gbifid, tiebreaker)].append(tail)
+
+    dupe_count = sum(c for v in dupes.values() if (c := len(v)) > 1)
+    msg = f"Total duplicates {dupe_count}"
     logging.info(msg)
 
     log.finished()
