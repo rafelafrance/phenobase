@@ -9,7 +9,7 @@
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
 
-#SBATCH --mem=8gb
+#SBATCH --mem=16gb
 #SBATCH --nodes=1
 #SBATCH --time=10-00:00:00
 
