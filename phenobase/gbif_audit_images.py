@@ -24,8 +24,24 @@ def main():
             tail = f"{path.parent}/{path.name}"
             dupes[(gbifid, tiebreaker)].append(tail)
 
+    total = sum(c for v in dupes.values() if (c := len(v)))
+    msg = f"Duplicates {total}"
+    logging.info(msg)
+
     dupe_count = sum(c for v in dupes.values() if (c := len(v)) > 1)
-    msg = f"Total duplicates {dupe_count}"
+    msg = f"Duplicates {dupe_count}"
+    logging.info(msg)
+
+    small = sum(c for d in dupes.values() for p in d if p.find("small") > -1)
+    msg = f"Small images {small}"
+    logging.info(msg)
+
+    down = sum(c for d in dupes.values() for p in d if p.find("download_error") > -1)
+    msg = f"Download errors {down}"
+    logging.info(msg)
+
+    image = sum(c for d in dupes.values() for p in d if p.find("image_error") > -1)
+    msg = f"Image errors {image}"
     logging.info(msg)
 
     log.finished()
@@ -34,9 +50,7 @@ def main():
 def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        description=textwrap.dedent(
-            """Update the directory field in the multimedia table."""
-        ),
+        description=textwrap.dedent("""Audit the downloaded images."""),
     )
 
     arg_parser.add_argument(
