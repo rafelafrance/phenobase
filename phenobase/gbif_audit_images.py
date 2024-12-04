@@ -28,8 +28,12 @@ def main():
     msg = f"Total           {total:8,d}"
     logging.info(msg)
 
-    dupe_count = sum(c for v in dupes.values() if (c := len(v)) > 1)
+    dupe_count = sum(1 for v in dupes.values() if len(v) > 1)
     msg = f"Duplicates      {dupe_count:8,d}"
+    logging.info(msg)
+
+    differ = sum(1 for v in dupes.values() if len(v) > 1 and any(x != v[0] for x in v))
+    msg = f"Different       {differ:8,d}"
     logging.info(msg)
 
     small = sum(c for d in dupes.values() for p in d if p.find("small") > -1)
