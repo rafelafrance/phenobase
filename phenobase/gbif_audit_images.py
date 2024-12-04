@@ -21,8 +21,7 @@ def main():
         for path in dir_.glob("*.jpg"):
             gbifid, tiebreaker, *_ = path.stem.split("_", maxsplit=2)
 
-            tail = f"{path.parent}/{path.name}"
-            dupes[(gbifid, tiebreaker)].append(tail)
+            dupes[(gbifid, tiebreaker)].append(path.name)
 
     total = len(dupes)
     msg = f"Total           {total:8,d}"
