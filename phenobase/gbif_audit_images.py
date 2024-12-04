@@ -60,7 +60,7 @@ def main():
     logging.info(msg)
 
     for k, v in dupes.items():
-        if len(v) > 1:
+        if len(v) > 1 and any(x != v[0] for x in v):
             print(k, v)
             break
 
