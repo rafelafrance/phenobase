@@ -21,7 +21,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_find_duplicates.py \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_audit_images.py \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images
 
 date

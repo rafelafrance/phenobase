@@ -25,23 +25,23 @@ def main():
             dupes[(gbifid, tiebreaker)].append(tail)
 
     total = sum(c for v in dupes.values() if (c := len(v)))
-    msg = f"Duplicates {total}"
+    msg = f"Total           {total:8d}"
     logging.info(msg)
 
     dupe_count = sum(c for v in dupes.values() if (c := len(v)) > 1)
-    msg = f"Duplicates {dupe_count}"
+    msg = f"Duplicates      {dupe_count:8d}"
     logging.info(msg)
 
     small = sum(c for d in dupes.values() for p in d if p.find("small") > -1)
-    msg = f"Small images {small}"
+    msg = f"Small images    {small:8d}"
     logging.info(msg)
 
     down = sum(c for d in dupes.values() for p in d if p.find("download_error") > -1)
-    msg = f"Download errors {down}"
+    msg = f"Download errors {down:8d}"
     logging.info(msg)
 
     image = sum(c for d in dupes.values() for p in d if p.find("image_error") > -1)
-    msg = f"Image errors {image}"
+    msg = f"Image errors    {image:8d}"
     logging.info(msg)
 
     log.finished()
