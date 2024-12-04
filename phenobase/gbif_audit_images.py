@@ -24,7 +24,7 @@ def main():
             tail = f"{path.parent}/{path.name}"
             dupes[(gbifid, tiebreaker)].append(tail)
 
-    total = sum(c for v in dupes.values() if (c := len(v)))
+    total = len(dupes)
     msg = f"Total           {total:8,d}"
     logging.info(msg)
 
@@ -36,17 +36,34 @@ def main():
     msg = f"Different       {differ:8,d}"
     logging.info(msg)
 
-    small = sum(c for d in dupes.values() for p in d if p.find("small") > -1)
+    small = sum(
+        1 for d in dupes.values() for p in d if any(x.find("small") > -1 for x in d)
+    )
     msg = f"Small images    {small:8,d}"
     logging.info(msg)
 
-    down = sum(c for d in dupes.values() for p in d if p.find("download_error") > -1)
+    down = sum(
+        1
+        for d in dupes.values()
+        for p in d
+        if any(x.find("download_error") > -1 for x in d)
+    )
     msg = f"Download errors {down:8,d}"
     logging.info(msg)
 
-    image = sum(c for d in dupes.values() for p in d if p.find("image_error") > -1)
+    image = sum(
+        1
+        for d in dupes.values()
+        for p in d
+        if any(x.find("image_error") > -1 for x in d)
+    )
     msg = f"Image errors    {image:8,d}"
     logging.info(msg)
+
+    for k, v in dupes.items():
+        if len(v) > 1:
+            print(k, v)
+            break
 
     log.finished()
 
