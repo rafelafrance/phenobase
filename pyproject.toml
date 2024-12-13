@@ -79,7 +79,7 @@ lint.select = [
     "BLE",
     "FBT",
     "B",
-#    "A",  # flake8-builtins
+    "A",
     "COM",
     "C4",
     "T10",
@@ -103,7 +103,7 @@ lint.select = [
     "TID",
     "TCH",
     "INT",
-#    "ARG",  # flake8-unused-arguments
+    "ARG",
     "PTH",
     "TD",
     "FIX",
@@ -114,7 +114,7 @@ lint.select = [
     "FLY",
     "NPY",
     "PERF",
-#    "FURB",  # refurb
+    "FURB",
 #    "LOG",  # flake8-logging
     "RUF",
 ]
@@ -131,6 +131,7 @@ lint.ignore = [
     "D203",  # 1 blank line required before class docstring
     "D212",  # Multi-line docstring summary should start at the first line
     "FIX002",  # Line contains TODO
+    "G004",  # Logging statement uses f-string
     "ISC001",  # Implicitly concatenated string literals on one line
     "N818",  # Exception name {name} should be named with an Error suffix
     "PD901",  # Avoid using the generic variable name df for DataFrames

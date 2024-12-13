@@ -4,9 +4,19 @@ import argparse
 import logging
 import textwrap
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from pylib import log
+
+
+@dataclass
+class Dupe:
+    name: str  # Path.name
+    path: Path
+
+
+Dupes = dict[str, list[Dupe]]
 
 
 def main():
@@ -15,56 +25,83 @@ def main():
     args = parse_args()
     logging.info(args)
 
-    dupes: dict[tuple[str, str], list[str]] = defaultdict(list)
+    all_dupes: Dupes = get_paths(args.src_dir)
 
-    for dir_ in args.image_dir.glob(args.subdir_glob):
+    report(all_dupes)
+    choose_file(all_dupes)
+    remove_duplicates(all_dupes)
+
+    log.finished()
+
+
+def get_paths(src_dir: Path) -> Dupes:
+    all_dupes: Dupes = defaultdict(list)
+
+    for dir_ in src_dir.glob("images_*"):
         for path in dir_.glob("*.jpg"):
             gbifid, tiebreaker, *_ = path.stem.split("_", maxsplit=2)
+            key = f"{gbifid}_{tiebreaker}"
+            all_dupes[key].append(Dupe(path.name, path))
 
-            dupes[(gbifid, tiebreaker)].append(path.name)
+    return all_dupes
 
-    total = len(dupes)
-    msg = f"Total           {total:8,d}"
-    logging.info(msg)
 
-    dupe_count = sum(1 for v in dupes.values() if len(v) > 1)
-    msg = f"Duplicates      {dupe_count:8,d}"
-    logging.info(msg)
+def choose_file(all_dupes: Dupes) -> None:
+    """
+    Get the best file when there are multiple attempts to download a file.
 
-    differ = sum(1 for v in dupes.values() if len(v) > 1 and any(x != v[0] for x in v))
-    msg = f"Different       {differ:8,d}"
-    logging.info(msg)
+    A happy coincidence is that the shortest file name is the best. Name formats:
+        - <gbif ID>.jpg
+        - <gbif ID>_small.jpg
+        - <gbif ID>_image_error.jpg   * This one is just as bad as the next one *
+        - <gbif ID>_download_error.jpg
+    """
+    for key, dupes in all_dupes.items():
+        if len(dupes) > 1 and any(dupe.name != dupes[0].name for dupe in dupes):
+            all_dupes[key] = sorted(dupes, key=lambda dupe: len(dupe.name))
+
+
+def remove_duplicates(all_dupes: Dupes) -> None:
+    for dupes in all_dupes.values():
+        # Everything after the first image gets deleted
+        for dupe in dupes[1:]:
+            dupe.path.unlink(missing_ok=True)
+
+
+def report(all_dupes: Dupes) -> None:
+    total = len(all_dupes)
+    logging.info(f"{'Total':<15} {total:8,d}")
+
+    dupe_count = sum(1 for dupes in all_dupes.values() if len(dupes) > 1)
+    logging.info(f"{'Duplicates':<15} {dupe_count:8,d}")
+
+    differ = sum(
+        1
+        for dupes in all_dupes.values()
+        if len(dupes) > 1 and any(dupe.name != dupes[0].name for dupe in dupes)
+    )
+    logging.info(f"{'Different':<15} {differ:8,d}")
 
     small = sum(
-        1 for d in dupes.values() for p in d if any(x.find("small") > -1 for x in d)
+        1
+        for dupes in all_dupes.values()
+        if any(dupe.name.find("small") > -1 for dupe in dupes)
     )
-    msg = f"Small images    {small:8,d}"
-    logging.info(msg)
+    logging.info(f"{'Small images':<15} {small:8,d}")
 
     down = sum(
         1
-        for d in dupes.values()
-        for p in d
-        if any(x.find("download_error") > -1 for x in d)
+        for dupes in all_dupes.values()
+        if any(dupe.name.find("download_error") > -1 for dupe in dupes)
     )
-    msg = f"Download errors {down:8,d}"
-    logging.info(msg)
+    logging.info(f"{'Download errors':<15} {down:8,d}")
 
     image = sum(
         1
-        for d in dupes.values()
-        for p in d
-        if any(x.find("image_error") > -1 for x in d)
+        for dupes in all_dupes.values()
+        if any(dupe.name.find("image_error") > -1 for dupe in dupes)
     )
-    msg = f"Image errors    {image:8,d}"
-    logging.info(msg)
-
-    for k, v in dupes.items():
-        if len(v) > 1 and any(x != v[0] for x in v):
-            print(k, v)
-            break
-
-    log.finished()
+    logging.info(f"{'Image errors':<15} {image:8,d}")
 
 
 def parse_args():
@@ -74,18 +111,17 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--image-dir",
+        "--src-dir",
         type=Path,
-        required=True,
         metavar="PATH",
-        help="""Search subdirectories of this directory for image files.""",
+        help="""Source image directory. It contains subdirectories with images.""",
     )
 
     arg_parser.add_argument(
-        "--subdir-glob",
-        default="images_*",
-        metavar="GLOB",
-        help="""Use this to find subdirectories within the --image-dir.""",
+        "--dst-dir",
+        type=Path,
+        metavar="PATH",
+        help="""Destination image directory.""",
     )
 
     args = arg_parser.parse_args()
