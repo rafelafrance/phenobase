@@ -25,19 +25,20 @@ def main():
     args = parse_args()
     logging.info(args)
 
-    all_dupes: Dupes = get_paths(args.src_dir)
-
-    report(all_dupes)
+    all_dupes: Dupes = get_paths(args.image_dir)
     choose_file(all_dupes)
-    remove_duplicates(all_dupes)
+    removed = remove_duplicate_images(
+        all_dupes, remove_duplicates=args.remove_duplicates
+    )
+    report(all_dupes, removed)
 
     log.finished()
 
 
-def get_paths(src_dir: Path) -> Dupes:
+def get_paths(image_dir: Path) -> Dupes:
     all_dupes: Dupes = defaultdict(list)
 
-    for dir_ in src_dir.glob("images_*"):
+    for dir_ in image_dir.glob("images_*"):
         for path in dir_.glob("*.jpg"):
             gbifid, tiebreaker, *_ = path.stem.split("_", maxsplit=2)
             key = f"{gbifid}_{tiebreaker}"
@@ -61,46 +62,29 @@ def choose_file(all_dupes: Dupes) -> None:
             all_dupes[key] = sorted(dupes, key=lambda dupe: len(dupe.name))
 
 
-def remove_duplicates(all_dupes: Dupes) -> None:
+def remove_duplicate_images(all_dupes: Dupes, *, remove_duplicates: bool) -> int:
+    removed = 0
     for dupes in all_dupes.values():
         # Everything after the first image gets deleted
         for dupe in dupes[1:]:
-            dupe.path.unlink(missing_ok=True)
+            removed += 1
+            if remove_duplicates:
+                dupe.path.unlink(missing_ok=True)
+    return removed
 
 
-def report(all_dupes: Dupes) -> None:
-    total = len(all_dupes)
-    logging.info(f"{'Total':<15} {total:8,d}")
+def report(all_dupes: Dupes, removed: int) -> None:
+    logging.info(f"{'Total':<15} {len(all_dupes):8,d}")
 
-    dupe_count = sum(1 for dupes in all_dupes.values() if len(dupes) > 1)
-    logging.info(f"{'Duplicates':<15} {dupe_count:8,d}")
+    logging.info(f"Removed {removed} images")
 
-    differ = sum(
-        1
-        for dupes in all_dupes.values()
-        if len(dupes) > 1 and any(dupe.name != dupes[0].name for dupe in dupes)
-    )
-    logging.info(f"{'Different':<15} {differ:8,d}")
-
-    small = sum(
-        1
-        for dupes in all_dupes.values()
-        if any(dupe.name.find("small") > -1 for dupe in dupes)
-    )
+    small = sum(1 for dupes in all_dupes.values() if dupes[0].name.find("small") > 1)
     logging.info(f"{'Small images':<15} {small:8,d}")
 
-    down = sum(
-        1
-        for dupes in all_dupes.values()
-        if any(dupe.name.find("download_error") > -1 for dupe in dupes)
-    )
+    down = sum(1 for dupes in all_dupes.values() if dupes[0].name.find("download") > 1)
     logging.info(f"{'Download errors':<15} {down:8,d}")
 
-    image = sum(
-        1
-        for dupes in all_dupes.values()
-        if any(dupe.name.find("image_error") > -1 for dupe in dupes)
-    )
+    image = sum(1 for dupes in all_dupes.values() if dupes[0].name.find("image") > 1)
     logging.info(f"{'Image errors':<15} {image:8,d}")
 
 
@@ -111,16 +95,15 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--src-dir",
+        "--image-dir",
         type=Path,
         metavar="PATH",
-        help="""Source image directory. It contains subdirectories with images.""",
+        help="""Directory containing subdirectories with images.""",
     )
 
     arg_parser.add_argument(
-        "--dst-dir",
-        type=Path,
-        metavar="PATH",
+        "--remove-duplicates",
+        action="store_true",
         help="""Destination image directory.""",
     )
 
