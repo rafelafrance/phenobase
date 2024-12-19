@@ -77,7 +77,7 @@ def remove_duplicate_images(all_dupes: Dupes, *, remove_duplicates: bool) -> int
 def report(all_dupes: Dupes, removed: int) -> None:
     logging.info(f"{'Total':<15} {len(all_dupes):8,d}")
 
-    logging.info(f"Removed {removed} images")
+    logging.info(f"{'Removed images':<15} {removed:8,d}")
 
     small = sum(1 for dupes in all_dupes.values() if dupes[0].name.find("small") > 1)
     logging.info(f"{'Small images':<15} {small:8,d}")
