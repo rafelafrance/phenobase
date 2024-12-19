@@ -5,7 +5,7 @@ from typing import Literal
 
 from PIL import Image, UnidentifiedImageError
 
-TRAITS = "flowers fruits leaves".split()
+TRAITS = "flowers fruits leaves buds".split()
 SPLIT = Literal["train", "eval", "test"]
 
 IMAGE_SIZE = (224, 224)

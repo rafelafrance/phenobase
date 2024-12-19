@@ -52,6 +52,7 @@ def choose_file(all_dupes: Dupes) -> None:
     Get the best file when there are multiple attempts to download a file.
 
     A happy coincidence is that the shortest file name is the best. Name formats:
+    * GBIF IDs are all the same length.
         - <gbif ID>.jpg
         - <gbif ID>_small.jpg
         - <gbif ID>_image_error.jpg   * This one is just as bad as the next one *
