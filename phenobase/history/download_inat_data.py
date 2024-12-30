@@ -51,14 +51,12 @@ def main():
 def downloader(target: Download):
     descr = f"{target.url} to {target.path}"
 
-    msg = f"Downloading {descr}"
-    logging.info(msg)
+    logging.info(f"Downloading {descr}")
 
     try:
         urllib.request.urlretrieve(target.url, target.path)  # noqa: S310
-    except (HTTPError, URLError) as err:
-        msg = f"Could not download {descr} because of {err}"
-        logging.exception(msg)
+    except (HTTPError, URLError):
+        logging.exception(f"Could not download {descr}")
 
 
 def parse_args():
