@@ -8,7 +8,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from phenobase.pylib import util
+from phenobase.pylib import const
 
 
 @dataclass
@@ -23,13 +23,13 @@ class LabeledDataset(Dataset):
         *,
         trait_csv: Path,
         image_dir: Path,
-        split: util.SPLIT,
+        split: const.SPLIT,
         image_size: int,
         traits: list[str],
         augment: bool = False,
     ) -> None:
         self.transform = self.build_transforms(image_size, augment=augment)
-        self.traits = traits if traits else util.TRAITS
+        self.traits = traits if traits else const.TRAITS
 
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
@@ -85,5 +85,5 @@ class LabeledDataset(Dataset):
             pos = sum(s.target[i] for s in self.sheets)
             neg = len(self) - pos
             pos_wt = neg / pos if pos > 0 else 1.0
-            weights.append(pos_wt.item())
+            weights.append(pos_wt)
         return torch.tensor(weights, dtype=torch.float)

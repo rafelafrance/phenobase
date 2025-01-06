@@ -2,12 +2,22 @@
 import argparse
 import logging
 import textwrap
+import warnings
 from pathlib import Path
 from uuid import UUID
 
+from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
-from phenobase.pylib import log, util
+from phenobase.pylib import log
+
+IMAGE_EXCEPTIONS = (
+    UnidentifiedImageError,
+    ValueError,
+    TypeError,
+    FileNotFoundError,
+    OSError,
+)
 
 
 def main():
@@ -49,15 +59,39 @@ def cull_bad_paths(paths: list[Path]) -> list[Path]:
 def cull_bad_images(paths: list[Path], resize_dir: Path, resize: int) -> list[Path]:
     good_images = []
     for path in tqdm(paths):
-        image = util.get_sheet_image(path)
+        image = get_sheet_image(path)
         if image:
             good_images.append(path)
             if resize_dir:
-                image = util.resize_image(image, resize)
+                image = resize_image(image, resize)
                 image.save(resize_dir / path.name)
 
     log_error_count("Bad images", good_images, paths)
     return good_images
+
+
+def resize_image(image: Image, size: int) -> Image:
+    try:
+        image = image.resize((size, size))
+    except IMAGE_EXCEPTIONS:
+        return None
+
+    return image
+
+
+def get_sheet_image(path: Path) -> Image:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
+
+        try:
+            image = Image.open(path).convert("RGB")
+
+        except IMAGE_EXCEPTIONS as err:
+            msg = f"Could not prepare {path.name}: {err}"
+            logging.error(msg)  # noqa: TRY400
+            return None
+
+        return image
 
 
 def move_culled_images(

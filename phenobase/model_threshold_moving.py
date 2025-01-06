@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pylib import log, util
+from pylib import const, log
 from pylib.binary_metrics import Metrics
 
 
@@ -144,7 +144,7 @@ def parse_args() -> argparse.Namespace:
 
     arg_parser.add_argument(
         "--trait",
-        choices=util.TRAITS,
+        choices=const.TRAITS,
         help="""The trait to examine.""",
     )
 

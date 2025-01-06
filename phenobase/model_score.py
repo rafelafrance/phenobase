@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
-from pylib import util
+from pylib import const
 from pylib.labeled_dataset import LabeledDataset
 from torch.utils.data import DataLoader
 from transformers import AutoModelForImageClassification
@@ -146,7 +146,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--traits",
-        choices=util.TRAITS,
+        choices=const.TRAITS,
         action="append",
         help="""Train to classify this trait. Repeat this argument to train
             multiple trait labels.""",
@@ -154,7 +154,7 @@ def parse_args():
 
     args = arg_parser.parse_args()
 
-    args.traits = args.traits if args.traits else util.TRAITS
+    args.traits = args.traits if args.traits else const.TRAITS
 
     return args
 
