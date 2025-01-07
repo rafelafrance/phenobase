@@ -25,27 +25,18 @@ class LabeledDataset(Dataset):
         image_dir: Path,
         split: const.SPLIT,
         image_size: int,
-        traits: list[str],
+        trait: list[str],
         augment: bool = False,
     ) -> None:
         self.transform = self.build_transforms(image_size, augment=augment)
-        self.traits = traits if traits else const.TRAITS
+        self.trait = trait
 
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
-            sheets = [
-                s
-                for s in reader
-                if s["split"] == split and all(s[t] in "01" for t in self.traits)
-            ]
             self.sheets = [
-                LabeledSheet(
-                    path=image_dir / s["file"],
-                    target=torch.tensor(
-                        [int(s[t]) for t in self.traits], dtype=torch.float
-                    ),
-                )
-                for s in sheets
+                LabeledSheet(image_dir / s["name"], torch.tensor([float(s["value"])]))
+                for s in reader
+                if s["split"] == split
             ]
 
     def __len__(self) -> int:
@@ -61,7 +52,7 @@ class LabeledDataset(Dataset):
 
     @staticmethod
     def build_transforms(image_size, *, augment=False):
-        xform = [transforms.Resize(image_size)]
+        xform = [transforms.Resize((image_size, image_size))]
 
         if augment:
             xform += [
@@ -80,10 +71,7 @@ class LabeledDataset(Dataset):
 
     def pos_weight(self):
         """Calculate the weights for the positive & negative cases of the traits."""
-        weights = []
-        for i in range(len(self.traits)):
-            pos = sum(s.target[i] for s in self.sheets)
-            neg = len(self) - pos
-            pos_wt = neg / pos if pos > 0 else 1.0
-            weights.append(pos_wt)
-        return torch.tensor(weights, dtype=torch.float)
+        pos = sum(s.target[0] for s in self.sheets)
+        neg = len(self) - pos
+        pos_wt = neg / pos if pos > 0 else 1.0
+        return torch.tensor(pos_wt, dtype=torch.float)

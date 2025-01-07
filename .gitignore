@@ -31,6 +31,7 @@ output/
 data/
 secrets/
 logs/
+images/
 
 # Temp files
 temp/

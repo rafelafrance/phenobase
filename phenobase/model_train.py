@@ -49,8 +49,7 @@ def main():
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(args.traits),
-        problem_type="multi_label_classification",
+        num_labels=1,
         ignore_mismatched_sizes=True,
     )
 
@@ -60,7 +59,7 @@ def main():
         split="train",
         image_size=args.image_size,
         augment=True,
-        traits=args.traits,
+        trait=args.trait,
     )
 
     eval_dataset = LabeledDataset(
@@ -69,7 +68,7 @@ def main():
         split="eval",
         image_size=args.image_size,
         augment=False,
-        traits=args.traits,
+        trait=args.trait,
     )
 
     training_args = TrainingArguments(
@@ -91,7 +90,7 @@ def main():
         push_to_hub=False,
     )
 
-    pos_weight = torch.ones(len(args.traits))
+    pos_weight = torch.ones(1)
     if args.use_weights:
         pos_weight = train_dataset.pos_weight()
 
@@ -118,7 +117,7 @@ def parse_args():
         type=Path,
         metavar="PATH",
         required=True,
-        help="""A CSV file with images and trait labels.""",
+        help="""A CSV file with images names and trait labels.""",
     )
 
     arg_parser.add_argument(
@@ -192,9 +191,8 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--traits",
+        "--trait",
         choices=const.TRAITS,
-        action="append",
         help="""Train to classify this trait. Repeat this argument to train
             multiple trait labels.""",
     )
@@ -215,8 +213,6 @@ def parse_args():
     )
 
     args = arg_parser.parse_args()
-
-    args.traits = args.traits if args.traits else const.TRAITS
 
     return args
 

@@ -1,7 +1,8 @@
 from typing import Literal
 
 TRAITS = "flowers fruits leaves buds".split()
-SPLIT = Literal["train", "eval", "test"]
+SPLIT = Literal["train", "valid", "test"]
+SPLITS = ["train", "valid", "test"]
 
 IMAGE_SIZE = (224, 224)
 
