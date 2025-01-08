@@ -113,26 +113,18 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--trait-csv",
+        "--dataset-dir",
         type=Path,
         metavar="PATH",
         required=True,
-        help="""A CSV file with images names and trait labels.""",
-    )
-
-    arg_parser.add_argument(
-        "--image-dir",
-        type=Path,
-        metavar="PATH",
-        required=True,
-        help="""A path to the directory where the images are.""",
+        help="""A path to a HuggingFace dataset directory.""",
     )
 
     arg_parser.add_argument(
         "--output-dir",
         type=Path,
         metavar="PATH",
-        help="""Save training results here.""",
+        help="""Save trained model in this directory.""",
     )
 
     arg_parser.add_argument(

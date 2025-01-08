@@ -4,6 +4,7 @@ import argparse
 import csv
 import logging
 import random
+import shutil
 import sqlite3
 import textwrap
 import warnings
@@ -38,8 +39,8 @@ ERRORS = (
 
 
 def main():
-    log.started()
     args = parse_args()
+    log.started(args.log_file)
 
     random.seed(args.seed)
 
@@ -103,15 +104,33 @@ def filter_trait(trait: str, records: dict[str, dict], bad_families=None) -> lis
         with bad_families.open() as inf:
             reader = csv.DictReader(inf)
             for row in reader:
-                bad.add(row["family"])
+                bad.add(row["family"].lower())
 
+    bad_value = 0
+    bad_family = 0
+    skipped = 0
     for file_name, rec in records.items():
         value = rec.get(trait)
-        if value and value in "01" and rec["family"] not in bad:
+        if not value:
+            skipped += 1
+        elif value not in "01":
+            bad_value += 1
+        elif rec["family"].lower() in bad:
+            bad_family += 1
+        else:
             filtered.append({"name": file_name, "value": value, "split": ""})
 
-    logging.info(f"Positive {trait} = {sum(1 for v in filtered if v['value'] == '1')}")
-    logging.info(f"Negative {trait} = {sum(1 for v in filtered if v['value'] == '0')}")
+    pos = sum(1 for v in filtered if v["value"] == "1")
+    neg = sum(1 for v in filtered if v["value"] == "0")
+
+    logging.info(f"Filtered {trait}")
+    logging.info(f"  Before filter    = {(len(records) - skipped):5d}")
+    logging.info(f"  Kept positive    = {pos:5d}")
+    logging.info(f"  Kept negative    = {neg:5d}")
+    logging.info(f"  Kept total       = {(pos + neg):5d}")
+    logging.info(f"  Removed values   = {bad_value:5d}")
+    logging.info(f"  Removed families = {bad_family:5d}")
+    logging.info(f"  Removed total    = {(bad_value + bad_family):5d}")
 
     return filtered
 
@@ -131,12 +150,14 @@ def split_data(trait: str, records: list[dict], train_split: float, val_split: f
         else:
             rec["split"] = "test"
 
-    logging.info(f"Total {trait} records {total}")
+    logging.info(f"Split {trait:<7}      = {total:5d}")
 
     for split in ("train", "valid", "test"):
         pos = sum(1 for r in records if r["split"] == split and r["value"] == "1")
         neg = sum(1 for r in records if r["split"] == split and r["value"] == "0")
-        logging.info(f"  {split} records pos {pos} + neg {neg} = total {pos + neg}")
+        logging.info(f"  {split:<5} positive   = {pos:5d}")
+        logging.info(f"  {split:<5} negitive   = {neg:5d}")
+        logging.info(f"  {split:<5} total      = {(pos + neg):5d}")
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
@@ -151,6 +172,13 @@ def process_images(
     for split in const.SPLITS:
         dirs[(split, "0")] = split_dir / "data" / trait / split / "0"
         dirs[(split, "1")] = split_dir / "data" / trait / split / "1"
+
+        if dirs[(split, "0")].exists():
+            shutil.rmtree(dirs[(split, "0")])
+
+        if dirs[(split, "1")].exists():
+            shutil.rmtree(dirs[(split, "1")])
+
         dirs[(split, "0")].mkdir(parents=True, exist_ok=True)
         dirs[(split, "1")].mkdir(parents=True, exist_ok=True)
 
@@ -297,6 +325,13 @@ def parse_args() -> argparse.Namespace:
         default=1024,
         metavar="PIXELS",
         help="""Resize the image to this width, short edge. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--log-file",
+        metavar="PATH",
+        type=Path,
+        help="""Log messages to this file.""",
     )
 
     args = arg_parser.parse_args()

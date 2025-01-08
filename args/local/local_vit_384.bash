@@ -1,8 +1,7 @@
 #!/bin/bash
 
 python ./phenobase/model_train.py \
-  --trait-csv ./splits/flowers.csv \
-  --image-dir ../../images/herbarium_sheets \
+  --dataset-dir ./datasets/data/flowers \
   --output-dir ./data/local/vit_384_base_prec \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
