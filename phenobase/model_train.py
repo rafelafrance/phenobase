@@ -1,109 +1,131 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import textwrap
+from collections.abc import Callable
 from pathlib import Path
 
 import evaluate
+import numpy as np
 import torch
 import transformers
 from pylib import const
-from pylib.labeled_dataset import LabeledDataset
+from torchvision.transforms import v2
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
-metrics = evaluate.combine(["precision", "f1", "recall", "accuracy"])
+from datasets import Dataset, Image, Split
 
+TRAIN_XFORMS: Callable | None = None
+VALID_XFORMS: Callable | None = None
 
-class WeightedTrainer(Trainer):
-    def __init__(self, *args, pos_weight: torch.FloatTensor, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.pos_weight = pos_weight.to(self.args.device)
-
-        print(f"Using multi-label classification with positive weights: {pos_weight}")
-
-        self.loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
-
-    def compute_loss(self, model, inputs, return_outputs=False):  # noqa: FBT002
-        labels = inputs.get("labels")
-        outputs = model(**inputs)
-
-        logits = outputs.get("logits")
-        loss = self.loss_fn(logits, labels)
-
-        return (loss, outputs) if return_outputs else loss
-
-
-def compute_metrics(eval_pred):
-    logits, trues = eval_pred
-    preds = torch.sigmoid(torch.tensor(logits))
-    preds = torch.round(preds).flatten()
-    trues = torch.tensor(trues).flatten()
-    return metrics.compute(predictions=preds, references=trues)
+METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 def main():
+    global TRAIN_XFORMS, VALID_XFORMS
+
     args = parse_args()
 
     transformers.set_seed(args.seed)
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=1,
+        num_labels=len(const.LABELS),
+        id2label=const.ID2LABEL,
+        label2id=const.LABEL2ID,
         ignore_mismatched_sizes=True,
     )
 
-    train_dataset = LabeledDataset(
-        trait_csv=args.trait_csv,
-        image_dir=args.image_dir,
-        split="train",
-        image_size=args.image_size,
-        augment=True,
-        trait=args.trait,
+    train_dataset = get_dataset("train", args.dataset_csv, args.image_dir)
+    valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir)
+
+    TRAIN_XFORMS = v2.Compose(
+        [
+            v2.Resize((args.image_size, args.image_size)),
+            v2.RandomHorizontalFlip(),
+            v2.RandomVerticalFlip(),
+            v2.AutoAugment(),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+        ]
+    )
+    VALID_XFORMS = v2.Compose(
+        [
+            v2.Resize((args.image_size, args.image_size)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+        ]
     )
 
-    eval_dataset = LabeledDataset(
-        trait_csv=args.trait_csv,
-        image_dir=args.image_dir,
-        split="eval",
-        image_size=args.image_size,
-        augment=False,
-        trait=args.trait,
-    )
+    train_dataset.set_transform(train_transforms)
+    valid_dataset.set_transform(valid_transforms)
 
     training_args = TrainingArguments(
+        output_dir=args.output_dir,
         remove_unused_columns=False,
+        eval_strategy="epoch",
+        save_strategy="epoch",
         learning_rate=args.learning_rate,
-        weight_decay=0.01,
         per_device_eval_batch_size=args.batch_size,
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
         metric_for_best_model=f"eval_{args.best_metric}",
-        greater_is_better=True,
-        output_dir=args.output_dir,
+        weight_decay=0.01,
         overwrite_output_dir=True,
-        eval_strategy="epoch",
         logging_strategy="epoch",
-        save_strategy="epoch",
         save_total_limit=5,
         push_to_hub=False,
     )
 
-    pos_weight = torch.ones(1)
-    if args.use_weights:
-        pos_weight = train_dataset.pos_weight()
-
-    trainer = WeightedTrainer(
+    trainer = Trainer(
         args=training_args,
         model=model,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        eval_dataset=valid_dataset,
         compute_metrics=compute_metrics,
-        pos_weight=pos_weight,
     )
 
     trainer.train()
+
+
+def train_transforms(examples):
+    pixel_values = [TRAIN_XFORMS(image.convert("RGB")) for image in examples["image"]]
+    labels = torch.tensor(examples["label"])
+    return {"pixel_values": pixel_values, "labels": labels}
+
+
+def valid_transforms(examples):
+    pixel_values = [VALID_XFORMS(image.convert("RGB")) for image in examples["image"]]
+    labels = torch.tensor(examples["label"])
+    return {"pixel_values": pixel_values, "labels": labels}
+
+
+def get_dataset(split: str, dataset_csv: Path, image_dir: Path) -> Dataset:
+    with dataset_csv.open() as inp:
+        reader = csv.DictReader(inp)
+        recs = list(reader)
+
+    recs = [r for r in recs if r["split"] == split]  # [:16]  # !!!!!!!!!!!!!!!!!!!!!!!
+
+    split = Split.TRAIN if split == "train" else Split.VALIDATION
+
+    images = [str(image_dir / r["name"]) for r in recs]
+    labels = [int(r["label"]) for r in recs]
+    dataset = Dataset.from_dict(
+        {"image": images, "label": labels}, split=split
+    ).cast_column("image", Image())
+
+    return dataset
+
+
+def compute_metrics(eval_pred):
+    logits, trues = eval_pred
+    preds = np.argmax(logits, axis=-1)
+    return METRICS.compute(predictions=preds, references=trues)
 
 
 def parse_args():
@@ -113,18 +135,26 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--dataset-dir",
+        "--dataset-csv",
         type=Path,
-        metavar="PATH",
         required=True,
-        help="""A path to a HuggingFace dataset directory.""",
+        metavar="PATH",
+        help="""A path to dataset directory.""",
+    )
+
+    arg_parser.add_argument(
+        "--image-dir",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""images are in this directory.""",
     )
 
     arg_parser.add_argument(
         "--output-dir",
         type=Path,
         metavar="PATH",
-        help="""Save trained model in this directory.""",
+        help="""Save training results here.""",
     )
 
     arg_parser.add_argument(
@@ -183,13 +213,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--trait",
-        choices=const.TRAITS,
-        help="""Train to classify this trait. Repeat this argument to train
-            multiple trait labels.""",
-    )
-
-    arg_parser.add_argument(
         "--best-metric",
         choices=["precision", "f1", "accuracy", "loss"],
         default="precision",
@@ -203,7 +226,6 @@ def parse_args():
         default=8174997,
         help="""Seed used for random number generator. (default: %(default)s)""",
     )
-
     args = arg_parser.parse_args()
 
     return args

@@ -1,14 +1,11 @@
 #!/bin/bash
 
 python ./phenobase/model_train.py \
-  --trait-csv ./splits/splits.csv \
-  --image-dir ./data/images/images_600 \
-  --output-dir ./data/local/effnet_456_flowers_prec_wt \
-  --finetune "google/efficientnet-b5" \
-  --image-size 456 \
-  --batch-size 12 \
-  --lr 1e-4 \
-  --traits flowers \
-  --use-weights \
-  --best-metric precision \
-  --epochs 50
+  --dataset-csv ./datasets/flowers.csv \
+  --image-dir ./datasets/images \
+  --output-dir ./data/output/effnet_528_flowers_f1 \
+  --finetune "google/efficientnet-b6" \
+  --image-size 528 \
+  --best-metric f1 \
+  --epochs 50 \
+  --batch-size 8
