@@ -46,9 +46,15 @@ def main():
     records = get_expert_data(args.ant_csv)
     append_metadata(args.metadata_db, records)
 
+    for file_name, row in records.items():
+        row["name"] = file_name
+
     records = list(records.values())
 
-    split_data(records, args.seed, args.train_split, args.eval_split)
+    filter_trait("flowers", records, args.bad_flower_families)
+    filter_trait("fruits", records, args.bad_fruit_families)
+
+    split_data(records, args.seed, args.train_split, args.valid_split)
     write_csv(args.split_dir / "all_traits.csv", records)
     process_images(records, args.image_dir, args.split_dir, args.max_width)
 
@@ -64,8 +70,6 @@ def get_expert_data(ant_csvs: list[Path]) -> dict[str, dict]:
                 for trait in const.TRAITS:
                     if label := row.get(trait):
                         records[row["file"]][trait] = label
-
-    logging.info(f"Expert record count {len(records)}")
     return records
 
 
@@ -78,6 +82,24 @@ def append_metadata(metadata_db: Path, records: dict[str, dict]) -> None:
             data = cxn.execute(sql, (coreid,)).fetchone()
             rec |= dict(data)
             del rec["filter_set"]
+
+
+def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
+    with bad_families.open() as f:
+        bad = {row["family"].lower() for row in csv.DictReader(f)}
+
+    bad_value = 0
+    bad_family = 0
+    skipped = 0
+    for rec in records:
+        label = rec.get(trait)
+        if not label:
+            skipped += 1
+        elif label not in "01":
+            bad_value += 1
+        elif rec["family"].lower() in bad:
+            bad_family += 1
+            rec[trait] = "F"
 
 
 def split_data(
@@ -101,37 +123,6 @@ def split_data(
             rec["split"] = "val"
         else:
             rec["split"] = "test"
-
-    msg = f"Split records {len(records)}"
-    logging.info(msg)
-
-    train = sum(1 for r in records if r["split"] == "train")
-    eval_ = sum(1 for r in records if r["split"] == "valid")
-    test = sum(1 for r in records if r["split"] == "test")
-
-    msg = f"  Train {train}    Valid {eval_}    Test {test}"
-    logging.info(msg)
-
-    msg = "Per trait counts: pos / neg"
-    logging.info(msg)
-
-    for trait in const.TRAITS:
-        pos_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "1")
-        neg_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "0")
-        pos_eval = sum(1 for r in records if r["split"] == "valid" and r[trait] == "1")
-        neg_eval = sum(1 for r in records if r["split"] == "valid" and r[trait] == "0")
-        pos_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "1")
-        neg_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "0")
-        total_pos = pos_train + pos_eval + pos_test
-        total_neg = neg_train + neg_eval + neg_test
-        total = total_pos + total_neg
-        msg = (
-            f"    {trait:<24} train {pos_train:4d} / {neg_train:4d}"
-            f"    valid{pos_eval:4d} / {neg_eval:4d}"
-            f"    test {pos_test:4d} / {neg_test:4d}"
-            f"    total {total:4d}   {total_pos:4d} / {total_neg:4d}"
-        )
-        logging.info(msg)
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
