@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
+from torchvision.transforms import v2
 
 from phenobase.pylib import const
 
@@ -25,18 +25,27 @@ class LabeledDataset(Dataset):
         image_dir: Path,
         split: const.SPLIT,
         image_size: int,
-        trait: list[str],
+        traits: list[str],
         augment: bool = False,
     ) -> None:
         self.transform = self.build_transforms(image_size, augment=augment)
-        self.trait = trait
+        self.traits = traits if traits else const.TRAITS
 
         with trait_csv.open() as csv_in:
             reader = csv.DictReader(csv_in)
-            self.sheets = [
-                LabeledSheet(image_dir / s["name"], torch.tensor([float(s["value"])]))
+            sheets = [
+                s
                 for s in reader
-                if s["split"] == split
+                if s["split"] == split and all(s[t] in "01" for t in self.traits)
+            ]
+            self.sheets = [
+                LabeledSheet(
+                    path=image_dir / s["file"],
+                    target=torch.tensor(
+                        [int(s[t]) for t in self.traits], dtype=torch.float
+                    ),
+                )
+                for s in sheets
             ]
 
     def __len__(self) -> int:
@@ -52,26 +61,29 @@ class LabeledDataset(Dataset):
 
     @staticmethod
     def build_transforms(image_size, *, augment=False):
-        xform = [transforms.Resize((image_size, image_size))]
+        xform = [v2.Resize(image_size)]
 
         if augment:
             xform += [
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
-                transforms.AutoAugment(),
+                v2.RandomHorizontalFlip(),
+                v2.RandomVerticalFlip(),
+                v2.AutoAugment(),
             ]
 
         xform += [
-            transforms.ToTensor(),
-            transforms.ConvertImageDtype(torch.float),
-            # transforms.Normalize(util.IMAGENET_MEAN, util.IMAGENET_STD_DEV),
+            v2.ToTensor(),
+            v2.ConvertImageDtype(torch.float),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
         ]
 
-        return transforms.Compose(xform)
+        return v2.Compose(xform)
 
     def pos_weight(self):
         """Calculate the weights for the positive & negative cases of the traits."""
-        pos = sum(s.target[0] for s in self.sheets)
-        neg = len(self) - pos
-        pos_wt = neg / pos if pos > 0 else 1.0
-        return torch.tensor(pos_wt, dtype=torch.float)
+        weights = []
+        for i in range(len(self.traits)):
+            pos = sum(s.target[i] for s in self.sheets)
+            neg = len(self) - pos
+            pos_wt = neg / pos if pos > 0 else 1.0
+            weights.append(pos_wt)
+        return torch.tensor(weights, dtype=torch.float)

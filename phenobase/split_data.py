@@ -46,26 +46,11 @@ def main():
     records = get_expert_data(args.ant_csv)
     append_metadata(args.metadata_db, records)
 
-    flowers = filter_trait("flowers", records, args.bad_flower_families)
-    fruits = filter_trait("fruits", records, args.bad_fruit_families)
-    leaves = filter_trait("leaves", records)
-    buds = filter_trait("buds", records)
+    records = list(records.values())
 
-    split_data("flowers", flowers, args.train_split, args.valid_split)
-    split_data("fruits", fruits, args.train_split, args.valid_split)
-    split_data("leaves", leaves, args.train_split, args.valid_split)
-    split_data("buds", buds, args.train_split, args.valid_split)
-
-    write_csv(args.split_dir / "all_traits.csv", list(records.values()))
-    write_csv(args.split_dir / "flowers.csv", flowers)
-    write_csv(args.split_dir / "fruits.csv", fruits)
-    write_csv(args.split_dir / "leaves.csv", leaves)
-    write_csv(args.split_dir / "buds.csv", buds)
-
-    process_images(flowers, "flowers", args.image_dir, args.split_dir, args.max_width)
-    process_images(fruits, "fruits", args.image_dir, args.split_dir, args.max_width)
-    process_images(leaves, "leaves", args.image_dir, args.split_dir, args.max_width)
-    process_images(buds, "buds", args.image_dir, args.split_dir, args.max_width)
+    split_data(records, args.seed, args.train_split, args.eval_split)
+    write_csv(args.split_dir / "all_traits.csv", records)
+    process_images(records, args.image_dir, args.split_dir, args.max_width)
 
     log.finished()
 
@@ -95,46 +80,14 @@ def append_metadata(metadata_db: Path, records: dict[str, dict]) -> None:
             del rec["filter_set"]
 
 
-def filter_trait(trait: str, records: dict[str, dict], bad_families=None) -> list[dict]:
-    filtered = []
+def split_data(
+    records: list[dict],
+    seed: int,
+    train_split: float,
+    val_split: float,
+) -> None:
+    random.seed(seed)
 
-    bad = set()
-    if bad_families:
-        with bad_families.open() as inf:
-            reader = csv.DictReader(inf)
-            for row in reader:
-                bad.add(row["family"].lower())
-
-    bad_value = 0
-    bad_family = 0
-    skipped = 0
-    for file_name, rec in records.items():
-        label = rec.get(trait)
-        if not label:
-            skipped += 1
-        elif label not in "01":
-            bad_value += 1
-        elif rec["family"].lower() in bad:
-            bad_family += 1
-        else:
-            filtered.append({"name": file_name, "label": label, "split": ""})
-
-    pos = sum(1 for v in filtered if v["label"] == "1")
-    neg = sum(1 for v in filtered if v["label"] == "0")
-
-    logging.info(f"Filtered {trait}")
-    logging.info(f"  Before filter    = {(len(records) - skipped):5d}")
-    logging.info(f"  Kept positive    = {pos:5d}")
-    logging.info(f"  Kept negative    = {neg:5d}")
-    logging.info(f"  Kept total       = {(pos + neg):5d}")
-    logging.info(f"  Removed values   = {bad_value:5d}")
-    logging.info(f"  Removed families = {bad_family:5d}")
-    logging.info(f"  Removed total    = {(bad_value + bad_family):5d}")
-
-    return filtered
-
-
-def split_data(trait: str, records: list[dict], train_split: float, val_split: float):
     random.shuffle(records)
 
     total = len(records)
@@ -145,18 +98,40 @@ def split_data(trait: str, records: list[dict], train_split: float, val_split: f
         if i < split1:
             rec["split"] = "train"
         elif i < split2:
-            rec["split"] = "valid"
+            rec["split"] = "val"
         else:
             rec["split"] = "test"
 
-    logging.info(f"Split {trait:<7}      = {total:5d}")
+    msg = f"Split records {len(records)}"
+    logging.info(msg)
 
-    for split in ("train", "valid", "test"):
-        pos = sum(1 for r in records if r["split"] == split and r["label"] == "1")
-        neg = sum(1 for r in records if r["split"] == split and r["label"] == "0")
-        logging.info(f"  {split:<5} positive   = {pos:5d}")
-        logging.info(f"  {split:<5} negitive   = {neg:5d}")
-        logging.info(f"  {split:<5} total      = {(pos + neg):5d}")
+    train = sum(1 for r in records if r["split"] == "train")
+    eval_ = sum(1 for r in records if r["split"] == "valid")
+    test = sum(1 for r in records if r["split"] == "test")
+
+    msg = f"  Train {train}    Valid {eval_}    Test {test}"
+    logging.info(msg)
+
+    msg = "Per trait counts: pos / neg"
+    logging.info(msg)
+
+    for trait in const.TRAITS:
+        pos_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "1")
+        neg_train = sum(1 for r in records if r["split"] == "train" and r[trait] == "0")
+        pos_eval = sum(1 for r in records if r["split"] == "valid" and r[trait] == "1")
+        neg_eval = sum(1 for r in records if r["split"] == "valid" and r[trait] == "0")
+        pos_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "1")
+        neg_test = sum(1 for r in records if r["split"] == "test" and r[trait] == "0")
+        total_pos = pos_train + pos_eval + pos_test
+        total_neg = neg_train + neg_eval + neg_test
+        total = total_pos + total_neg
+        msg = (
+            f"    {trait:<24} train {pos_train:4d} / {neg_train:4d}"
+            f"    valid{pos_eval:4d} / {neg_eval:4d}"
+            f"    test {pos_test:4d} / {neg_test:4d}"
+            f"    total {total:4d}   {total_pos:4d} / {total_neg:4d}"
+        )
+        logging.info(msg)
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
@@ -165,13 +140,13 @@ def write_csv(split_csv: Path, records: list[dict]) -> None:
 
 
 def process_images(
-    records: list[dict], trait, image_dir: Path, split_dir: Path, max_width: int
+    records: list[dict], image_dir: Path, split_dir: Path, max_width: int
 ) -> None:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
 
         try:
-            for rec in tqdm(records, desc=f"{trait:<8} images"):
+            for rec in tqdm(records):
                 src = image_dir / rec["name"]
                 dst = split_dir / "images" / rec["name"]
 

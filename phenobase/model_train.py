@@ -11,10 +11,10 @@ import numpy as np
 import torch
 import transformers
 from pylib import const
-from torchvision.transforms import v2
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
 
 from datasets import Dataset, Image, Split
+from phenobase.pylib.labeled_dataset import LabeledDataset
 
 TRAIN_XFORMS: Callable | None = None
 VALID_XFORMS: Callable | None = None
@@ -29,36 +29,24 @@ def main():
 
     transformers.set_seed(args.seed)
 
+    problem_type = "regression"  # "single_label_classification"
+    if len(args.traits) > 1:
+        problem_type = "multi_label_classification"
+
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(const.LABELS),
-        id2label=const.ID2LABEL,
-        label2id=const.LABEL2ID,
+        problem_type=problem_type,
+        num_labels=len(args.trait),
+        id2label={str(i): v for i, v in enumerate(args.trait)},
+        label2id={v: str(i) for i, v in enumerate(args.trait)},
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = get_dataset("train", args.dataset_csv, args.image_dir)
     valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir)
 
-    TRAIN_XFORMS = v2.Compose(
-        [
-            v2.Resize((args.image_size, args.image_size)),
-            v2.RandomHorizontalFlip(),
-            v2.RandomVerticalFlip(),
-            v2.AutoAugment(),
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
-        ]
-    )
-    VALID_XFORMS = v2.Compose(
-        [
-            v2.Resize((args.image_size, args.image_size)),
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
-        ]
-    )
+    TRAIN_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=True)
+    VALID_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=False)
 
     train_dataset.set_transform(train_transforms)
     valid_dataset.set_transform(valid_transforms)
@@ -166,6 +154,15 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--trait",
+        choices=const.TRAITS,
+        action="append",
+        help=f"""Train to classify this trait. Repeat this argument for multi-label
+            classification not single label multi-class training.
+            (default: all traits {', '.join(const.TRAITS)})""",
+    )
+
+    arg_parser.add_argument(
         "--image-size",
         type=int,
         metavar="INT",
@@ -227,6 +224,8 @@ def parse_args():
         help="""Seed used for random number generator. (default: %(default)s)""",
     )
     args = arg_parser.parse_args()
+
+    args.traits = args.traits if args.traits else const.TRAITS
 
     return args
 
