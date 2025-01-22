@@ -17,7 +17,7 @@ class LabeledSheet:
     target: torch.tensor
 
 
-class LabeledDataset(Dataset):
+class MultiLabelDataset(Dataset):
     def __init__(
         self,
         *,

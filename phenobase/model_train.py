@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import textwrap
 from collections.abc import Callable
 from pathlib import Path
@@ -10,11 +9,8 @@ import evaluate
 import numpy as np
 import torch
 import transformers
-from pylib import const
+from pylib import const, dataset_util, image_util
 from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
-
-from datasets import Dataset, Image, Split
-from phenobase.pylib.labeled_dataset import LabeledDataset
 
 TRAIN_XFORMS: Callable | None = None
 VALID_XFORMS: Callable | None = None
@@ -22,31 +18,27 @@ VALID_XFORMS: Callable | None = None
 METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
-def main():
+def main(args):
     global TRAIN_XFORMS, VALID_XFORMS
-
-    args = parse_args()
 
     transformers.set_seed(args.seed)
 
-    problem_type = "regression"  # "single_label_classification"
-    if len(args.traits) > 1:
-        problem_type = "multi_label_classification"
-
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=problem_type,
-        num_labels=len(args.trait),
-        id2label={str(i): v for i, v in enumerate(args.trait)},
-        label2id={v: str(i) for i, v in enumerate(args.trait)},
+        problem_type=args.problem_type,
+        num_labels=dataset_util.get_num_labels(args.problem_type, args.trait),
         ignore_mismatched_sizes=True,
     )
 
-    train_dataset = get_dataset("train", args.dataset_csv, args.image_dir)
-    valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir)
+    train_dataset = dataset_util.get_dataset(
+        "train", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+    )
+    valid_dataset = dataset_util.get_dataset(
+        "valid", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+    )
 
-    TRAIN_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=True)
-    VALID_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=False)
+    TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
+    VALID_XFORMS = image_util.build_transforms(args.image_size, augment=False)
 
     train_dataset.set_transform(train_transforms)
     valid_dataset.set_transform(valid_transforms)
@@ -90,24 +82,6 @@ def valid_transforms(examples):
     pixel_values = [VALID_XFORMS(image.convert("RGB")) for image in examples["image"]]
     labels = torch.tensor(examples["label"])
     return {"pixel_values": pixel_values, "labels": labels}
-
-
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path) -> Dataset:
-    with dataset_csv.open() as inp:
-        reader = csv.DictReader(inp)
-        recs = list(reader)
-
-    recs = [r for r in recs if r["split"] == split]  # [:16]  # !!!!!!!!!!!!!!!!!!!!!!!
-
-    split = Split.TRAIN if split == "train" else Split.VALIDATION
-
-    images = [str(image_dir / r["name"]) for r in recs]
-    labels = [int(r["label"]) for r in recs]
-    dataset = Dataset.from_dict(
-        {"image": images, "label": labels}, split=split
-    ).cast_column("image", Image())
-
-    return dataset
 
 
 def compute_metrics(eval_pred):
@@ -157,9 +131,8 @@ def parse_args():
         "--trait",
         choices=const.TRAITS,
         action="append",
-        help=f"""Train to classify this trait. Repeat this argument for multi-label
-            classification not single label multi-class training.
-            (default: all traits {', '.join(const.TRAITS)})""",
+        help="""Train to classify this trait. Repeat this argument to train
+            multiple trait labels.""",
     )
 
     arg_parser.add_argument(
@@ -223,12 +196,25 @@ def parse_args():
         default=8174997,
         help="""Seed used for random number generator. (default: %(default)s)""",
     )
+
+    arg_parser.add_argument(
+        "--problem-type",
+        choices=list(const.PROBLEM_TYPES.keys()),
+        default="regression",
+        help="""This chooses the appropriate loss function for the type of problem.
+            regression = MSELoss for predicting a single value,
+            single_label = CrossEntropyLoss for prediction a label with several options,
+            and multi_label = BCEWithLogitsLoss for when multiple labels can be true at
+            the same time. (default: %(default)s)""",
+    )
+
     args = arg_parser.parse_args()
 
-    args.traits = args.traits if args.traits else const.TRAITS
+    args.problem_type = const.PROBLEM_TYPES[args.problem_type]
 
     return args
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)
