@@ -5,8 +5,10 @@ import textwrap
 from collections.abc import Callable
 from pathlib import Path
 
+import pandas as pd
 import torch
 from pylib import const, dataset_util, image_util
+from scipy.special import expit
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
@@ -17,7 +19,18 @@ TEST_XFORMS: Callable | None = None
 def main(args):
     global TEST_XFORMS
 
+    records = {
+        d["name"]: d
+        for d in dataset_util.get_records("test", args.dataset_csv, args.traits)
+    }
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    raw_cols = [f"{t}_raw_score" for t in args.traits]
+    score_cols = [f"{t}_score" for t in args.traits]
+    if args.problem_type == const.SINGLE_LABEL:
+        raw_cols = [f"{lb}_{args.traits[0]}_raw_score" for lb in const.LABELS]
+        score_cols = [f"{lb}_{args.traits[0]}_score" for lb in const.LABELS]
 
     for model_dir in args.model_dir:
         checkpoints = [p for p in model_dir.glob("checkpoint-*") if p.is_dir()]
@@ -27,14 +40,14 @@ def main(args):
             model = AutoModelForImageClassification.from_pretrained(
                 str(checkpoint),
                 problem_type=args.problem_type,
-                num_labels=dataset_util.get_num_labels(args.problem_type, args.trait),
+                num_labels=dataset_util.get_num_labels(args.problem_type, args.traits),
             )
 
             model.to(device)
             model.eval()
 
             dataset = dataset_util.get_dataset(
-                "test", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+                "test", args.dataset_csv, args.image_dir, args.traits, args.problem_type
             )
 
             TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
@@ -48,43 +61,24 @@ def main(args):
                 for sheet in tqdm(loader):
                     image = sheet["image"].to(device)
                     result = model(image)
-                    # single_label
-                    pred = torch.argmax(result.logits).item()
-                    true = torch.argmax(torch.tensor(sheet["label"])).item()
-                    correct += int(pred == true)
-                    # regression
-                    # multi_label
-            print(f"{correct} / {total} = {correct/total}")
 
-    #         with torch.no_grad():
-    #             for sheets in loader:
-    #                 images = sheets["pixel_values"].to(device)
-    #                 preds = model(images)
-    #                 preds = torch.sigmoid(preds.logits)
-    #                 preds = preds.detach().cpu()
-    #                 for pred, true, name in zip(
-    #                     preds, sheets["labels"], sheets["name"], strict=False
-    #                 ):
-    #                     true = true.tolist()
-    #                     pred = pred.tolist()
-    #
-    #                     for t, p, trait in zip(true, pred, args.traits, strict=False):
-    #                         rows.append(
-    #                             {
-    #                                 "name": name,
-    #                                 "checkpoint": checkpoint,
-    #                                 "trait": trait,
-    #                                 "y_true": float(t),
-    #                                 "y_pred": p,
-    #                             }
-    #                         )
-    #
-    # if args.output_csv:
-    #     df = pd.DataFrame(rows)
-    #     if args.output_csv.exists():
-    #         df_old = pd.read_csv(args.output_csv)
-    #         df = pd.concat((df_old, df))
-    #     df.to_csv(args.output_csv, index=False)
+                    raw_scores = result.logits.detach().cpu().tolist()
+                    scores = [expit(s) for s in raw_scores]
+
+                    # Append result record
+                    rec = records[sheet["id"][0]]
+                    rec |= {"checkpoint": checkpoint, "problem_type": args.problem_type}
+                    rec |= dict(zip(raw_cols, raw_scores, strict=True))
+                    rec |= dict(zip(score_cols, scores, strict=True))
+
+            print(f"{correct} / {total} = {correct / total}")
+
+    if args.output_csv:
+        df = pd.DataFrame(records)
+        if args.output_csv.exists():
+            df_old = pd.read_csv(args.output_csv)
+            df = pd.concat((df_old, df))
+        df.to_csv(args.output_csv, index=False)
 
 
 def test_transforms(examples):
@@ -142,7 +136,7 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--trait",
+        "--traits",
         choices=const.TRAITS,
         action="append",
         help="""Train to classify this trait. Repeat this argument to train
@@ -159,7 +153,7 @@ def parse_args():
 
     args = arg_parser.parse_args()
 
-    args.trait = args.trait if args.trait else const.TRAITS
+    args.traits = args.traits if args.traits else const.TRAITS
 
     return args
 

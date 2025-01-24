@@ -20,7 +20,7 @@ def get_dataset(
 ) -> Dataset:
     trait = traits[0]
 
-    recs = _get_recs(dataset_csv, split, traits)
+    recs = get_records(split, dataset_csv, traits)
 
     if problem_type == const.REGRESSION:
         labels = [int(r[trait]) for r in recs]
@@ -34,10 +34,18 @@ def get_dataset(
     else:
         raise ValueError(problem_type)
 
-    return _convert2dataset(recs, image_dir, split, labels)
+    images = [str(image_dir / r["name"]) for r in recs]
+    ids = [r["name"] for r in recs]
+
+    split = Split.TRAIN if split == "train" else Split.VALIDATION
+    dataset = Dataset.from_dict(
+        {"image": images, "label": labels, "id": ids}, split=split
+    ).cast_column("image", Image())
+
+    return dataset
 
 
-def _get_recs(dataset_csv: Path, split: str, traits: list[str]) -> list[dict]:
+def get_records(split: str, dataset_csv: Path, traits: list[str]) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
@@ -48,17 +56,3 @@ def _get_recs(dataset_csv: Path, split: str, traits: list[str]) -> list[dict]:
         recs = [r for r in recs if r[trait] in "01"]
 
     return recs
-
-
-def _convert2dataset(
-    recs: list[dict], image_dir: Path, split: str, labels: list[int] | list[list[int]]
-) -> Dataset:
-    images = [str(image_dir / r["name"]) for r in recs]
-    ids = [r["name"] for r in recs]
-
-    split = Split.TRAIN if split == "train" else Split.VALIDATION
-    dataset = Dataset.from_dict(
-        {"image": images, "label": labels, "id": ids}, split=split
-    ).cast_column("image", Image())
-
-    return dataset
