@@ -62,7 +62,7 @@ def main(args):
                     image = sheet["image"].to(device)
                     result = model(image)
 
-                    raw_scores = result.logits.detach().cpu().tolist()
+                    raw_scores = result.logits.detach().cpu().tolist()[0]
                     scores = [expit(s) for s in raw_scores]
 
                     # Append result record
@@ -71,10 +71,16 @@ def main(args):
                     rec |= dict(zip(raw_cols, raw_scores, strict=True))
                     rec |= dict(zip(score_cols, scores, strict=True))
 
-            print(f"{correct} / {total} = {correct / total}")
+                    # Accumulate accuracy
+                    if args.problem_type == const.SINGLE_LABEL:
+                        pred = torch.argmax(result.logits).item()
+                        true = torch.argmax(torch.tensor(sheet["label"])).item()
+                        correct += int(pred == true)
+
+            print(f"Accuracy {correct}/{total} = {correct / total:0.3f}")
 
     if args.output_csv:
-        df = pd.DataFrame(records)
+        df = pd.DataFrame(records.values())
         if args.output_csv.exists():
             df_old = pd.read_csv(args.output_csv)
             df = pd.concat((df_old, df))

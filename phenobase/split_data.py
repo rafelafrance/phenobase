@@ -92,7 +92,10 @@ def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
     bad_family = 0
     skipped = 0
     for rec in records:
-        label = rec.get(trait)
+        label = rec.get(trait, "")
+
+        rec[f"old_{trait}"] = label
+
         if not label:
             skipped += 1
         elif label not in "01":

@@ -98,11 +98,15 @@ def parse_args() -> argparse.Namespace:
         allow_abbrev=True,
         description=textwrap.dedent(
             """
-            Move the positive threshold to find the best models for each trait.
+            Move thresholds to find the best models for each trait.
 
-            A default model uses 0.5 to classify a sample as positive. I want
-            to move this threshold to find the threshold and model that maximizes
-            the true positives while minimizing the false positives.
+            For a single_label muti-class problem, I'm looking at the value of the
+            winning class and remove values that are too close to 0.5. What is the
+            cutoff value that maximizes the accuracy scores (or another metric) for the
+            model.
+
+            For a regression problem, I'll do roughly the same as above, except that
+            there is only one value for each classification.
             """
         ),
     )
@@ -146,6 +150,14 @@ def parse_args() -> argparse.Namespace:
         "--trait",
         choices=const.TRAITS,
         help="""The trait to examine.""",
+    )
+
+    arg_parser.add_argument(
+        "--problem-type",
+        choices=list(const.PROBLEM_TYPES.keys()),
+        default="regression",
+        help="""This chooses the appropriate scoring method for the type of problem.
+            (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
