@@ -8,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 import torch
 from pylib import const, dataset_util, image_util
-from scipy.special import expit
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
@@ -26,11 +25,11 @@ def main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    raw_cols = [f"{t}_raw_score" for t in args.traits]
     score_cols = [f"{t}_score" for t in args.traits]
     if args.problem_type == const.SINGLE_LABEL:
-        raw_cols = [f"{lb}_{args.traits[0]}_raw_score" for lb in const.LABELS]
         score_cols = [f"{lb}_{args.traits[0]}_score" for lb in const.LABELS]
+
+    softmax = torch.nn.Softmax(dim=1)
 
     for model_dir in args.model_dir:
         checkpoints = [p for p in model_dir.glob("checkpoint-*") if p.is_dir()]
@@ -62,22 +61,26 @@ def main(args):
                     image = sheet["image"].to(device)
                     result = model(image)
 
-                    raw_scores = result.logits.detach().cpu().tolist()[0]
-                    scores = [expit(s) for s in raw_scores]
-
                     # Append result record
                     rec = records[sheet["id"][0]]
-                    rec |= {"checkpoint": checkpoint, "problem_type": args.problem_type}
-                    rec |= dict(zip(raw_cols, raw_scores, strict=True))
-                    rec |= dict(zip(score_cols, scores, strict=True))
+                    rec |= {
+                        "checkpoint": checkpoint,
+                        "problem_type": args.problem_type,
+                    }
 
-                    # Accumulate accuracy
                     if args.problem_type == const.SINGLE_LABEL:
+                        scores = softmax(result.logits).detach().cpu().tolist()[0]
+
+                        rec |= dict(zip(score_cols, scores, strict=True))
+
+                        # Accumulate accuracy
                         pred = torch.argmax(result.logits).item()
                         true = torch.argmax(torch.tensor(sheet["label"])).item()
                         correct += int(pred == true)
+                    else:
+                        raise NotImplementedError
 
-            print(f"Accuracy {correct}/{total} = {correct / total:0.3f}")
+            print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
 
     if args.output_csv:
         df = pd.DataFrame(records.values())

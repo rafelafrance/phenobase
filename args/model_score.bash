@@ -4,7 +4,7 @@
 ./phenobase/model_score.py \
   --dataset-csv datasets/all_traits.csv \
   --image-dir datasets/images \
-  --output-csv data/score_single_label_2025_01_22a.csv \
+  --output-csv data/score_single_label_2025_01_28a.csv \
   --problem-type single_label \
   --trait flowers \
   --image-size 528 \
@@ -13,7 +13,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait flowers \
  --image-size 384 \
@@ -23,7 +23,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait fruits \
  --image-size 528 \
@@ -32,7 +32,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait fruits \
  --image-size 384 \
@@ -42,7 +42,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait leaves \
  --image-size 528 \
@@ -51,7 +51,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait leaves \
  --image-size 384 \
@@ -61,7 +61,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait buds \
  --image-size 528 \
@@ -70,7 +70,7 @@
 ./phenobase/model_score.py \
  --dataset-csv datasets/all_traits.csv \
  --image-dir datasets/images \
- --output-csv data/score_single_label_2025_01_22a.csv \
+ --output-csv data/score_single_label_2025_01_28a.csv \
  --problem-type single_label \
  --trait buds \
  --image-size 384 \
