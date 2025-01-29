@@ -3,11 +3,12 @@
 import argparse
 import textwrap
 from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
 
 import pandas as pd
 import torch
-from pylib import const, dataset_util, image_util
+from pylib import const, dataset_util, image_util, log
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
@@ -18,76 +19,85 @@ TEST_XFORMS: Callable | None = None
 def main(args):
     global TEST_XFORMS
 
-    records = {
+    log.started()
+
+    base_recs = {
         d["name"]: d
         for d in dataset_util.get_records("test", args.dataset_csv, args.traits)
     }
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    score_cols = [f"{t}_score" for t in args.traits]
-    if args.problem_type == const.SINGLE_LABEL:
-        score_cols = [f"{lb}_{args.traits[0]}_score" for lb in const.LABELS]
-
     softmax = torch.nn.Softmax(dim=1)
 
-    for model_dir in args.model_dir:
-        checkpoints = [p for p in model_dir.glob("checkpoint-*") if p.is_dir()]
-        for checkpoint in sorted(checkpoints):
-            print(checkpoint)
+    checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
+    for checkpoint in sorted(checkpoints):
+        print(checkpoint)
 
-            model = AutoModelForImageClassification.from_pretrained(
-                str(checkpoint),
-                problem_type=args.problem_type,
-                num_labels=dataset_util.get_num_labels(args.problem_type, args.traits),
-            )
+        model = AutoModelForImageClassification.from_pretrained(
+            str(checkpoint),
+            problem_type=args.problem_type,
+            num_labels=dataset_util.get_num_labels(args.problem_type, args.traits),
+        )
 
-            model.to(device)
-            model.eval()
+        model.to(device)
+        model.eval()
 
-            dataset = dataset_util.get_dataset(
-                "test", args.dataset_csv, args.image_dir, args.traits, args.problem_type
-            )
+        dataset = dataset_util.get_dataset(
+            "test", args.dataset_csv, args.image_dir, args.traits, args.problem_type
+        )
 
-            TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
-            dataset.set_transform(TEST_XFORMS)
+        TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
+        dataset.set_transform(TEST_XFORMS)
 
-            loader = DataLoader(dataset, batch_size=1, pin_memory=True)
-            total = len(loader)
+        loader = DataLoader(dataset, batch_size=1, pin_memory=True)
+        total = len(loader)
 
-            correct = 0
-            with torch.no_grad():
-                for sheet in tqdm(loader):
-                    image = sheet["image"].to(device)
-                    result = model(image)
+        correct = 0
+        records = []
 
-                    # Append result record
-                    rec = records[sheet["id"][0]]
-                    rec |= {
-                        "checkpoint": checkpoint,
-                        "problem_type": args.problem_type,
-                    }
+        with torch.no_grad():
+            for sheet in tqdm(loader):
+                image = sheet["image"].to(device)
+                result = model(image)
 
-                    if args.problem_type == const.SINGLE_LABEL:
-                        scores = softmax(result.logits).detach().cpu().tolist()[0]
+                # Append result record
+                rec = deepcopy(base_recs[sheet["id"][0]])
+                rec |= {
+                    "checkpoint": checkpoint,
+                    "problem_type": args.problem_type,
+                }
 
-                        rec |= dict(zip(score_cols, scores, strict=True))
+                if args.problem_type == const.SINGLE_LABEL:
+                    trait = args.traits[0]
 
-                        # Accumulate accuracy
-                        pred = torch.argmax(result.logits).item()
-                        true = torch.argmax(torch.tensor(sheet["label"])).item()
-                        correct += int(pred == true)
-                    else:
-                        raise NotImplementedError
+                    # Note: Softmax for 2 classes is symmetric, so I can use the
+                    # positive class (scores[1]) for the predicted value. I.e.
+                    # scores[1] IS always the real score in this case, but only
+                    # when there are exactly two classes and only when they are
+                    # organized as const.labels = [WITHOUT, WITH].
+                    scores = softmax(result.logits).detach().cpu().tolist()[0]
+                    rec |= {f"{trait}_score": scores[1]}
 
-            print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
+                    true = torch.argmax(torch.tensor(sheet["label"])).item()
+                    pred = torch.argmax(result.logits).item()
+                    correct += int(pred == true)
 
-    if args.output_csv:
-        df = pd.DataFrame(records.values())
-        if args.output_csv.exists():
-            df_old = pd.read_csv(args.output_csv)
-            df = pd.concat((df_old, df))
-        df.to_csv(args.output_csv, index=False)
+                else:
+                    raise NotImplementedError
+
+                records.append(rec)
+
+        print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
+
+        if args.output_csv:
+            df = pd.DataFrame(records)
+            if args.output_csv.exists():
+                df_old = pd.read_csv(args.output_csv, low_memory=False)
+                df = pd.concat((df_old, df))
+            df.to_csv(args.output_csv, index=False)
+
+    log.finished()
 
 
 def test_transforms(examples):
@@ -130,7 +140,6 @@ def parse_args():
     arg_parser.add_argument(
         "--model-dir",
         type=Path,
-        action="append",
         required=True,
         metavar="PATH",
         help="""Directory containing the training checkpoints.""",
@@ -155,9 +164,7 @@ def parse_args():
     arg_parser.add_argument(
         "--problem-type",
         choices=list(const.PROBLEM_TYPES.keys()),
-        default="regression",
-        help="""This chooses the appropriate scoring function for the type of problem.
-            (default: %(default)s)""",
+        help="""This chooses the appropriate scoring function for the problem_type.""",
     )
 
     args = arg_parser.parse_args()

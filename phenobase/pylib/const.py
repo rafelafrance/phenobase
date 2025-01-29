@@ -9,8 +9,6 @@ IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD_DEV = (0.229, 0.224, 0.225)
 
 LABELS = ["without", "with"]
-ID2LABEL = {str(i): v for i, v in enumerate(LABELS)}
-LABEL2ID = {v: k for k, v in ID2LABEL.items()}
 WITHOUT = [1, 0]
 WITH = [0, 1]
 
