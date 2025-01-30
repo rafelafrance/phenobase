@@ -96,6 +96,7 @@ def main(args):
                 #     correct += int(round(pred[0]) == true)
 
                 else:
+                    trait = args.traits[0]
                     preds = torch.sigmoid(result.logits)
                     preds = preds.detach().cpu()
                     for pred in preds:
