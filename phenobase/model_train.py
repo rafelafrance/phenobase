@@ -199,7 +199,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(const.PROBLEM_TYPES.keys()),
+        choices=list(const.PROBLEM_TYPES),
         default="regression",
         help="""This chooses the appropriate loss function for the type of problem.
             regression = MSELoss for predicting a single value,
@@ -209,8 +209,6 @@ def parse_args():
     )
 
     args = arg_parser.parse_args()
-
-    args.problem_type = const.PROBLEM_TYPES[args.problem_type]
 
     return args
 

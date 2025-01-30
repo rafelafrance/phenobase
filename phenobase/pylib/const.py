@@ -1,6 +1,6 @@
 from typing import Literal
 
-TRAITS = "flowers fruits leaves buds".split()
+TRAITS = "flowers fruits leaves buds old_flowers old_fruits".split()
 
 SPLIT = Literal["train", "valid", "test"]
 SPLITS = ["train", "valid", "test"]
@@ -13,10 +13,6 @@ WITHOUT = [1, 0]
 WITH = [0, 1]
 
 REGRESSION = "regression"
-SINGLE_LABEL = "single_label"
-MULTI_LABEL = "multi_label"
-PROBLEM_TYPES = {
-    REGRESSION: REGRESSION,
-    SINGLE_LABEL: "single_label_classification",
-    MULTI_LABEL: "multi_label_classification",
-}
+SINGLE_LABEL = "single_label_classification"
+MULTI_LABEL = "multi_label_classification"
+PROBLEM_TYPES = [REGRESSION, SINGLE_LABEL, MULTI_LABEL]

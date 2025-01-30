@@ -36,7 +36,7 @@ def main(args):
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            problem_type=args.problem_type,
+            problem_type="multi_label_classification",  # args.problem_type,
             num_labels=dataset_util.get_num_labels(args.problem_type, args.traits),
         )
 
@@ -83,8 +83,25 @@ def main(args):
                     pred = torch.argmax(result.logits).item()
                     correct += int(pred == true)
 
+                # elif args.problem_type == const.REGRESSION:
+                #     trait = args.traits[0]
+                #
+                #     pred = torch.sigmoid(result.logits)
+                #     pred = pred.detach().cpu().tolist()[0]
+                #
+                #     rec |= {f"{trait}_score": pred[0]}
+                #
+                #     true = float(sheet["label"].clone().detach().item())
+                #
+                #     correct += int(round(pred[0]) == true)
+
                 else:
-                    raise NotImplementedError
+                    preds = torch.sigmoid(result.logits)
+                    preds = preds.detach().cpu()
+                    for pred in preds:
+                        pred = pred.tolist()
+                        for p, trait in zip(pred, args.traits, strict=False):
+                            rec |= {f"{trait}_score": p}
 
                 records.append(rec)
 
@@ -163,7 +180,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(const.PROBLEM_TYPES.keys()),
+        choices=list(const.PROBLEM_TYPES),
         help="""This chooses the appropriate scoring function for the problem_type.""",
     )
 

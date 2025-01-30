@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from pylib import const, log
+from sklearn import metrics
 
 
 @dataclass
@@ -16,43 +17,73 @@ class Best:
     threshold_lo: float
     threshold_hi: float
     trait: str
-    problem_type: str = ""
+    problem_type: str = "old"
     checkpoint: str = ""
 
 
 def main(args):
     log.started()
 
-    df_all = pd.read_csv(args.score_csv)
+    df_all = pd.read_csv(args.score_csv, low_memory=False)
 
     checkpoints = df_all["checkpoint"].unique()
 
     bests = []
     for checkpoint in checkpoints:
-        df = df_all.loc[
-            (df_all["checkpoint"] == checkpoint)
-            & (df_all["problem_type"] == args.problem_type)
-        ]
+        df = df_all.loc[(df_all["checkpoint"] == checkpoint)]
         if len(df) == 0:
             continue
-        if args.problem_type == const.SINGLE_LABEL:
-            best = checkpoint_best_single_label(df, args.trait)
-            if not best:
-                continue
-            best.problem_type = args.problem_type
-            best.checkpoint = checkpoint
-            bests.append(best)
-    overall = max_best(bests)
-    print(overall)
 
-    # scores = score_models(
-    #     df_all,
-    #     traits,
-    #     checkpoints,
-    #     recall_limit=args.recall_limit,
-    #     min_threshold=args.min_threshold,
-    # )
-    # display_best(df_all, scores, traits, count=args.count)
+        if args.problem_type == const.SINGLE_LABEL:
+            cp_best = checkpoint_single_label(df, args.trait, args.pos_limit)
+
+            if not cp_best:
+                continue
+
+            cp_best.problem_type = args.problem_type
+            cp_best.checkpoint = checkpoint
+            bests.append(cp_best)
+
+    best = max_best(bests)
+
+    print(
+        f"""
+        Trait:          {best.trait}
+        Checkpoint:     {best.checkpoint}
+        Problem Type:   {best.problem_type}
+        Accuracy:       {best.accuracy:0.3f}
+        Low Threshold:  {best.threshold_lo:0.2f}
+        High Threshold: {best.threshold_hi:0.2f}
+    """
+    )
+
+    df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
+    y_trues, y_scores = get_raw_data(df, args.trait)
+    y_trues, y_preds = get_preds(y_trues, y_scores)
+    all_count = len(y_trues)
+    print("Starting metrics")
+    print(metrics.confusion_matrix(y_trues, y_preds))
+    print(f"Starting accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}")
+    print(f"Starting f1        = {metrics.f1_score(y_trues, y_preds):0.3f}")
+    print(f"Starting precision = {metrics.precision_score(y_trues, y_preds):0.3f}")
+    print(f"Starting recall    = {metrics.recall_score(y_trues, y_preds):0.3f}")
+    print(f"Starting count     = {all_count}")
+    print()
+
+    df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
+    y_trues, y_scores = get_raw_data(df, args.trait)
+    y_trues, y_preds = get_preds(
+        y_trues, y_scores, best.threshold_lo, best.threshold_hi
+    )
+    count = len(y_trues)
+    print(metrics.confusion_matrix(y_trues, y_preds))
+    print("Best metrics")
+    print(f"Best accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}")
+    print(f"Best f1        = {metrics.f1_score(y_trues, y_preds):0.3f}")
+    print(f"Best precision = {metrics.precision_score(y_trues, y_preds):0.3f}")
+    print(f"Best recall    = {metrics.recall_score(y_trues, y_preds):0.3f}")
+    print(f"Best count     = {count}  fraction of orginal = {(count / all_count):0.3f}")
+    print()
 
     log.finished()
 
@@ -61,84 +92,59 @@ def max_best(bests):
     return max(bests, key=lambda b: (b.accuracy, b.threshold_hi - b.threshold_lo))
 
 
-def checkpoint_best_single_label(df, trait: str):
+def get_raw_data(df, trait):
     try:
-        scores = df[f"{trait}_score"].astype(float)
         y_trues = df[trait].astype(float)
+        y_scores = df[f"{trait}_score"].astype(float)
     except ValueError:
+        return None, None
+    return y_trues, y_scores
+
+
+def checkpoint_single_label(df, trait: str, pos_limit: float = 0.7):
+    all_trues, all_scores = get_raw_data(df, trait)
+
+    if all_trues is None:
         return None
 
+    all_trues, all_preds = get_preds(all_trues, all_scores)
+
+    all_tn, all_fp, all_fn, all_tp = metrics.confusion_matrix(
+        all_trues, all_preds
+    ).ravel()
+
     accuracies = []
-    for threshold_lo in np.arange(0.0, 0.5, 0.1):
-        for threshold_hi in np.arange(0.5, 1.0, 0.1):
-            y = np.stack((y_trues, scores), axis=1)
-            y = y[(y[:, 1] <= threshold_lo) | (y[:, 1] >= threshold_hi)]
-            tp = np.where((y[:, 0] == 1.0) & (y[:, 1] >= threshold_hi), 1.0, 0.0).sum()
-            fn = np.where((y[:, 0] == 1.0) & (y[:, 1] <= threshold_lo), 1.0, 0.0).sum()
-            fp = np.where((y[:, 0] == 0.0) & (y[:, 1] >= threshold_hi), 1.0, 0.0).sum()
-            tn = np.where((y[:, 0] == 0.0) & (y[:, 1] <= threshold_lo), 1.0, 0.0).sum()
-            acc = (tp + tn) / (tp + tn + fp + fn)
-            accuracies.append(
-                Best(
-                    accuracy=acc,
-                    threshold_lo=threshold_lo,
-                    threshold_hi=threshold_hi,
-                    trait=trait,
+    for thresh_lo in np.arange(0.0, 0.5, 0.05):
+        for thresh_hi in np.arange(0.5, 1.0, 0.05):
+            y_trues, y_preds = get_preds(all_trues, all_scores, thresh_lo, thresh_hi)
+
+            tn, fp, fn, tp = metrics.confusion_matrix(y_trues, y_preds).ravel()
+
+            if (tp / all_tp) > pos_limit and (tn / all_tn) > pos_limit:
+                accuracy = metrics.accuracy_score(y_trues, y_preds)
+
+                accuracies.append(
+                    Best(
+                        accuracy=accuracy,
+                        threshold_lo=thresh_lo,
+                        threshold_hi=thresh_hi,
+                        trait=trait,
+                    )
                 )
-            )
-    return max_best(accuracies)
+    checkpoint_best = max_best(accuracies)
+    return checkpoint_best
 
 
-# def score_models(df, traits, checkpoints, recall_limit, min_threshold):
-#     scores = defaultdict(list)
-#     for trait in traits:
-#         for checkpoint in checkpoints:
-#             df1 = df.loc[(df["checkpoint"] == checkpoint) & (df["trait"] == trait)]
-#             if len(df) > 0:
-#                 metrics = Metrics(y_true=df1["y_true"], y_pred=df1["y_pred"])
-#                 score = find_best_score(metrics, recall_limit, min_threshold)
-#                 scores[trait].append(
-#                     Score(
-#                         score=score.score,
-#                         threshold=score.threshold,
-#                         checkpoint=checkpoint,
-#                         trait=trait,
-#                     )
-#                 )
-#     return {
-#         k: sorted(v, key=lambda b: b.score, reverse=True) for k, v in scores.items()
-#     }
-#
-#
-# def find_best_score(metrics, recall_limit, min_threshold):
-#     best = Score(0.0, 0.0)
-#     for threshold in np.arange(min_threshold, 1.0, 0.01):
-#         metrics.filter_y(thresh_lo=threshold, thresh_hi=threshold)
-#         if (
-#             metrics.precision >= best.score
-#             and metrics.recall >= recall_limit
-#             and metrics.total > 0
-#         ):
-#             best = Score(score=metrics.precision, threshold=threshold)
-#     return best
-#
-#
-# def display_best(df, scores, traits, count=5):
-#     for trait in traits:
-#         print("-" * 80)
-#         for i in range(count):
-#             score = scores[trait][i]
-#             df1 = df.loc[
-#                 (df["checkpoint"] == score.checkpoint) & (df["trait"] == score.trait)
-#             ]
-#             metrics = Metrics(y_true=df1["y_true"], y_pred=df1["y_pred"])
-#             metrics.filter_y(thresh_lo=score.threshold, thresh_hi=score.threshold)
-#             print(score)
-#             print(f"{trait} precision={metrics.precision} recall={metrics.recall}\n")
-#             metrics.display_matrix()
-#             print()
-#         print()
-#
+def get_preds(y_true, y_scores, threshold_lo=0.5, threshold_hi=0.5):
+    trues, preds = [], []
+    for true, score in zip(y_true, y_scores, strict=True):
+        if score < threshold_lo:
+            trues.append(true)
+            preds.append(0.0)
+        elif score >= threshold_hi:
+            trues.append(true)
+            preds.append(1.0)
+    return trues, preds
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,33 +171,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--recall-limit",
-        type=float,
-        metavar="FRACTION",
-        default=0.7,
-        help="""The model must have a recall value that is >= to this. I found that
-            the could generate cutoffs that excluded all of one class of values.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--count",
-        type=int,
-        metavar="N",
-        default=5,
-        help="""How many of the top models to display per each trait.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--min-threshold",
-        type=float,
-        default=0.5,
-        help="""The minimum threshold for finding the best model.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
         "--trait",
         choices=const.TRAITS,
         help="""The trait to examine.""",
@@ -199,10 +178,19 @@ def parse_args() -> argparse.Namespace:
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(const.PROBLEM_TYPES.keys()),
+        choices=[*const.PROBLEM_TYPES, "old"],
         default="regression",
         help="""This chooses the appropriate scoring method for the type of problem.
             (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--pos-limit",
+        type=float,
+        metavar="FRACTION",
+        default=0.7,
+        help="""Do not remove more than this fraction of true positives &
+            true negatives. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
