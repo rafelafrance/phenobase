@@ -27,6 +27,7 @@ def main(args):
     df_all = pd.read_csv(args.score_csv, low_memory=False)
 
     checkpoints = df_all["checkpoint"].unique()
+    get_data = get_old_data if args.problem_type == "old" else get_raw_data
 
     bests = []
     for checkpoint in checkpoints:
@@ -34,15 +35,14 @@ def main(args):
         if len(df) == 0:
             continue
 
-        if args.problem_type == const.SINGLE_LABEL:
-            cp_best = checkpoint_single_label(df, args.trait, args.pos_limit)
+        all_trues, all_scores = get_data(df, args.trait)
+        if all_trues is None or len(all_trues) == 0:
+            continue
 
-            if not cp_best:
-                continue
-
-            cp_best.problem_type = args.problem_type
-            cp_best.checkpoint = checkpoint
-            bests.append(cp_best)
+        cp_best = checkpoint_best(all_trues, all_scores, args.trait, args.pos_limit)
+        cp_best.problem_type = args.problem_type
+        cp_best.checkpoint = checkpoint
+        bests.append(cp_best)
 
     best = max_best(bests)
 
@@ -58,7 +58,8 @@ def main(args):
     )
 
     df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
-    y_trues, y_scores = get_raw_data(df, args.trait)
+    y_trues, y_scores = get_data(df, args.trait)
+
     y_trues, y_preds = get_preds(y_trues, y_scores)
     all_count = len(y_trues)
     print("Starting metrics")
@@ -70,14 +71,12 @@ def main(args):
     print(f"Starting count     = {all_count}")
     print()
 
-    df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
-    y_trues, y_scores = get_raw_data(df, args.trait)
     y_trues, y_preds = get_preds(
         y_trues, y_scores, best.threshold_lo, best.threshold_hi
     )
     count = len(y_trues)
-    print(metrics.confusion_matrix(y_trues, y_preds))
     print("Best metrics")
+    print(metrics.confusion_matrix(y_trues, y_preds))
     print(f"Best accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}")
     print(f"Best f1        = {metrics.f1_score(y_trues, y_preds):0.3f}")
     print(f"Best precision = {metrics.precision_score(y_trues, y_preds):0.3f}")
@@ -101,24 +100,37 @@ def get_raw_data(df, trait):
     return y_trues, y_scores
 
 
-def checkpoint_single_label(df, trait: str, pos_limit: float = 0.7):
-    all_trues, all_scores = get_raw_data(df, trait)
-
-    if all_trues is None:
+def get_old_data(df, trait):
+    try:
+        y_trues = df.loc[df["trait"] == trait, "y_true"].astype(float)
+        y_scores = df.loc[df["trait"] == trait, "y_pred"].astype(float)
+    except ValueError:
         return None
+    return y_trues, y_scores
 
+
+def checkpoint_best(all_trues, all_scores, trait, pos_limit):
     all_trues, all_preds = get_preds(all_trues, all_scores)
 
     all_tn, all_fp, all_fn, all_tp = metrics.confusion_matrix(
         all_trues, all_preds
     ).ravel()
 
+    all_count = len(all_trues)
+
     accuracies = []
     for thresh_lo in np.arange(0.0, 0.5, 0.05):
         for thresh_hi in np.arange(0.5, 1.0, 0.05):
             y_trues, y_preds = get_preds(all_trues, all_scores, thresh_lo, thresh_hi)
 
-            tn, fp, fn, tp = metrics.confusion_matrix(y_trues, y_preds).ravel()
+            if (len(y_trues) / all_count) < pos_limit:
+                continue
+
+            cells = metrics.confusion_matrix(y_trues, y_preds).ravel()
+            if len(cells) < 4:
+                continue
+
+            tn, fp, fn, tp = cells
 
             if (tp / all_tp) > pos_limit and (tn / all_tn) > pos_limit:
                 accuracy = metrics.accuracy_score(y_trues, y_preds)
@@ -131,8 +143,8 @@ def checkpoint_single_label(df, trait: str, pos_limit: float = 0.7):
                         trait=trait,
                     )
                 )
-    checkpoint_best = max_best(accuracies)
-    return checkpoint_best
+    best = max_best(accuracies)
+    return best
 
 
 def get_preds(y_true, y_scores, threshold_lo=0.5, threshold_hi=0.5):
