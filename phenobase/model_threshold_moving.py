@@ -25,6 +25,7 @@ def main(args):
     log.started()
 
     df_all = pd.read_csv(args.score_csv, low_memory=False)
+    df_all = filter_families(df_all, args.bad_families)
 
     checkpoints = df_all["checkpoint"].unique()
     get_data = get_old_data if args.problem_type == "old" else get_raw_data
@@ -89,6 +90,14 @@ def main(args):
 
 def max_best(bests):
     return max(bests, key=lambda b: (b.accuracy, b.threshold_hi - b.threshold_lo))
+
+
+def filter_families(df, bad_families):
+    if not bad_families:
+        return df
+    bad = pd.read_csv(bad_families)
+    df = df.loc[~df["family"].isin(bad["family"]), :]
+    return df
 
 
 def get_raw_data(df, trait):
@@ -203,6 +212,13 @@ def parse_args() -> argparse.Namespace:
         default=0.7,
         help="""Do not remove more than this fraction of true positives &
             true negatives. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-families",
+        metavar="PATH",
+        type=Path,
+        help="""Make sure records in these families are skipped.""",
     )
 
     args = arg_parser.parse_args()

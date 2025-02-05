@@ -55,7 +55,7 @@ include = ["phenobase"]
 namespaces = false
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 
 show-fixes = true
 
@@ -144,6 +144,7 @@ lint.ignore = [
     "RET504",  # Unnecessary assignment to {name} before return statement
     "RUF001",  # String contains ambiguous {}. Did you mean {}?
     "S603",  # subprocess call: check for execution of untrusted input
+    "S608",  # Possible sql ingection vector through string-based query construction
     "SIM114",  # Combine if branches using logical or operator
     "SIM117",  # Use a single with statement with multiple contexts instead of nested with statements
     "SLF001",  # Private member accessed: {access}
