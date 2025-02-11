@@ -6,7 +6,7 @@
 #SBATCH --job-name=infer_flowers_0_10000
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
-#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-type=ALL
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
