@@ -51,6 +51,7 @@ def get_inference_records(db, limit, offset):
 
 def filter_bad_inference_images(rows):
     rows = [r for r in rows if not r["state"].endswith("error")]
+    rows = [r for r in rows if r["state"] != "no url"]
     return rows
 
 
