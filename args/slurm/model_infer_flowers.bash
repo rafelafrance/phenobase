@@ -28,7 +28,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
   --bad-families /home/rafe.lafrance/blue/phenobase/datasets/bad_families/bad_flower_fams.csv \
   --output-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_0_10.csv \
-  --model-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers_f1/checkpoint-3270 \
+  --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers_f1/checkpoint-3270 \
   --image-size 384 \
   --limit 10 \
   --offset 0
