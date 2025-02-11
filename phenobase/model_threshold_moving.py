@@ -17,7 +17,6 @@ class Best:
     threshold_lo: float
     threshold_hi: float
     trait: str
-    problem_type: str = "old"
     checkpoint: str = ""
 
 
@@ -28,7 +27,6 @@ def main(args):
     df_all = filter_families(df_all, args.bad_families)
 
     checkpoints = df_all["checkpoint"].unique()
-    get_data = get_old_data if args.problem_type == "old" else get_raw_data
 
     bests = []
     for checkpoint in checkpoints:
@@ -36,12 +34,11 @@ def main(args):
         if len(df) == 0:
             continue
 
-        all_trues, all_scores = get_data(df, args.trait)
+        all_trues, all_scores = get_raw_data(df, args.trait)
         if all_trues is None or len(all_trues) == 0:
             continue
 
         cp_best = checkpoint_best(all_trues, all_scores, args.trait, args.pos_limit)
-        cp_best.problem_type = args.problem_type
         cp_best.checkpoint = checkpoint
         bests.append(cp_best)
 
@@ -51,7 +48,6 @@ def main(args):
         f"""
         Trait:          {best.trait}
         Checkpoint:     {best.checkpoint}
-        Problem Type:   {best.problem_type}
         Accuracy:       {best.accuracy:0.3f}
         Low Threshold:  {best.threshold_lo:0.2f}
         High Threshold: {best.threshold_hi:0.2f}
@@ -59,7 +55,7 @@ def main(args):
     )
 
     df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
-    y_trues, y_scores = get_data(df, args.trait)
+    y_trues, y_scores = get_raw_data(df, args.trait)
 
     y_trues, y_preds = get_preds(y_trues, y_scores)
     all_count = len(y_trues)
@@ -110,15 +106,6 @@ def get_raw_data(df, trait):
         y_scores = df[f"{trait}_score"].astype(float)
     except ValueError:
         return None, None
-    return y_trues, y_scores
-
-
-def get_old_data(df, trait):
-    try:
-        y_trues = df.loc[df["trait"] == trait, "y_true"].astype(float)
-        y_scores = df.loc[df["trait"] == trait, "y_pred"].astype(float)
-    except ValueError:
-        return None
     return y_trues, y_scores
 
 
@@ -199,14 +186,6 @@ def parse_args() -> argparse.Namespace:
         "--trait",
         choices=const.TRAITS,
         help="""The trait to examine.""",
-    )
-
-    arg_parser.add_argument(
-        "--problem-type",
-        choices=[*const.PROBLEM_TYPES, "old"],
-        default="regression",
-        help="""This chooses the appropriate scoring method for the type of problem.
-            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

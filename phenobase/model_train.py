@@ -25,16 +25,16 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=args.problem_type,
-        num_labels=dataset_util.get_num_labels(args.problem_type, args.trait),
+        problem_type=const.SINGLE_LABEL,
+        num_labels=len(const.LABELS),
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = dataset_util.get_dataset(
-        "train", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+        "train", args.dataset_csv, args.image_dir, args.trait
     )
     valid_dataset = dataset_util.get_dataset(
-        "valid", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+        "valid", args.dataset_csv, args.image_dir, args.trait
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -195,17 +195,6 @@ def parse_args():
         metavar="INT",
         default=8174997,
         help="""Seed used for random number generator. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--problem-type",
-        choices=list(const.PROBLEM_TYPES),
-        default="regression",
-        help="""This chooses the appropriate loss function for the type of problem.
-            regression = MSELoss for predicting a single value,
-            single_label = CrossEntropyLoss for prediction a label with several options,
-            and multi_label = BCEWithLogitsLoss for when multiple labels can be true at
-            the same time. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
