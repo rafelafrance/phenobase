@@ -48,7 +48,7 @@ def cull_bad_paths(paths: list[Path]) -> list[Path]:
         try:
             _ = UUID(path.stem)
             good_images.append(path)
-        except ValueError:  # noqa: PERF203
+        except ValueError:
             continue
 
     log_error_count("Bad paths", good_images, paths)
