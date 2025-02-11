@@ -3,8 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from datasets import Dataset, Image, Split
-
-from . import const
+from phenobase.pylib import const
 
 
 def get_dataset(

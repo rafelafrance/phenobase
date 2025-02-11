@@ -118,11 +118,11 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--model-dir",
+        "--checkpoint",
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Directory containing the training checkpoint.""",
+        help="""Directory containing the best checkpoint.""",
     )
 
     arg_parser.add_argument(
