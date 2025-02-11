@@ -86,10 +86,9 @@ def main(args):
                     copyfile(src, dst)
 
     df = pd.DataFrame(records)
-    if args.output_csv.exists():
-        df_old = pd.read_csv(args.output_csv, low_memory=False)
-        df = pd.concat((df_old, df))
     df.to_csv(args.output_csv, index=False)
+
+    logging.info(f"Remaining {len(records)}")
 
     log.finished()
 
