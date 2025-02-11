@@ -129,10 +129,9 @@ def parse_args():
 
     arg_parser.add_argument(
         "--trait",
-        choices=const.TRAITS,
-        action="append",
-        help="""Train to classify this trait. Repeat this argument to train
-            multiple trait labels.""",
+        choices=const.traits,
+        required=True,
+        help="""Train to classify this trait.""",
     )
 
     arg_parser.add_argument(

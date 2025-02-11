@@ -39,27 +39,38 @@ def get_records(split: str, dataset_csv: Path, traits: list[str]) -> list[dict]:
     return recs
 
 
-def get_inference_dataset(db, image_dir, bad_family_csv, limit, offset):
+def get_inference_records(db, limit, offset):
+    with sqlite3.connect(db) as cxn:
+        cxn.row_factory = sqlite3.row
+        sql = """select gbifid, tiebreaker, state, family
+            from multimedia join occurrence using (gbifid)
+            limit ? offset ?"""
+        rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
+    return rows
+
+
+def filter_bad_inference_images(rows):
+    rows = [r for r in rows if not r["state"].endswith("error")]
+    return rows
+
+
+def filter_bad_inference_families(rows, bad_family_csv):
     bad_families = []
     if bad_family_csv:
         with bad_family_csv.open() as bad:
             reader = csv.DictReader(bad)
             bad_families = [r["family"].lower() for r in reader]
-
-    with sqlite3.connect(db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        sql = """select gbifid, tiebreaker, state, family
-            from multimedia join occurrence using (gbifid)
-            limit ? offset ?"""
-        rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
-
-    rows = [r for r in rows if not r["state"].endswith("error")]
     rows = [r for r in rows if r["family"].lower() not in bad_families]
+    return rows
 
+
+def get_inference_dataset(rows, image_dir):
     images = []
     ids = []
+    families = []
     for row in rows:
         ids.append(row["gbifID"])
+        families.append(row["family"])
 
         parts = row["state"].split()
 
@@ -70,8 +81,8 @@ def get_inference_dataset(db, image_dir, bad_family_csv, limit, offset):
 
         images.append(str(path))
 
-    dataset = Dataset.from_dict({"image": images, "id": ids}).cast_column(
-        "image", Image()
-    )
+    dataset = Dataset.from_dict(
+        {"image": images, "id": ids, "path": images, "family": families}
+    ).cast_column("image", Image())
 
     return dataset

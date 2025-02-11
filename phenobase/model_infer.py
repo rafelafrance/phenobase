@@ -5,6 +5,7 @@ import logging
 import textwrap
 from collections.abc import Callable
 from pathlib import Path
+from shutil import copyfile
 
 import pandas as pd
 import torch
@@ -34,11 +35,17 @@ def main(args):
     model.to(device)
     model.eval()
 
-    logging.info("Getting dataset limit {args.limit} offset {args.offset}")
+    logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
 
-    dataset = dataset_util.get_inference_dataset(
-        args.db, args.image_dir, args.bad_families, args.limit, args.offset
-    )
+    dataset = dataset_util.get_inference_records(args.db, args.limit, args.offset)
+    total = len(dataset)
+    dataset = dataset_util.filter_bad_inference_images(dataset)
+    good = len(dataset)
+    dataset = dataset_util.filter_bad_inference_families(dataset, args.bad_families)
+    families = len(dataset)
+    dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
+
+    logging.info(f"Total records {total}, good images {good}, good families {families}")
 
     TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
     dataset.set_transform(TEST_XFORMS)
@@ -48,6 +55,8 @@ def main(args):
     records = []
 
     logging.info("Starting inference")
+    logging.info(f"Low threshold: {args.thresh_low}")
+    logging.info(f"High threshold: {args.thresh_high}")
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -60,10 +69,21 @@ def main(args):
             # when there are exactly two classes and only when they are
             # organized as const.labels = [WITHOUT, WITH].
             scores = softmax(result.logits).detach().cpu().tolist()[0]
+            score = scores[1]
 
-            rec = {"gbifid": sheet["id"][0], "score": scores[1]}
+            if score <= args.thresh_low or score >= args.thresh_high:
+                rec = {
+                    "gbifid": sheet["id"][0],
+                    "score": score,
+                    "family": sheet["family"][0],
+                    args.trait: int(round(score)),
+                }
+                records.append(rec)
 
-            records.append(rec)
+                if args.save_dir:
+                    src = Path(sheet["path"][0])
+                    dst = args.save_dir / src.name
+                    copyfile(src, dst)
 
     df = pd.DataFrame(records)
     if args.output_csv.exists():
@@ -89,16 +109,16 @@ def parse_args():
     arg_parser.add_argument(
         "--db",
         type=Path,
-        metavar="PATH",
         required=True,
+        metavar="PATH",
         help="""A database with information about herbarium sheets.""",
     )
 
     arg_parser.add_argument(
         "--image-dir",
         type=Path,
-        metavar="PATH",
         required=True,
+        metavar="PATH",
         help="""A path to the directory where the images are.""",
     )
 
@@ -128,8 +148,8 @@ def parse_args():
     arg_parser.add_argument(
         "--image-size",
         type=int,
-        metavar="INT",
         default=224,
+        metavar="INT",
         help="""Images are this size (pixels). (default: %(default)s)""",
     )
 
@@ -147,6 +167,35 @@ def parse_args():
         default=0,
         metavar="INT",
         help="""Read records after this offset. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=const.traits,
+        required=True,
+        help="""Infer this trait.""",
+    )
+
+    arg_parser.add_argument(
+        "--thresh-low",
+        type=float,
+        default=0.05,
+        help="""Low threshold for being in the negative class (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--thresh-high",
+        type=float,
+        default=0.95,
+        help="""high threshold for being in the positive class
+            (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--save-dir",
+        type=Path,
+        metavar="PATH",
+        help="""Where to put images for further analysis.""",
     )
 
     args = arg_parser.parse_args()
