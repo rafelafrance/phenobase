@@ -41,7 +41,7 @@ def get_records(split: str, dataset_csv: Path, traits: list[str]) -> list[dict]:
 
 def get_inference_records(db, limit, offset):
     with sqlite3.connect(db) as cxn:
-        cxn.row_factory = sqlite3.row
+        cxn.row_factory = sqlite3.Row
         sql = """select gbifid, tiebreaker, state, family
             from multimedia join occurrence using (gbifid)
             limit ? offset ?"""
