@@ -129,7 +129,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--trait",
-        choices=const.traits,
+        choices=const.TRAITS,
         required=True,
         help="""Train to classify this trait.""",
     )
