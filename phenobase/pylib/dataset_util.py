@@ -68,7 +68,7 @@ def get_inference_dataset(db, image_dir, bad_family_csv, limit, offset):
 
         path = image_dir / parts[0] / (name + ".jpg")
 
-        images.append(path)
+        images.append(str(path))
 
     dataset = Dataset.from_dict({"image": images, "id": ids}).cast_column(
         "image", Image()
