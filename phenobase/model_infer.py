@@ -22,6 +22,9 @@ def main(args):
 
     log.started()
 
+    if args.save_dir:
+        args.save_dir.mkdir(parents=True, exist_ok=True)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     softmax = torch.nn.Softmax(dim=1)
@@ -39,13 +42,17 @@ def main(args):
 
     dataset = dataset_util.get_inference_records(args.db, args.limit, args.offset)
     total = len(dataset)
+    logging.info(f"{total} records retrieved from database")
+
     dataset = dataset_util.filter_bad_inference_images(dataset)
-    good = len(dataset)
+    images = len(dataset)
+    logging.info(f"{images} records have images")
+
     dataset = dataset_util.filter_bad_inference_families(dataset, args.bad_families)
     families = len(dataset)
-    dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
+    logging.info(f"{families} records remain after filtering 'bad' families")
 
-    logging.info(f"Total records {total}, good images {good}, good families {families}")
+    dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
 
     TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
     dataset.set_transform(TEST_XFORMS)
@@ -53,10 +60,6 @@ def main(args):
     loader = DataLoader(dataset, batch_size=1, pin_memory=True)
 
     records = []
-
-    logging.info("Starting inference")
-    logging.info(f"Low threshold: {args.thresh_low}")
-    logging.info(f"High threshold: {args.thresh_high}")
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -88,7 +91,9 @@ def main(args):
     df = pd.DataFrame(records)
     df.to_csv(args.output_csv, index=False)
 
-    logging.info(f"Remaining {len(records)}")
+    logging.info(f"{len(records)} records remain after removing equivocal scores")
+    logging.info(f"Low threshold: {args.thresh_low}")
+    logging.info(f"High threshold: {args.thresh_high}")
 
     log.finished()
 

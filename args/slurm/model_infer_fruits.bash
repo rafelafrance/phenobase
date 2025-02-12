@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=infer_flowers_0_10000
+#SBATCH --job-name=infer_fruits_0_10000
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -26,15 +26,15 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
   --db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-  --bad-families /home/rafe.lafrance/blue/phenobase/datasets/bad_families/bad_flower_fams.csv \
-  --output-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_0_10000.csv \
-  --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers_f1/checkpoint-3270 \
-  --image-size 384 \
+  --bad-families /home/rafe.lafrance/blue/phenobase/datasets/bad_families/bad_fruit_fams.csv \
+  --output-csv /home/rafe.lafrance/blue/phenobase/data/fruit_inference_0_10000.csv \
+  --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_fruits_f1/checkpoint-2800 \
+  --image-size 528 \
   --limit 10000 \
   --offset 0 \
-  --trait flowers \
+  --trait fruits \
   --thresh-low 0.05 \
   --thresh-high 0.95 \
-  --save-dir /home/rafe.lafrance/blue/phenobase/data/images/infer_flowers
+  --save-dir /home/rafe.lafrance/blue/phenobase/data/images/infer_fruits
 
 date

@@ -56,6 +56,8 @@ def filter_bad_inference_images(rows):
 
 
 def filter_bad_inference_families(rows, bad_family_csv):
+    if not bad_family_csv:
+        return rows
     bad_families = []
     if bad_family_csv:
         with bad_family_csv.open() as bad:
