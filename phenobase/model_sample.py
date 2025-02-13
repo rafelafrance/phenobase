@@ -97,7 +97,7 @@ def write(dataset, name, args):
     dir_ = args.output_dir / f"{args.trait}_{name}"
     dir_.mkdir(parents=True, exist_ok=True)
     for rec in dataset:
-        src = rec["path"]
+        src = Path(rec["path"])
         dst = dir_ / src.name
         copyfile(src, dst)
 
