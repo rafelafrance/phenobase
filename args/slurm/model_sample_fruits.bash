@@ -23,7 +23,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_sample.py \
   --db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
   --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
   --bad-families /home/rafe.lafrance/blue/phenobase/datasets/bad_families/bad_fruit_fams.csv \
