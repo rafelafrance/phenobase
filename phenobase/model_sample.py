@@ -30,8 +30,8 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
-        problem_type=const.SINGLE_LABEL,
-        num_labels=len(const.LABELS),
+        problem_type=const.REGRESSION,
+        num_labels=1,
     )
 
     present_unequiv = []
@@ -44,7 +44,7 @@ def main(args):
 
     dataset = dataset_util.get_inference_records(args.db, args.limit, args.offset)
     dataset = dataset_util.filter_bad_inference_images(dataset)
-    dataset = dataset_util.filter_bad_inference_families(dataset, args.bad_families)
+    dataset = dataset_util.filter_bad_families(dataset, args.bad_families)
     dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
 
     TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)

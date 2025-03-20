@@ -147,7 +147,7 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
     return best
 
 
-def get_preds(y_trues, y_scores, threshold_lo=0.5, threshold_hi=0.5):
+def get_preds(y_trues, y_scores, threshold_lo: float = 0.5, threshold_hi: float = 0.5):
     trues, preds = [], []
     for true, score in zip(y_trues, y_scores, strict=True):
         if score < threshold_lo:

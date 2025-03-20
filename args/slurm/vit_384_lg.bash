@@ -31,6 +31,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_multi_labe
   --image-size 384 \
   --best-metric f1 \
   --epochs 200 \
-  --batch-size 16
+  --batch-size 16 \
+  --trait flowers
 
 date

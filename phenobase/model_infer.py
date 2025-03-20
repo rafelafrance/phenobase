@@ -31,8 +31,8 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
-        problem_type=const.SINGLE_LABEL,
-        num_labels=len(const.LABELS),
+        problem_type=const.REGRESSION,
+        num_labels=1,
     )
 
     model.to(device)
@@ -48,7 +48,7 @@ def main(args):
     images = len(dataset)
     logging.info(f"{images} records have images")
 
-    dataset = dataset_util.filter_bad_inference_families(dataset, args.bad_families)
+    dataset = dataset_util.filter_bad_families(dataset, args.bad_families)
     families = len(dataset)
     logging.info(f"{families} records remain after filtering 'bad' families")
 

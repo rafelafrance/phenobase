@@ -7,4 +7,5 @@ python ./phenobase/model_train.py \
   --finetune "google/vit-base-patch16-224" \
   --batch-size 48 \
   --lr 1e-4 \
-  --epochs 25
+  --epochs 25 \
+  --trait flowers
