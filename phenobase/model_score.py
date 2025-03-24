@@ -28,16 +28,13 @@ def main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    softmax = torch.nn.Softmax(dim=1)
-
     checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
     for checkpoint in sorted(checkpoints):
         print(checkpoint)
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            problem_type=const.SINGLE_LABEL,
-            num_labels=len(const.LABELS),
+            num_labels=1,
         )
 
         model.to(device)
@@ -65,18 +62,11 @@ def main(args):
                 rec = deepcopy(base_recs[sheet["id"][0]])
                 rec |= {"checkpoint": checkpoint}
 
-                trait = args.traits[0]
+                score = torch.sigmoid(torch.tensor(result.logits))
+                rec |= {f"{args.trait}_score": score.item()}
 
-                # Note: Softmax for 2 classes is symmetric, so I can use the
-                # positive class (scores[1]) for the predicted value. I.e.
-                # scores[1] IS always the real score in this case, but only
-                # when there are exactly two classes and only when they are
-                # organized as const.labels = [WITHOUT, WITH].
-                scores = softmax(result.logits).detach().cpu().tolist()[0]
-                rec |= {f"{trait}_score": scores[1]}
-
-                true = torch.argmax(torch.tensor(sheet["label"])).item()
-                pred = torch.argmax(result.logits).item()
+                true = sheet["label"].item()
+                pred = torch.round(score).item()
                 correct += int(pred == true)
 
                 records.append(rec)
@@ -103,7 +93,7 @@ def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
-            """Test a model trained to classify phenology traits."""
+            """Score a model trained to classify phenology traits."""
         ),
     )
 
@@ -121,6 +111,14 @@ def parse_args():
         metavar="PATH",
         required=True,
         help="""A path to the directory where the images are.""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=const.TRAITS,
+        required=True,
+        help="""Train to classify this trait. Repeat this argument to train
+            multiple trait labels.""",
     )
 
     arg_parser.add_argument(
@@ -146,17 +144,7 @@ def parse_args():
         help="""Images are this size (pixels). (default: %(default)s)""",
     )
 
-    arg_parser.add_argument(
-        "--traits",
-        choices=const.TRAITS,
-        action="append",
-        help="""Train to classify this trait. Repeat this argument to train
-            multiple trait labels.""",
-    )
-
     args = arg_parser.parse_args()
-
-    args.traits = args.traits if args.traits else const.TRAITS
 
     return args
 

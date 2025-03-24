@@ -5,8 +5,6 @@ import textwrap
 from collections.abc import Callable
 from pathlib import Path
 
-import evaluate
-import numpy as np
 import torch
 import transformers
 from pylib import const, dataset_util, image_util
@@ -14,8 +12,6 @@ from transformers import AutoModelForImageClassification, Trainer, TrainingArgum
 
 TRAIN_XFORMS: Callable | None = None
 VALID_XFORMS: Callable | None = None
-
-METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 def main(args):
@@ -25,8 +21,7 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=const.SINGLE_LABEL,
-        num_labels=len(const.LABELS),
+        num_labels=1,
         ignore_mismatched_sizes=True,
     )
 
@@ -34,7 +29,7 @@ def main(args):
         "train", args.dataset_csv, args.image_dir, args.trait
     )
     valid_dataset = dataset_util.get_dataset(
-        "valid", args.dataset_csv, args.image_dir, args.trait
+        "val", args.dataset_csv, args.image_dir, args.trait
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -53,11 +48,10 @@ def main(args):
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
-        metric_for_best_model=f"eval_{args.best_metric}",
         weight_decay=0.01,
         overwrite_output_dir=True,
         logging_strategy="epoch",
-        save_total_limit=5,
+        save_total_limit=3,
         push_to_hub=False,
     )
 
@@ -66,7 +60,6 @@ def main(args):
         model=model,
         train_dataset=train_dataset,
         eval_dataset=valid_dataset,
-        compute_metrics=compute_metrics,
     )
 
     trainer.train()
@@ -82,12 +75,6 @@ def valid_transforms(examples):
     pixel_values = [VALID_XFORMS(image.convert("RGB")) for image in examples["image"]]
     labels = torch.tensor(examples["label"])
     return {"pixel_values": pixel_values, "labels": labels}
-
-
-def compute_metrics(eval_pred):
-    logits, trues = eval_pred
-    preds = np.argmax(logits, axis=-1)
-    return METRICS.compute(predictions=preds, references=trues)
 
 
 def parse_args():
@@ -179,13 +166,6 @@ def parse_args():
         "--use-weights",
         action="store_true",
         help="""Use positive weights when training.""",
-    )
-
-    arg_parser.add_argument(
-        "--best-metric",
-        choices=["precision", "f1", "accuracy", "loss"],
-        default="precision",
-        help="""Model evaluation strategy.""",
     )
 
     arg_parser.add_argument(
