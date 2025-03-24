@@ -22,17 +22,14 @@ def main(args):
 
     log.started()
 
-    if args.save_dir:
-        args.save_dir.mkdir(parents=True, exist_ok=True)
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     softmax = torch.nn.Softmax(dim=1)
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
-        problem_type=const.REGRESSION,
-        num_labels=1,
+        problem_type=const.SINGLE_LABEL,
+        num_labels=len(const.LABELS),
     )
 
     model.to(device)
@@ -42,17 +39,13 @@ def main(args):
 
     dataset = dataset_util.get_inference_records(args.db, args.limit, args.offset)
     total = len(dataset)
-    logging.info(f"{total} records retrieved from database")
-
     dataset = dataset_util.filter_bad_inference_images(dataset)
-    images = len(dataset)
-    logging.info(f"{images} records have images")
-
-    dataset = dataset_util.filter_bad_families(dataset, args.bad_families)
+    good = len(dataset)
+    dataset = dataset_util.filter_bad_inference_families(dataset, args.bad_families)
     families = len(dataset)
-    logging.info(f"{families} records remain after filtering 'bad' families")
-
     dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
+
+    logging.info(f"Total records {total}, good images {good}, good families {families}")
 
     TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
     dataset.set_transform(TEST_XFORMS)
@@ -60,6 +53,10 @@ def main(args):
     loader = DataLoader(dataset, batch_size=1, pin_memory=True)
 
     records = []
+
+    logging.info("Starting inference")
+    logging.info(f"Low threshold: {args.thresh_low}")
+    logging.info(f"High threshold: {args.thresh_high}")
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -91,9 +88,7 @@ def main(args):
     df = pd.DataFrame(records)
     df.to_csv(args.output_csv, index=False)
 
-    logging.info(f"{len(records)} records remain after removing equivocal scores")
-    logging.info(f"Low threshold: {args.thresh_low}")
-    logging.info(f"High threshold: {args.thresh_high}")
+    logging.info(f"Remaining {len(records)}")
 
     log.finished()
 

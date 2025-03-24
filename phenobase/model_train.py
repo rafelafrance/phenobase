@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import evaluate
+import numpy as np
 import torch
 import transformers
 from pylib import const, dataset_util, image_util
@@ -24,15 +25,14 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=const.REGRESSION,
-        num_labels=1,
+        problem_type=const.SINGLE_LABEL,
+        num_labels=len(const.LABELS),
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = dataset_util.get_dataset(
         "train", args.dataset_csv, args.image_dir, args.trait
     )
-
     valid_dataset = dataset_util.get_dataset(
         "valid", args.dataset_csv, args.image_dir, args.trait
     )
@@ -54,11 +54,10 @@ def main(args):
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
         metric_for_best_model=f"eval_{args.best_metric}",
-        greater_is_better=args.best_metric != "loss",
         weight_decay=0.01,
         overwrite_output_dir=True,
         logging_strategy="epoch",
-        save_total_limit=3,
+        save_total_limit=5,
         push_to_hub=False,
     )
 
@@ -87,9 +86,7 @@ def valid_transforms(examples):
 
 def compute_metrics(eval_pred):
     logits, trues = eval_pred
-    preds = torch.sigmoid(torch.tensor(logits))
-    preds = torch.round(preds).flatten()
-    trues = torch.tensor(trues).flatten()
+    preds = np.argmax(logits, axis=-1)
     return METRICS.compute(predictions=preds, references=trues)
 
 
@@ -138,18 +135,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--best-metric",
-        choices=["f1", "precision", "recall", "accuracy", "loss"],
-        default="f1",
-        help="""Save models when this metric is highest (or lowest when "loss").
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
         "--image-size",
         type=int,
-        default=224,
         metavar="INT",
+        default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
     )
 
@@ -193,10 +182,17 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--best-metric",
+        choices=["precision", "f1", "accuracy", "loss"],
+        default="precision",
+        help="""Model evaluation strategy.""",
+    )
+
+    arg_parser.add_argument(
         "--seed",
         type=int,
-        default=8174997,
         metavar="INT",
+        default=8174997,
         help="""Seed used for random number generator. (default: %(default)s)""",
     )
 

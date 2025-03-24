@@ -36,8 +36,8 @@ def main(args):
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            problem_type=const.REGRESSION,
-            num_labels=1,
+            problem_type=const.SINGLE_LABEL,
+            num_labels=len(const.LABELS),
         )
 
         model.to(device)

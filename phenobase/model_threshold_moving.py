@@ -35,7 +35,7 @@ def main(args):
             continue
 
         all_trues, all_scores = get_raw_data(df, args.trait)
-        if all_trues is None or len(all_trues) == 0 or all_scores.hasnans:
+        if all_trues is None or len(all_trues) == 0:
             continue
 
         cp_best = checkpoint_best(all_trues, all_scores, args.trait, args.pos_limit)
@@ -147,9 +147,9 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
     return best
 
 
-def get_preds(y_trues, y_scores, threshold_lo: float = 0.5, threshold_hi: float = 0.5):
+def get_preds(y_true, y_scores, threshold_lo=0.5, threshold_hi=0.5):
     trues, preds = [], []
-    for true, score in zip(y_trues, y_scores, strict=True):
+    for true, score in zip(y_true, y_scores, strict=True):
         if score < threshold_lo:
             trues.append(true)
             preds.append(0.0)

@@ -6,7 +6,7 @@
 #SBATCH --job-name=infer_flowers_0_10000
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=FAIL,END
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
@@ -30,11 +30,11 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
   --output-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_0_10000.csv \
   --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers_f1/checkpoint-3270 \
   --image-size 384 \
-  --limit 10000 \
+  --limit 1000000 \
   --offset 0 \
   --trait flowers \
   --thresh-low 0.05 \
   --thresh-high 0.95 \
-  --save-dir /home/rafe.lafrance/blue/phenobase/data/images/infer_flowers
+  --save-dir /home/rafe.lafrance/blue/phenobase/data/images/infer
 
 date

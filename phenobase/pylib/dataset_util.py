@@ -3,12 +3,17 @@ import sqlite3
 from pathlib import Path
 
 from datasets import Dataset, Image, Split
+from phenobase.pylib import const
 
 
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path, trait: str) -> Dataset:
-    recs = get_records(split, dataset_csv, trait)
+def get_dataset(
+    split: str, dataset_csv: Path, image_dir: Path, traits: list[str]
+) -> Dataset:
+    trait = traits[0]
 
-    labels = [float(r[trait]) for r in recs]
+    recs = get_records(split, dataset_csv, traits)
+
+    labels = [const.WITHOUT if r[trait] == "0" else const.WITH for r in recs]
 
     images = [str(image_dir / r["name"]) for r in recs]
     ids = [r["name"] for r in recs]
@@ -21,20 +26,22 @@ def get_dataset(split: str, dataset_csv: Path, image_dir: Path, trait: str) -> D
     return dataset
 
 
-def get_records(split: str, dataset_csv: Path, trait: str) -> list[dict]:
+def get_records(split: str, dataset_csv: Path, traits: list[str]) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
     recs = [r for r in recs if r["split"] == split]
-    recs = [r for r in recs if r[trait] and r[trait] in "01"]
+
+    for trait in traits:
+        recs = [r for r in recs if r[trait] in "01"]
 
     return recs
 
 
 def get_inference_records(db, limit, offset):
     with sqlite3.connect(db) as cxn:
-        cxn.row_factory = sqlite3.Row
+        cxn.row_factory = sqlite3.row
         sql = """select gbifid, tiebreaker, state, family
             from multimedia join occurrence using (gbifid)
             limit ? offset ?"""
@@ -44,13 +51,10 @@ def get_inference_records(db, limit, offset):
 
 def filter_bad_inference_images(rows):
     rows = [r for r in rows if not r["state"].endswith("error")]
-    rows = [r for r in rows if r["state"] != "no url"]
     return rows
 
 
-def filter_bad_families(rows, bad_family_csv):
-    if not bad_family_csv:
-        return rows
+def filter_bad_inference_families(rows, bad_family_csv):
     bad_families = []
     if bad_family_csv:
         with bad_family_csv.open() as bad:

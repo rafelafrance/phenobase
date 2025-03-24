@@ -123,7 +123,7 @@ def split_data(
         if i < split1:
             rec["split"] = "train"
         elif i < split2:
-            rec["split"] = "valid"
+            rec["split"] = "val"
         else:
             rec["split"] = "test"
 
