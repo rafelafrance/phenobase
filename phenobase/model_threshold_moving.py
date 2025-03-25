@@ -120,7 +120,11 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
 
     accuracies = []
     for thresh_lo in np.arange(0.0, 0.5, 0.05):
+        thresh_lo = float(thresh_lo)  # squash linters, float != np.floating
+
         for thresh_hi in np.arange(0.5, 1.0, 0.05):
+            thresh_hi = float(thresh_hi)  # squash linters, float != np.floating
+
             y_trues, y_preds = get_preds(all_trues, all_scores, thresh_lo, thresh_hi)
 
             if (len(y_trues) / all_count) < pos_limit:
