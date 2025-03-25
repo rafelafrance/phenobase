@@ -8,7 +8,12 @@ LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
 
 def get_dataset(
-    split: str, dataset_csv: Path, image_dir: Path, trait: str, *, use_unknowns: bool
+    split: str,
+    dataset_csv: Path,
+    image_dir: Path,
+    trait: str,
+    *,
+    use_unknowns: bool = False,
 ) -> Dataset:
     recs = get_records(split, dataset_csv, trait, use_unknowns=use_unknowns)
 
@@ -27,7 +32,7 @@ def get_dataset(
 
 
 def get_records(
-    split: str, dataset_csv: Path, trait: str, *, use_unknowns: bool
+    split: str, dataset_csv: Path, trait: str, *, use_unknowns: bool = False
 ) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)

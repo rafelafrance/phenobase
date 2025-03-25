@@ -36,6 +36,8 @@ ERRORS = (
     ValueError,
 )
 
+OUT_IMAGE_DIR = Path("datasets") / "images"
+
 
 def main(args):
     log.started(args.log_file)
@@ -53,9 +55,9 @@ def main(args):
     filter_trait("flowers", records, args.bad_flower_families)
     filter_trait("fruits", records, args.bad_fruit_families)
 
-    split_data(records, args.train_split)
-    write_csv(args.split_dir / "all_traits.csv", records)
-    # process_images(records, args.image_dir, args.split_dir, args.max_width)
+    split_data(records, args.split_fraction, args.split1, args.split2)
+    write_csv(args.split_csv, records)
+    process_images(records, args.image_dir, args.max_width)
 
     log.finished()
 
@@ -96,13 +98,15 @@ def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
             rec[trait] = "F"
 
 
-def split_data(records: list[dict], train_split: float) -> None:
+def split_data(
+    records: list[dict], split_fraction: float, split1: const.SPLIT, split2: const.SPLIT
+) -> None:
     random.shuffle(records)
 
-    split = round(len(records) * train_split)
+    fract = round(len(records) * split_fraction)
 
     for i, rec in enumerate(records):
-        rec["split"] = "train" if i < split else "val"
+        rec["split"] = split1 if i < fract else split2
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
@@ -110,16 +114,14 @@ def write_csv(split_csv: Path, records: list[dict]) -> None:
     df.to_csv(split_csv, index=False)
 
 
-def process_images(
-    records: list[dict], image_dir: Path, split_dir: Path, max_width: int
-) -> None:
+def process_images(records: list[dict], in_image_dir: Path, max_width: int) -> None:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
 
         try:
             for rec in tqdm(records):
-                src = image_dir / rec["name"]
-                dst = split_dir / "images" / rec["name"]
+                src = in_image_dir / rec["name"]
+                dst = OUT_IMAGE_DIR / rec["name"]
 
                 if not dst.exists():
                     with Image.open(src) as image:
@@ -154,54 +156,69 @@ def parse_args() -> argparse.Namespace:
 
     arg_parser.add_argument(
         "--ant-csv",
-        metavar="PATH",
         type=Path,
         required=True,
         action="append",
+        metavar="PATH",
         help="""These input CSV files hold expert classifications of the traits.
             Use this argument once for every ant CSV file.""",
     )
 
     arg_parser.add_argument(
         "--bad-flower-families",
-        metavar="PATH",
         type=Path,
+        metavar="PATH",
         help="""Make sure flowers in these families are skipped.""",
     )
 
     arg_parser.add_argument(
         "--bad-fruit-families",
-        metavar="PATH",
         type=Path,
+        metavar="PATH",
         help="""Make sure fruits in these families are skipped.""",
     )
 
     arg_parser.add_argument(
         "--metadata-db",
-        metavar="PATH",
         type=Path,
         required=True,
+        metavar="PATH",
         help="""Get metadata for the classifications from this DB.""",
     )
 
     arg_parser.add_argument(
         "--image-dir",
-        metavar="PATH",
         type=Path,
         required=True,
+        metavar="PATH",
         help="""Get herbarium sheet images from this directory.""",
     )
 
     arg_parser.add_argument(
-        "--split-dir",
-        metavar="PATH",
+        "--split-csv",
         type=Path,
         required=True,
-        help="""Output the split CSV and images into this directory.""",
+        metavar="PATH",
+        help="""Output the split CSV to this file.""",
     )
 
     arg_parser.add_argument(
-        "--train-split",
+        "--split1",
+        required=True,
+        options=const.SPLIT,
+        metavar="SPLIT",
+        help="""Output the split CSV to this file.""",
+    )
+
+    arg_parser.add_argument(
+        "--split2",
+        options=const.SPLIT,
+        metavar="SPLIT",
+        help="""Output the split CSV to this file.""",
+    )
+
+    arg_parser.add_argument(
+        "--split-fraction",
         type=float,
         metavar="FRACTION",
         default=0.75,

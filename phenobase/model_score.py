@@ -23,7 +23,7 @@ def main(args):
 
     base_recs = {
         d["name"]: d
-        for d in dataset_util.get_records("test", args.dataset_csv, args.traits)
+        for d in dataset_util.get_records("test", args.dataset_csv, args.trait)
     }
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,7 +41,7 @@ def main(args):
         model.eval()
 
         dataset = dataset_util.get_dataset(
-            "test", args.dataset_csv, args.image_dir, args.traits
+            "test", args.dataset_csv, args.image_dir, args.trait
         )
 
         TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)

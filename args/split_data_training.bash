@@ -12,4 +12,6 @@
   --bad-fruit-families datasets/bad_families/bad_fruit_fams.csv \
   --metadata-db data/angiosperms.sqlite \
   --image-dir ../../images/herbarium_sheets \
-  --split-dir datasets
+  --split1 train \
+  --split2 val \
+  --split-csv datasets/training_data.csv
