@@ -37,8 +37,7 @@ ERRORS = (
 )
 
 
-def main():
-    args = parse_args()
+def main(args):
     log.started(args.log_file)
 
     random.seed(args.seed)
@@ -54,9 +53,9 @@ def main():
     filter_trait("flowers", records, args.bad_flower_families)
     filter_trait("fruits", records, args.bad_fruit_families)
 
-    split_data(records, args.seed, args.train_split, args.valid_split)
+    split_data(records, args.train_split)
     write_csv(args.split_dir / "all_traits.csv", records)
-    process_images(records, args.image_dir, args.split_dir, args.max_width)
+    # process_images(records, args.image_dir, args.split_dir, args.max_width)
 
     log.finished()
 
@@ -88,44 +87,22 @@ def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
     with bad_families.open() as f:
         bad = {row["family"].lower() for row in csv.DictReader(f)}
 
-    bad_value = 0
-    bad_family = 0
-    skipped = 0
     for rec in records:
         label = rec.get(trait, "")
 
         rec[f"old_{trait}"] = label
 
-        if not label:
-            skipped += 1
-        elif label not in "01":
-            bad_value += 1
-        elif rec["family"].lower() in bad:
-            bad_family += 1
+        if rec["family"].lower() in bad:
             rec[trait] = "F"
 
 
-def split_data(
-    records: list[dict],
-    seed: int,
-    train_split: float,
-    val_split: float,
-) -> None:
-    random.seed(seed)
-
+def split_data(records: list[dict], train_split: float) -> None:
     random.shuffle(records)
 
-    total = len(records)
-    split1 = round(total * train_split)
-    split2 = split1 + round(total * val_split)
+    split = round(len(records) * train_split)
 
     for i, rec in enumerate(records):
-        if i < split1:
-            rec["split"] = "train"
-        elif i < split2:
-            rec["split"] = "val"
-        else:
-            rec["split"] = "test"
+        rec["split"] = "train" if i < split else "val"
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
@@ -165,18 +142,6 @@ def process_images(
 
         except ERRORS:
             logging.exception("Could not process image")
-
-
-def validate_splits(args: argparse.Namespace) -> None:
-    splits = (args.train_split, args.valid_split, args.test_split)
-
-    if sum(splits) != 1.0:
-        msg = "train, val, and test splits must sum to 1.0"
-        raise ValueError(msg)
-
-    if any(s < 0.0 or s > 1.0 for s in splits):
-        msg = "All splits must be in the interval [0.0, 1.0]"
-        raise ValueError(msg)
 
 
 def parse_args() -> argparse.Namespace:
@@ -232,33 +197,15 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Output the split CSV files into this directory.""",
+        help="""Output the split CSV and images into this directory.""",
     )
 
     arg_parser.add_argument(
         "--train-split",
         type=float,
         metavar="FRACTION",
-        default=0.6,
-        help="""What fraction of records to use for training the model.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--valid-split",
-        type=float,
-        metavar="FRACTION",
-        default=0.2,
-        help="""What fraction of records to use for validating the model between epochs.
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--test-split",
-        type=float,
-        metavar="FRACTION",
-        default=0.2,
-        help="""What fraction of records to use for testing the model.
+        default=0.75,
+        help="""What fraction of records to use for training the model [0.0 - 1.0].
             (default: %(default)s)""",
     )
 
@@ -287,10 +234,9 @@ def parse_args() -> argparse.Namespace:
 
     args = arg_parser.parse_args()
 
-    validate_splits(args)
-
     return args
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

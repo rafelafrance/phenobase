@@ -6,6 +6,7 @@ python ./phenobase/model_train.py \
   --output-dir ./data/local/vit_384_base_prec \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
-  --epochs 10 \
+  --epochs 25 \
   --batch-size 48 \
+  --use-unknowns \
   --trait flowers

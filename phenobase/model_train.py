@@ -26,10 +26,18 @@ def main(args):
     )
 
     train_dataset = dataset_util.get_dataset(
-        "train", args.dataset_csv, args.image_dir, args.trait
+        "train",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        use_unknowns=args.use_unknowns,
     )
     valid_dataset = dataset_util.get_dataset(
-        "val", args.dataset_csv, args.image_dir, args.trait
+        "val",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        use_unknowns=args.use_unknown,
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -163,9 +171,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--use-weights",
+        "--use-unknowns",
         action="store_true",
-        help="""Use positive weights when training.""",
+        help="""Use samples with traits identified as unknown by experts, and set their
+            expected value to 0.5.""",
     )
 
     arg_parser.add_argument(

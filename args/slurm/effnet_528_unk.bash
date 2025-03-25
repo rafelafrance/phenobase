@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=effnet_528_flowers
+#SBATCH --job-name=effnet_528_unk_flowers
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -31,6 +31,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_multi_labe
   --image-size 528 \
   --epochs 200 \
   --trait flowers \
+  --use-unknowns \
   --batch-size 32
 
 date

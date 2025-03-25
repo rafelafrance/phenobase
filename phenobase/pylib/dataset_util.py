@@ -4,11 +4,16 @@ from pathlib import Path
 
 from datasets import Dataset, Image, Split
 
+LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path, trait: str) -> Dataset:
-    recs = get_records(split, dataset_csv, trait)
 
-    labels = [float(r[trait]) for r in recs]
+def get_dataset(
+    split: str, dataset_csv: Path, image_dir: Path, trait: str, *, use_unknowns: bool
+) -> Dataset:
+    recs = get_records(split, dataset_csv, trait, use_unknowns=use_unknowns)
+
+    labels = [LABEL_VALUES[r[trait]] for r in recs]
+
     images = [str(image_dir / r["name"]) for r in recs]
     ids = [r["name"] for r in recs]
 
@@ -21,13 +26,17 @@ def get_dataset(split: str, dataset_csv: Path, image_dir: Path, trait: str) -> D
     return dataset
 
 
-def get_records(split: str, dataset_csv: Path, trait: str) -> list[dict]:
+def get_records(
+    split: str, dataset_csv: Path, trait: str, *, use_unknowns: bool
+) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
     recs = [r for r in recs if r["split"] == split]
-    recs = [r for r in recs if r[trait] in "01"]
+
+    keeps = "01Uu" if use_unknowns else "01"
+    recs = [r for r in recs if r[trait] and r[trait] in keeps]
 
     return recs
 

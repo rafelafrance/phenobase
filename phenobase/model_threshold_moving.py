@@ -51,7 +51,7 @@ def main(args):
         Accuracy:       {best.accuracy:0.3f}
         Low Threshold:  {best.threshold_lo:0.2f}
         High Threshold: {best.threshold_hi:0.2f}
-    """
+        """
     )
 
     df = df_all.loc[df_all["checkpoint"] == best.checkpoint]

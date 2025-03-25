@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_384_lg_fruits
+#SBATCH --job-name=vit_384_lg_flowers
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=FAIL,END
@@ -24,12 +24,13 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_multi_label.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_fruits \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/vit_384_lg_flowers \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
-  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/fruits.csv \
+  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/flowers.csv \
   --finetune "google/vit-large-patch16-384" \
   --image-size 384 \
   --epochs 200 \
+  --trait flowers \
   --batch-size 16
 
 date
