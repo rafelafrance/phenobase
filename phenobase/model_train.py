@@ -37,7 +37,7 @@ def main(args):
         args.dataset_csv,
         args.image_dir,
         args.trait,
-        use_unknowns=args.use_unknown,
+        use_unknowns=args.use_unknowns,
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
