@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import logging
 import random
@@ -7,11 +9,13 @@ import sqlite3
 import textwrap
 import time
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 
 import requests
 from PIL import Image
+from pylib import log
 
 TIMEOUT = 10  # Seconds to wait for a server reply
 DELAY = 5  # Seconds to delay between attempts to download an image
@@ -42,6 +46,43 @@ Image.MAX_IMAGE_PIXELS = 300_000_000
 
 # Set a timeout for requests
 socket.setdefaulttimeout(TIMEOUT)
+
+
+def main():
+    log.started()
+    args = parse_args()
+    logging.info(args)
+
+    args.image_dir.mkdir(parents=True, exist_ok=True)
+
+    row_chunks = get_multimedia_recs(args.gbif_db, args.limit, args.offset)
+
+    for row_chunk in row_chunks:
+        subdir = mk_subdir(args.image_dir, args.dir_suffix)
+
+        multitasking_download(
+            subdir, row_chunk, args.max_workers, args.attempts, args.max_width
+        )
+
+    log.finished()
+
+
+def multitasking_download(subdir, rows, max_workers, attempts, max_width):
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                download,
+                row["gbifID"],
+                row["tiebreaker"],
+                row["identifier"],
+                subdir,
+                attempts,
+                max_width,
+            )
+            for row in rows
+        ]
+        results = list(as_completed(futures))
+        return results
 
 
 def get_multimedia_recs(gbif_db, limit, offset):
@@ -224,3 +265,7 @@ def parse_args():
 
     args = arg_parser.parse_args()
     return args
+
+
+if __name__ == "__main__":
+    main()
