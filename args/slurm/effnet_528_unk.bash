@@ -23,10 +23,10 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_multi_label.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/tuned/effnet_528_flowers \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
-  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/flowers.csv \
+  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/all_traits.csv \
   --finetune "google/efficientnet-b6" \
   --image-size 528 \
   --epochs 200 \
