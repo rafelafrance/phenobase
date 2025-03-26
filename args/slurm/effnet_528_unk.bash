@@ -13,7 +13,7 @@
 
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=4gb
-#SBATCH --time=24:00:00
+#SBATCH --time=36:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:a100:1
 
@@ -24,7 +24,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_unk_flowers \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
   --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/train_data.csv \
   --finetune "google/efficientnet-b6" \
