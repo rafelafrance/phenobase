@@ -2,13 +2,13 @@ import csv
 import sqlite3
 from pathlib import Path
 
-from datasets import Dataset, Image, Split
+from datasets import Dataset, Image, NamedSplit, Split
 
 LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
 
 def get_dataset(
-    split: str,
+    split: NamedSplit,
     dataset_csv: Path,
     image_dir: Path,
     trait: str,
@@ -32,7 +32,7 @@ def get_dataset(
 
 
 def get_records(
-    split: str, dataset_csv: Path, trait: str, *, use_unknowns: bool = False
+    split: NamedSplit, dataset_csv: Path, trait: str, *, use_unknowns: bool = False
 ) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)

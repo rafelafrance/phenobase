@@ -73,12 +73,12 @@ def main(args):
 
         print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
 
-        if args.output_csv:
+        if args.score_csv:
             df = pd.DataFrame(records)
-            if args.output_csv.exists():
-                df_old = pd.read_csv(args.output_csv, low_memory=False)
+            if args.score_csv.exists():
+                df_old = pd.read_csv(args.score_csv, low_memory=False)
                 df = pd.concat((df_old, df))
-            df.to_csv(args.output_csv, index=False)
+            df.to_csv(args.score_csv, index=False)
 
     log.finished()
 
@@ -117,15 +117,14 @@ def parse_args():
         "--trait",
         choices=const.TRAITS,
         required=True,
-        help="""Train to classify this trait. Repeat this argument to train
-            multiple trait labels.""",
+        help="""Score the classification of this trait.""",
     )
 
     arg_parser.add_argument(
-        "--output-csv",
+        "--score-csv",
         type=Path,
         metavar="PATH",
-        help="""Output inference results to this CSV.""",
+        help="""Append scores to this CSV.""",
     )
 
     arg_parser.add_argument(

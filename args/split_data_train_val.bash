@@ -14,4 +14,4 @@
   --image-dir ../../images/herbarium_sheets \
   --split1 train \
   --split2 val \
-  --split-csv datasets/training_data.csv
+  --split-csv datasets/train_data.csv

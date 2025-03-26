@@ -5,6 +5,7 @@ import csv
 import logging
 import random
 import sqlite3
+import sys
 import textwrap
 import warnings
 from collections import defaultdict
@@ -45,7 +46,7 @@ def main(args):
     random.seed(args.seed)
 
     records = get_expert_data(args.ant_csv)
-    append_metadata(args.metadata_db, records)
+    append_metadata(args.metadata_db, records, gbif_db=args.gbif_db)
 
     for file_name, row in records.items():
         row["name"] = file_name
@@ -57,7 +58,7 @@ def main(args):
 
     split_data(records, args.split_fraction, args.split1, args.split2)
     write_csv(args.split_csv, records)
-    process_images(records, args.image_dir, args.max_width)
+    # process_images(records, args.image_dir, args.max_width)
 
     log.finished()
 
@@ -74,7 +75,28 @@ def get_expert_data(ant_csvs: list[Path]) -> dict[str, dict]:
     return records
 
 
-def append_metadata(metadata_db: Path, records: dict[str, dict]) -> None:
+def append_metadata(
+    metadata_db: Path, records: dict[str, dict], *, gbif_db: bool = False
+) -> None:
+    if gbif_db:
+        from_gbif_db(metadata_db, records)
+        return
+    from_angiosperm_db(metadata_db, records)
+
+
+def from_gbif_db(metadata_db: Path, records: dict[str, dict]):
+    sql = """select * from multimedia join occurrence using (gbifid)
+              where gbifid = ? and tiebreaker = ?"""
+    with sqlite3.connect(metadata_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        for file_name, rec in records.items():
+            stem = file_name.split(".")[0]
+            gbifid, tiebreaker, *_ = stem.split("_")
+            data = cxn.execute(sql, (gbifid, tiebreaker)).fetchone()
+            rec |= dict(data)
+
+
+def from_angiosperm_db(metadata_db: Path, records: dict[str, dict]):
     sql = """select * from angiosperms where coreid = ?"""
     with sqlite3.connect(metadata_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -165,20 +187,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--bad-flower-families",
-        type=Path,
-        metavar="PATH",
-        help="""Make sure flowers in these families are skipped.""",
-    )
-
-    arg_parser.add_argument(
-        "--bad-fruit-families",
-        type=Path,
-        metavar="PATH",
-        help="""Make sure fruits in these families are skipped.""",
-    )
-
-    arg_parser.add_argument(
         "--metadata-db",
         type=Path,
         required=True,
@@ -205,14 +213,14 @@ def parse_args() -> argparse.Namespace:
     arg_parser.add_argument(
         "--split1",
         required=True,
-        options=const.SPLIT,
+        choices=const.SPLITS,
         metavar="SPLIT",
         help="""Output the split CSV to this file.""",
     )
 
     arg_parser.add_argument(
         "--split2",
-        options=const.SPLIT,
+        choices=const.SPLITS,
         metavar="SPLIT",
         help="""Output the split CSV to this file.""",
     )
@@ -224,6 +232,20 @@ def parse_args() -> argparse.Namespace:
         default=0.75,
         help="""What fraction of records to use for training the model [0.0 - 1.0].
             (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-flower-families",
+        type=Path,
+        metavar="PATH",
+        help="""Make sure flowers in these families are skipped.""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-fruit-families",
+        type=Path,
+        metavar="PATH",
+        help="""Make sure fruits in these families are skipped.""",
     )
 
     arg_parser.add_argument(
@@ -249,7 +271,18 @@ def parse_args() -> argparse.Namespace:
         help="""Log messages to this file.""",
     )
 
+    arg_parser.add_argument(
+        "--gbif-db",
+        action="store_true",
+        help="""Does the metadata come from a GBIB database?""",
+    )
+
     args = arg_parser.parse_args()
+
+    args.split_fraction = 1.0 if not args.split2 else args.split_fraction
+
+    if args.split_fraction < 0.0 or args.split_fraction > 1.0:
+        sys.exit(f"--split-fraction {args.split_fraction} must be between [0.0 - 1.0]")
 
     return args
 

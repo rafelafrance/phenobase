@@ -67,7 +67,8 @@ def main(args):
                     "gbifid": sheet["id"][0],
                     "score": score,
                     "family": sheet["family"][0],
-                    args.trait: torch.randn(score).item(),
+                    f"{args.trait}_score": score.item(),
+                    args.trait: torch.round(score).item(),
                 }
                 records.append(rec)
 
