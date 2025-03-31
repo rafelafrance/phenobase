@@ -67,6 +67,7 @@ def main(args):
                     "gbifid": sheet["id"][0],
                     "score": score,
                     "family": sheet["family"][0],
+                    "path": sheet["path"][0],
                     f"{args.trait}_score": score.item(),
                     args.trait: torch.round(score).item(),
                 }

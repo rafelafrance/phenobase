@@ -2,65 +2,33 @@
 
 #---------------------------------------------------------------------------------------------
 ./phenobase/model_score.py \
-  --dataset-csv datasets/all_traits.csv \
+  --dataset-csv datasets/test_data.csv \
   --image-dir datasets/images \
-  --output-csv data/score_single_label_unfiltered_2025_01_30a.csv \
-  --trait old_flowers \
+  --score-csv data/score_2025_03_30a.csv \
+  --trait flowers \
   --image-size 528 \
-  --model-dir data/tuned/effnet_528_flowers_f1
+  --model-dir data/models/effnet_528_flowers
 
-./phenobase/model_score.py \
- --dataset-csv datasets/all_traits.csv \
- --image-dir datasets/images \
- --trait old_flowers \
- --image-size 384 \
- --model-dir data/tuned/vit_384_lg_flowers_f1
-
-#---------------------------------------------------------------------------------------------
-./phenobase/model_score.py \
- --dataset-csv datasets/all_traits.csv \
- --image-dir datasets/images \
- --trait old_fruits \
- --image-size 528 \
- --model-dir data/tuned/effnet_528_fruits_f1
-
-./phenobase/model_score.py \
- --dataset-csv datasets/all_traits.csv \
- --image-dir datasets/images \
- --trait old_fruits \
- --image-size 384 \
- --model-dir data/tuned/vit_384_lg_fruits_f1
-
-# #---------------------------------------------------------------------------------------------
-# ./phenobase/model_score.py \
-#  --dataset-csv datasets/all_traits.csv \
+#./phenobase/model_score.py \
+#  --dataset-csv datasets/test_data.csv \
 #  --image-dir datasets/images \
-#  --output-csv data/score_single_label_unfiltered_2025-01-30a.csv \
-#  --trait leaves \
+#  --score-csv data/score_2025_03_30a.csv \
+#  --trait flowers \
 #  --image-size 528 \
-#  --model-dir data/tuned/effnet_528_leaves_f1
+#  --model-dir data/models/effnet_528_unk_flowers
 #
-# ./phenobase/model_score.py \
-#  --dataset-csv datasets/all_traits.csv \
+#./phenobase/model_score.py \
+#  --dataset-csv datasets/test_data.csv \
 #  --image-dir datasets/images \
-#  --output-csv data/score_single_label_unfiltered_2025-01-30a.csv \
-#  --trait leaves \
+#  --score-csv data/score_2025_03_30a.csv \
+#  --trait flowers \
 #  --image-size 384 \
-#  --model-dir data/tuned/vit_384_lg_leaves_f1
+#  --model-dir data/models/vit_384_lg_flowers
 #
-# #---------------------------------------------------------------------------------------------
-# ./phenobase/model_score.py \
-#  --dataset-csv datasets/all_traits.csv \
+#./phenobase/model_score.py \
+#  --dataset-csv datasets/test_data.csv \
 #  --image-dir datasets/images \
-#  --output-csv data/score_single_label_unfiltered_2025-01-30a.csv \
-#  --trait buds \
-#  --image-size 528 \
-#  --model-dir data/tuned/effnet_528_buds_f1
-#
-# ./phenobase/model_score.py \
-#  --dataset-csv datasets/all_traits.csv \
-#  --image-dir datasets/images \
-#  --output-csv data/score_single_label_unfiltered_2025-01-30a.csv \
-#  --trait buds \
+#  --score-csv data/score_2025_03_30a.csv \
+#  --trait flowers \
 #  --image-size 384 \
-#  --model-dir data/tuned/vit_384_lg_buds_f1
+#  --model-dir data/models/vit_384_lg_unk_flowers
