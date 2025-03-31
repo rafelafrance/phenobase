@@ -5,6 +5,7 @@ import textwrap
 from collections.abc import Callable
 from pathlib import Path
 
+import evaluate
 import torch
 import transformers
 from pylib import const, dataset_util, image_util
@@ -12,6 +13,8 @@ from transformers import AutoModelForImageClassification, Trainer, TrainingArgum
 
 TRAIN_XFORMS: Callable | None = None
 VALID_XFORMS: Callable | None = None
+
+METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 def main(args):
@@ -56,6 +59,7 @@ def main(args):
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
+        metric_for_best_model=f"eval_{args.best_metric}",
         weight_decay=0.01,
         overwrite_output_dir=True,
         logging_strategy="epoch",
@@ -68,9 +72,18 @@ def main(args):
         model=model,
         train_dataset=train_dataset,
         eval_dataset=valid_dataset,
+        compute_metrics=compute_metrics,
     )
 
     trainer.train()
+
+
+def compute_metrics(eval_pred):
+    logits, trues = eval_pred
+    preds = torch.sigmoid(torch.tensor(logits))
+    preds = torch.round(preds).flatten()
+    trues = torch.tensor(trues).flatten()
+    return METRICS.compute(predictions=preds, references=trues)
 
 
 def train_transforms(examples):
@@ -168,6 +181,13 @@ def parse_args():
         default=100,
         metavar="INT",
         help="""How many epochs to train. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--best-metric",
+        choices=["precision", "f1", "accuracy", "loss"],
+        default="precision",
+        help="""Model evaluation strategy.""",
     )
 
     arg_parser.add_argument(

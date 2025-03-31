@@ -1,12 +1,12 @@
 #!/bin/bash
 
 python ./phenobase/model_train.py \
-  --dataset-csv ./datasets/all_traits.csv \
+  --dataset-csv ./datasets/train_data.csv \
   --image-dir ./datasets/images \
-  --output-dir ./data/local/vit_384_base_prec \
+  --output-dir ./data/local/vit_384_base_f1 \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
   --epochs 25 \
   --batch-size 48 \
-  --use-unknowns \
+  --best-metric f1 \
   --trait flowers

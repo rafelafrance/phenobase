@@ -62,7 +62,7 @@ def main(args):
                 rec = deepcopy(base_recs[sheet["id"][0]])
                 rec |= {"checkpoint": checkpoint}
 
-                score = torch.sigmoid(torch.tensor(result.logits))
+                score = torch.sigmoid(result.logits.clone().detach())
                 rec |= {f"{args.trait}_score": score.item()}
 
                 true = sheet["label"].item()
