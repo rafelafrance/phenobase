@@ -118,11 +118,13 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
 
     all_count = len(all_trues)
 
+    step = 0.05
+
     accuracies = []
-    for thresh_lo in np.arange(0.0, 0.5, 0.05):
+    for thresh_lo in np.arange(0.0, 0.5 + step, step):
         thresh_lo = float(thresh_lo)  # squash linters, float != np.floating
 
-        for thresh_hi in np.arange(0.5, 1.0, 0.05):
+        for thresh_hi in np.arange(0.5, 1.0 + step, step):
             thresh_hi = float(thresh_hi)  # squash linters, float != np.floating
 
             y_trues, y_preds = get_preds(all_trues, all_scores, thresh_lo, thresh_hi)
@@ -139,14 +141,14 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
             if (tp / all_tp) > pos_limit and (tn / all_tn) > pos_limit:
                 accuracy = metrics.accuracy_score(y_trues, y_preds)
 
-                accuracies.append(
-                    Best(
-                        accuracy=accuracy,
-                        threshold_lo=thresh_lo,
-                        threshold_hi=thresh_hi,
-                        trait=trait,
-                    )
+                new_best = Best(
+                    accuracy=accuracy,
+                    threshold_lo=thresh_lo,
+                    threshold_hi=thresh_hi,
+                    trait=trait,
                 )
+                print(new_best)
+                accuracies.append(new_best)
     best = max_best(accuracies)
     return best
 

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import evaluate
+import numpy as np
 import torch
 import transformers
 from pylib import const, dataset_util, image_util
@@ -24,23 +25,16 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=1,
+        problem_type=const.SINGLE_LABEL,
+        num_labels=2,
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = dataset_util.get_dataset(
-        "train",
-        args.dataset_csv,
-        args.image_dir,
-        args.trait,
-        use_unknowns=args.use_unknowns,
+        "train", args.dataset_csv, args.image_dir, args.trait
     )
     valid_dataset = dataset_util.get_dataset(
-        "val",
-        args.dataset_csv,
-        args.image_dir,
-        args.trait,
-        use_unknowns=args.use_unknowns,
+        "val", args.dataset_csv, args.image_dir, args.trait
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -63,7 +57,7 @@ def main(args):
         weight_decay=0.01,
         overwrite_output_dir=True,
         logging_strategy="epoch",
-        save_total_limit=3,
+        save_total_limit=5,
         push_to_hub=False,
     )
 
@@ -80,9 +74,7 @@ def main(args):
 
 def compute_metrics(eval_pred):
     logits, trues = eval_pred
-    preds = torch.sigmoid(torch.tensor(logits))
-    preds = torch.round(preds).flatten()
-    trues = torch.tensor(trues).flatten()
+    preds = np.argmax(logits, axis=-1)
     return METRICS.compute(predictions=preds, references=trues)
 
 
@@ -188,13 +180,6 @@ def parse_args():
         choices=["precision", "f1", "accuracy", "loss"],
         default="precision",
         help="""Model evaluation strategy.""",
-    )
-
-    arg_parser.add_argument(
-        "--use-unknowns",
-        action="store_true",
-        help="""Use samples with traits identified as unknown by experts, and set their
-            expected value to 0.5.""",
     )
 
     arg_parser.add_argument(

@@ -8,21 +8,16 @@ LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
 
 def get_dataset(
-    split: NamedSplit,
-    dataset_csv: Path,
-    image_dir: Path,
-    trait: str,
-    *,
-    use_unknowns: bool = False,
+    split: NamedSplit, dataset_csv: Path, image_dir: Path, trait: str
 ) -> Dataset:
-    recs = get_records(split, dataset_csv, trait, use_unknowns=use_unknowns)
+    recs = get_records(split, dataset_csv, trait)
 
-    labels = [LABEL_VALUES[r[trait]] for r in recs]
+    split = Split.TRAIN if split == "train" else Split.VALIDATION
+
+    labels = [int(r[trait]) for r in recs]
 
     images = [str(image_dir / r["name"]) for r in recs]
     ids = [r["name"] for r in recs]
-
-    split = Split.TRAIN if split == "train" else Split.VALIDATION
 
     dataset = Dataset.from_dict(
         {"image": images, "label": labels, "id": ids}, split=split
@@ -31,16 +26,15 @@ def get_dataset(
     return dataset
 
 
-def get_records(
-    split: NamedSplit, dataset_csv: Path, trait: str, *, use_unknowns: bool = False
-) -> list[dict]:
+def get_records(split: NamedSplit, dataset_csv: Path, trait: str) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
     recs = [r for r in recs if r["split"] == split]
 
-    keeps = "01Uu" if use_unknowns else "01"
+    # keeps = "01Uu" if use_unknowns else "01"
+    keeps = "01"
     recs = [r for r in recs if r[trait] and r[trait] in keeps]
 
     return recs
