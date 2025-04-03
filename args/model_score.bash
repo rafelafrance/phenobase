@@ -8,7 +8,7 @@
   --trait flowers \
   --image-size 528 \
   --problem-type regression \
-  --model-dir data/models/effnet_528_flowers_f1
+  --model-dir data/models/effnet_528_flowers_reg_f1
 
 ./phenobase/model_score.py \
   --dataset-csv datasets/test_data.csv \
@@ -26,7 +26,7 @@
   --trait flowers \
   --image-size 528 \
   --problem-type regression \
-  --model-dir data/models/effnet_528_unk_flowers_f1
+  --model-dir data/models/effnet_528_flowers_unk_f1
 
 ./phenobase/model_score.py \
   --dataset-csv datasets/test_data.csv \
@@ -53,4 +53,4 @@
   --trait flowers \
   --image-size 384 \
   --problem-type regression \
-  --model-dir data/models/vit_384_lg_unk_flowers_f1
+  --model-dir data/models/vit_384_lg_flowers_unk_f1
