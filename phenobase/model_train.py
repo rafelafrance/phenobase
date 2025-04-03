@@ -37,6 +37,7 @@ def main(args):
         args.trait,
         args.problem_type,
         use_unknowns=args.use_unknowns,
+        limit=args.limit,
     )
     valid_dataset = dataset_util.get_dataset(
         "val",
@@ -45,6 +46,7 @@ def main(args):
         args.trait,
         args.problem_type,
         use_unknowns=args.use_unknowns,
+        limit=args.limit,
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -72,6 +74,11 @@ def main(args):
         push_to_hub=False,
     )
 
+    if args.problem_type == const.REGRESSION:
+        compute_metrics = compute_metrics_regression
+    else:
+        compute_metrics = compute_metrics_single_label
+
     trainer = Trainer(
         args=training_args,
         model=model,
@@ -83,7 +90,15 @@ def main(args):
     trainer.train()
 
 
-def compute_metrics(eval_pred):
+def compute_metrics_regression(eval_pred):
+    logits, trues = eval_pred
+    preds = torch.sigmoid(torch.tensor(logits))
+    preds = torch.round(preds).flatten()
+    trues = torch.tensor(trues).flatten()
+    return METRICS.compute(predictions=preds, references=trues)
+
+
+def compute_metrics_single_label(eval_pred):
     logits, trues = eval_pred
     preds = np.argmax(logits, axis=-1)
     return METRICS.compute(predictions=preds, references=trues)
@@ -150,8 +165,8 @@ def parse_args():
     arg_parser.add_argument(
         "--image-size",
         type=int,
-        metavar="INT",
         default=224,
+        metavar="INT",
         help="""Images are this size (pixels). (default: %(default)s)""",
     )
 
@@ -204,17 +219,24 @@ def parse_args():
 
     arg_parser.add_argument(
         "--best-metric",
-        choices=["precision", "f1", "accuracy", "loss"],
-        default="precision",
+        choices=["f1", "precision", "accuracy", "loss"],
+        default="f1",
         help="""Model evaluation strategy.""",
     )
 
     arg_parser.add_argument(
         "--seed",
         type=int,
-        metavar="INT",
         default=8174997,
+        metavar="INT",
         help="""Seed used for random number generator. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        metavar="INT",
+        help="""Limit dataset size for testing.""",
     )
 
     args = arg_parser.parse_args()

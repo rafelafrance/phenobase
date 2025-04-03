@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=effnet_528_flowers_reg_f1
+#SBATCH --job-name=vit_384_lg_flowers_sl_f1
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -24,15 +24,15 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers_reg_f1 \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/vit_384_lg_flowers_sl_f1 \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
   --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/train_data.csv \
-  --finetune "google/efficientnet-b6" \
-  --image-size 528 \
+  --finetune "google/vit-large-patch16-384" \
+  --image-size 384 \
   --epochs 200 \
   --trait flowers \
-  --problem-type regression \
   --best-metric f1 \
-  --batch-size 32
+  --problem-type single_label_classification \
+  --batch-size 16
 
 date

@@ -16,10 +16,12 @@ def get_dataset(
     problem_type: str,
     *,
     use_unknowns: bool,
+    limit: int = 0,
 ) -> Dataset:
     recs = get_records(
         split, dataset_csv, trait, problem_type, use_unknowns=use_unknowns
     )
+    recs = recs[:limit] if limit else recs
 
     split = Split.TRAIN if split == "train" else Split.VALIDATION
 
