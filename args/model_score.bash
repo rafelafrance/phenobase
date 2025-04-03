@@ -1,34 +1,56 @@
 #!/bin/bash
 
 #---------------------------------------------------------------------------------------------
-#./phenobase/model_score.py \
-#  --dataset-csv datasets/test_data.csv \
-#  --image-dir datasets/images \
-#  --score-csv data/score_2025_04_01a.csv \
-#  --trait flowers \
-#  --image-size 528 \
-#  --model-dir data/models/effnet_528_flowers_f1
+./phenobase/model_score.py \
+  --dataset-csv datasets/test_data.csv \
+  --image-dir datasets/images \
+  --score-csv data/score_2025_04_03a.csv \
+  --trait flowers \
+  --image-size 528 \
+  --problem-type regression \
+  --model-dir data/models/effnet_528_flowers_f1
 
 ./phenobase/model_score.py \
   --dataset-csv datasets/test_data.csv \
   --image-dir datasets/images \
-  --score-csv data/score_2025_03_30a.csv \
+  --score-csv data/score_2025_04_03a.csv \
   --trait flowers \
   --image-size 528 \
+  --problem-type single_label_classification \
+  --model-dir data/models/effnet_528_flowers_sl_f1
+
+./phenobase/model_score.py \
+  --dataset-csv datasets/test_data.csv \
+  --image-dir datasets/images \
+  --score-csv data/score_2025_04_03a.csv \
+  --trait flowers \
+  --image-size 528 \
+  --problem-type regression \
   --model-dir data/models/effnet_528_unk_flowers_f1
 
-#./phenobase/model_score.py \
-#  --dataset-csv datasets/test_data.csv \
-#  --image-dir datasets/images \
-#  --score-csv data/score_2025_03_30a.csv \
-#  --trait flowers \
-#  --image-size 384 \
-#  --model-dir data/models/vit_384_lg_flowers_f1
+./phenobase/model_score.py \
+  --dataset-csv datasets/test_data.csv \
+  --image-dir datasets/images \
+  --score-csv data/score_2025_04_03a.csv \
+  --trait flowers \
+  --image-size 384 \
+  --problem-type regression \
+  --model-dir data/models/vit_384_lg_flowers_f1
 
-#./phenobase/model_score.py \
-#  --dataset-csv datasets/test_data.csv \
-#  --image-dir datasets/images \
-#  --score-csv data/score_2025_03_30a.csv \
-#  --trait flowers \
-#  --image-size 384 \
-#  --model-dir data/models/vit_384_lg_unk_flowers_f1
+./phenobase/model_score.py \
+  --dataset-csv datasets/test_data.csv \
+  --image-dir datasets/images \
+  --score-csv data/score_2025_04_03a.csv \
+  --trait flowers \
+  --image-size 384 \
+  --problem-type single_label_classification \
+  --model-dir data/models/vit_384_lg_flowers_sl_f1
+
+./phenobase/model_score.py \
+  --dataset-csv datasets/test_data.csv \
+  --image-dir datasets/images \
+  --score-csv data/score_2025_04_03a.csv \
+  --trait flowers \
+  --image-size 384 \
+  --problem-type regression \
+  --model-dir data/models/vit_384_lg_unk_flowers_f1

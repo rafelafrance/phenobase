@@ -147,7 +147,6 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
                     threshold_hi=thresh_hi,
                     trait=trait,
                 )
-                print(new_best)
                 accuracies.append(new_best)
     best = max_best(accuracies)
     return best

@@ -3,18 +3,30 @@ import sqlite3
 from pathlib import Path
 
 from datasets import Dataset, Image, NamedSplit, Split
+from phenobase.pylib import const
 
-LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
+REGRESSION_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
 
 def get_dataset(
-    split: NamedSplit, dataset_csv: Path, image_dir: Path, trait: str
+    split: NamedSplit,
+    dataset_csv: Path,
+    image_dir: Path,
+    trait: str,
+    problem_type: str,
+    *,
+    use_unknowns: bool,
 ) -> Dataset:
-    recs = get_records(split, dataset_csv, trait)
+    recs = get_records(
+        split, dataset_csv, trait, problem_type, use_unknowns=use_unknowns
+    )
 
     split = Split.TRAIN if split == "train" else Split.VALIDATION
 
-    labels = [int(r[trait]) for r in recs]
+    if problem_type == const.REGRESSION:
+        labels = [REGRESSION_VALUES[r[trait]] for r in recs]
+    else:
+        labels = [int(r[trait]) for r in recs]
 
     images = [str(image_dir / r["name"]) for r in recs]
     ids = [r["name"] for r in recs]
@@ -26,16 +38,22 @@ def get_dataset(
     return dataset
 
 
-def get_records(split: NamedSplit, dataset_csv: Path, trait: str) -> list[dict]:
+def get_records(
+    split: NamedSplit,
+    dataset_csv: Path,
+    trait: str,
+    problem_type: str,
+    *,
+    use_unknowns: bool,
+) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
     recs = [r for r in recs if r["split"] == split]
 
-    # keeps = "01Uu" if use_unknowns else "01"
-    keeps = "01"
-    recs = [r for r in recs if r[trait] and r[trait] in keeps]
+    keep = "01Uu" if use_unknowns and problem_type == const.REGRESSION else "01"
+    recs = [r for r in recs if r[trait] and r[trait] in keep]
 
     return recs
 

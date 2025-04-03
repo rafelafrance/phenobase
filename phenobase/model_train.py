@@ -25,16 +25,26 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=const.SINGLE_LABEL,
-        num_labels=2,
+        problem_type=args.problem_type,
+        num_labels=1 if args.problem_type == const.REGRESSION else 2,
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = dataset_util.get_dataset(
-        "train", args.dataset_csv, args.image_dir, args.trait
+        "train",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        args.problem_type,
+        use_unknowns=args.use_unknowns,
     )
     valid_dataset = dataset_util.get_dataset(
-        "val", args.dataset_csv, args.image_dir, args.trait
+        "val",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        args.problem_type,
+        use_unknowns=args.use_unknowns,
     )
 
     TRAIN_XFORMS = image_util.build_transforms(args.image_size, augment=True)
@@ -54,6 +64,7 @@ def main(args):
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
         metric_for_best_model=f"eval_{args.best_metric}",
+        greater_is_better=args.best_metric != "loss",
         weight_decay=0.01,
         overwrite_output_dir=True,
         logging_strategy="epoch",
@@ -115,6 +126,7 @@ def parse_args():
     arg_parser.add_argument(
         "--output-dir",
         type=Path,
+        required=True,
         metavar="PATH",
         help="""Save training results here.""",
     )
@@ -122,6 +134,7 @@ def parse_args():
     arg_parser.add_argument(
         "--finetune",
         type=Path,
+        required=True,
         default="google/vit-base-patch16-224",
         metavar="PATH",
         help="""Finetune this model.""",
@@ -140,6 +153,20 @@ def parse_args():
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--problem-type",
+        choices=list(const.PROBLEM_TYPES),
+        default=const.REGRESSION,
+        help="""This chooses the appropriate scoring function for the problem_type.""",
+    )
+
+    arg_parser.add_argument(
+        "--use-unknowns",
+        action="store_true",
+        help="""Use samples with traits identified as unknown by experts, and set their
+            expected value to 0.5. Only valid for regression problem types.""",
     )
 
     arg_parser.add_argument(

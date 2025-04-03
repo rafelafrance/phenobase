@@ -12,3 +12,7 @@ REGRESSION = "regression"
 SINGLE_LABEL = "single_label_classification"
 MULTI_LABEL = "multi_label_classification"
 PROBLEM_TYPES = [REGRESSION, SINGLE_LABEL, MULTI_LABEL]
+
+LABELS = ["without", "with"]
+WITHOUT = [1, 0]
+WITH = [0, 1]

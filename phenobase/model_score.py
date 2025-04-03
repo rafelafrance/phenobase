@@ -28,13 +28,16 @@ def main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    softmax = torch.nn.Softmax(dim=1)
+
     checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
     for checkpoint in sorted(checkpoints):
         print(checkpoint)
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            num_labels=1,
+            problem_type=args.problem_type,
+            num_labels=1 if args.problem_type == const.REGRESSION else 2,
         )
 
         model.to(device)
@@ -58,16 +61,29 @@ def main(args):
                 image = sheet["image"].to(device)
                 result = model(image)
 
-                # Append result record
                 rec = deepcopy(base_recs[sheet["id"][0]])
                 rec |= {"checkpoint": checkpoint}
 
-                score = torch.sigmoid(result.logits.clone().detach())
-                rec |= {f"{args.trait}_score": score.item()}
+                if args.problem_type == const.SINGLE_LABEL:
+                    # Note: Softmax for 2 classes is symmetric, so I can use the
+                    # positive class (scores[1]) for the predicted value. I.e.
+                    # scores[1] IS always the real score in this case, but only
+                    # when there are exactly two classes and only when they are
+                    # organized as const.labels = [WITHOUT, WITH].
+                    scores = softmax(result.logits).detach().cpu().tolist()[0]
+                    rec |= {f"{args.trait}_score": scores[1]}
 
-                true = sheet["label"].item()
-                pred = torch.round(score).item()
-                correct += int(pred == true)
+                    true = torch.argmax(sheet["label"].clone().detach()).item()
+                    pred = torch.argmax(result.logits).item()
+                    correct += int(pred == true)
+
+                elif args.problem_type == const.REGRESSION:
+                    true = float(sheet["label"].item())
+                    pred = torch.sigmoid(result.logits)
+                    pred = pred.detach().cpu().tolist()[0]
+
+                    rec |= {f"{args.trait}_score": pred[0]}
+                    correct += int(round(pred[0]) == true)
 
                 records.append(rec)
 
@@ -141,6 +157,12 @@ def parse_args():
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--problem-type",
+        choices=list(const.PROBLEM_TYPES),
+        help="""This chooses the appropriate scoring function for the problem_type.""",
     )
 
     args = arg_parser.parse_args()
