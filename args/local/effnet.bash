@@ -1,12 +1,12 @@
 #!/bin/bash
 
-python ./phenobase/model_train_hf.py \
-  --dataset-csv ./datasets/all_traits.csv \
+python ./phenobase/model_train.py \
+  --dataset-csv ./datasets/flowers.csv \
   --image-dir ./datasets/images \
-  --output-dir ./data/local/effnet_528_flowers_reg_f1_hf \
+  --output-dir ./data/output/effnet_528_flowers_f1 \
   --finetune "google/efficientnet-b6" \
   --image-size 528 \
+  --best-metric f1 \
   --epochs 50 \
   --batch-size 8 \
-  --problem-type regression \
   --trait flowers

@@ -2,23 +2,37 @@ import csv
 import sqlite3
 from pathlib import Path
 
-from datasets import Dataset, Image, Split
+from datasets import Dataset, Image, NamedSplit, Split
 from phenobase.pylib import const
+
+REGRESSION_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
 
 
 def get_dataset(
-    split: str, dataset_csv: Path, image_dir: Path, traits: list[str]
+    split: NamedSplit,
+    dataset_csv: Path,
+    image_dir: Path,
+    trait: str,
+    problem_type: str,
+    *,
+    use_unknowns: bool = False,
+    limit: int = 0,
 ) -> Dataset:
-    trait = traits[0]
+    recs = get_records(
+        split, dataset_csv, trait, problem_type, use_unknowns=use_unknowns
+    )
+    recs = recs[:limit] if limit else recs
 
-    recs = get_records(split, dataset_csv, traits)
+    split = Split.TRAIN if split == "train" else Split.VALIDATION
 
-    labels = [const.WITHOUT if r[trait] == "0" else const.WITH for r in recs]
+    if problem_type == const.REGRESSION:
+        labels = [REGRESSION_VALUES[r[trait]] for r in recs]
+    else:
+        labels = [int(r[trait]) for r in recs]
 
     images = [str(image_dir / r["name"]) for r in recs]
     ids = [r["name"] for r in recs]
 
-    split = Split.TRAIN if split == "train" else Split.VALIDATION
     dataset = Dataset.from_dict(
         {"image": images, "label": labels, "id": ids}, split=split
     ).cast_column("image", Image())
@@ -26,22 +40,29 @@ def get_dataset(
     return dataset
 
 
-def get_records(split: str, dataset_csv: Path, traits: list[str]) -> list[dict]:
+def get_records(
+    split: NamedSplit,
+    dataset_csv: Path,
+    trait: str,
+    problem_type: str,
+    *,
+    use_unknowns: bool = False,
+) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
     recs = [r for r in recs if r["split"] == split]
 
-    for trait in traits:
-        recs = [r for r in recs if r[trait] in "01"]
+    keep = "01Uu" if use_unknowns and problem_type == const.REGRESSION else "01"
+    recs = [r for r in recs if r[trait] and r[trait] in keep]
 
     return recs
 
 
 def get_inference_records(db, limit, offset):
     with sqlite3.connect(db) as cxn:
-        cxn.row_factory = sqlite3.row
+        cxn.row_factory = sqlite3.Row
         sql = """select gbifid, tiebreaker, state, family
             from multimedia join occurrence using (gbifid)
             limit ? offset ?"""
@@ -49,12 +70,12 @@ def get_inference_records(db, limit, offset):
     return rows
 
 
-def filter_bad_inference_images(rows):
+def filter_bad_images(rows):
     rows = [r for r in rows if not r["state"].endswith("error")]
     return rows
 
 
-def filter_bad_inference_families(rows, bad_family_csv):
+def filter_bad_families(rows, bad_family_csv):
     bad_families = []
     if bad_family_csv:
         with bad_family_csv.open() as bad:

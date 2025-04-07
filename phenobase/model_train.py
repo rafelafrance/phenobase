@@ -225,7 +225,7 @@ def parse_args():
     )
     args = arg_parser.parse_args()
 
-    args.traits = args.traits if args.traits else const.TRAITS
+    args.traits = args.trait if args.trait else const.TRAITS
 
     return args
 
