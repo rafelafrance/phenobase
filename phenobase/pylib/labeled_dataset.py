@@ -14,56 +14,54 @@ from phenobase.pylib import const
 @dataclass
 class LabeledSheet:
     path: Path
-    true: torch.tensor
-    coreid: str
+    target: torch.tensor
 
 
 class LabeledDataset(Dataset):
     def __init__(
         self,
-        data_csv: Path,
-        split: const.SPLIT,
-        trait: str,
-        image_dir: Path,
-        image_size: int,
         *,
+        trait_csv: Path,
+        image_dir: Path,
+        split: const.SPLIT,
+        image_size: int,
+        traits: list[str],
         augment: bool = False,
-        limit: int = 0,
     ) -> None:
-        super().__init__()
-        self.image_dir = image_dir
         self.transform = self.build_transforms(image_size, augment=augment)
+        self.traits = traits if traits else const.TRAITS
 
-        self.sheets = []
-        with data_csv.open() as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row["split"] != split or not row[trait] or row[trait] not in "01":
-                    continue
-                label = float(row[trait])
-                self.sheets.append(
-                    LabeledSheet(
-                        path=image_dir / row["name"],
-                        coreid=row["coreid"],
-                        true=torch.tensor([label], dtype=torch.float),
-                    )
+        with trait_csv.open() as csv_in:
+            reader = csv.DictReader(csv_in)
+            sheets = [
+                s
+                for s in reader
+                if s["split"] == split and all(s[t] in "01" for t in self.traits)
+            ]
+            self.sheets = [
+                LabeledSheet(
+                    path=image_dir / s["file"],
+                    target=torch.tensor(
+                        [int(s[t]) for t in self.traits], dtype=torch.float
+                    ),
                 )
-        self.sheets = self.sheets[:limit] if limit else self.sheets
+                for s in sheets
+            ]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.sheets)
 
-    def __getitem__(self, index) -> tuple:
+    def __getitem__(self, index) -> dict:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
             sheet = self.sheets[index]
             image = Image.open(sheet.path).convert("RGB")
             image = self.transform(image)
-        return image, sheet.true, sheet.coreid
+        return {"pixel_values": image, "labels": sheet.target, "name": sheet.path.name}
 
     @staticmethod
     def build_transforms(image_size, *, augment=False):
-        xform = [v2.Resize((image_size, image_size))]
+        xform = [v2.Resize(image_size)]
 
         if augment:
             xform += [
@@ -73,16 +71,19 @@ class LabeledDataset(Dataset):
             ]
 
         xform += [
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True),
+            v2.ToTensor(),
             v2.ConvertImageDtype(torch.float),
-            v2.Normalize(const.IMAGENET_MEAN, const.IMAGENET_STD_DEV),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
         ]
 
         return v2.Compose(xform)
 
     def pos_weight(self):
-        """Calculate the weights for the positive & negative cases of the trait."""
-        pos = sum(s.true for s in self.sheets)
-        pos_wt = (len(self) - pos) / pos if pos > 0.0 else 1.0
-        return [pos_wt]
+        """Calculate the weights for the positive & negative cases of the traits."""
+        weights = []
+        for i in range(len(self.traits)):
+            pos = sum(s.target[i] for s in self.sheets)
+            neg = len(self) - pos
+            pos_wt = neg / pos if pos > 0 else 1.0
+            weights.append(pos_wt)
+        return torch.tensor(weights, dtype=torch.float)

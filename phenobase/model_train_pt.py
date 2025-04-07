@@ -6,7 +6,8 @@ import textwrap
 from pathlib import Path
 
 import torch
-from pylib import const, labeled_dataset, log, statistics
+from pylib import const, log, statistics
+from pylib import labeled_dataset_pt as labeled_dataset
 from torch import optim
 from torch.nn import Dropout, Linear, MSELoss, Sequential
 from torch.utils.data import DataLoader
