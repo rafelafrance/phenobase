@@ -1,7 +1,7 @@
 #!/bin/bash
 
-python ./phenobase/model_train.py \
-  --dataset-csv ./datasets/train_data.csv \
+python ./phenobase/model_train_hf.py \
+  --dataset-csv ./datasets/all_traits.csv \
   --image-dir ./datasets/images \
   --output-dir ./data/local/vit_384_base_reg_f1 \
   --finetune "google/vit-base-patch16-384" \

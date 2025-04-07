@@ -6,6 +6,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from pylib import const, dataset_util, image_util, log
@@ -23,7 +24,9 @@ def main(args):
 
     base_recs = {
         d["name"]: d
-        for d in dataset_util.get_records("test", args.dataset_csv, args.trait)
+        for d in dataset_util.get_records(
+            "test", args.dataset_csv, args.trait, args.problem_type
+        )
     }
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,7 +47,7 @@ def main(args):
         model.eval()
 
         dataset = dataset_util.get_dataset(
-            "test", args.dataset_csv, args.image_dir, args.trait
+            "test", args.dataset_csv, args.image_dir, args.trait, args.problem_type
         )
 
         TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
@@ -65,16 +68,15 @@ def main(args):
                 rec |= {"checkpoint": checkpoint}
 
                 if args.problem_type == const.SINGLE_LABEL:
-                    # Note: Softmax for 2 classes is symmetric, so I can use the
-                    # positive class (scores[1]) for the predicted value. I.e.
-                    # scores[1] IS always the real score in this case, but only
-                    # when there are exactly two classes and only when they are
-                    # organized as const.labels = [WITHOUT, WITH].
+                    # Note: Softmax for 2 classes can use the positive class (scores[1])
+                    # for the predicted value. I.e. scores[1] IS always the real score
+                    # in this case, but only when there are exactly two classes and only
+                    # when they are organized as const.LABELS = [without, with].
                     scores = softmax(result.logits).detach().cpu().tolist()[0]
                     rec |= {f"{args.trait}_score": scores[1]}
 
                     true = torch.argmax(sheet["label"].clone().detach()).item()
-                    pred = torch.argmax(result.logits).item()
+                    pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
                     correct += int(pred == true)
 
                 elif args.problem_type == const.REGRESSION:

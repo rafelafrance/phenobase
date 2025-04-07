@@ -1,6 +1,6 @@
 from typing import Literal
 
-TRAITS = "flowers fruits leaves buds old_flowers old_fruits".split()
+TRAITS = ["flowers", "fruits", "leaves", "buds", "old_flowers", "old_fruits"]
 
 SPLIT = Literal["train", "val", "test"]
 SPLITS = ["train", "val", "test"]

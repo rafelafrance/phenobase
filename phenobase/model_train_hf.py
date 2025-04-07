@@ -30,6 +30,9 @@ def main(args):
         ignore_mismatched_sizes=True,
     )
 
+    device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
+    model.to(device)
+
     train_dataset = dataset_util.get_dataset(
         "train",
         args.dataset_csv,
@@ -57,20 +60,20 @@ def main(args):
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
+        overwrite_output_dir=True,
+        save_total_limit=5,
         remove_unused_columns=False,
         eval_strategy="epoch",
         save_strategy="epoch",
+        logging_strategy="epoch",
         learning_rate=args.learning_rate,
         per_device_eval_batch_size=args.batch_size,
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
-        load_best_model_at_end=True,
+        # load_best_model_at_end=True,
         metric_for_best_model=f"eval_{args.best_metric}",
         greater_is_better=args.best_metric != "loss",
         weight_decay=0.01,
-        overwrite_output_dir=True,
-        logging_strategy="epoch",
-        save_total_limit=5,
         push_to_hub=False,
     )
 

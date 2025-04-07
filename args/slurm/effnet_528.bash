@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=effnet_528_flowers_reg_f1
+#SBATCH --job-name=effnet_528_flowers_reg_f1_hf
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -23,13 +23,13 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers_reg_f1 \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_hf.py \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers_reg_f1_hf \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
-  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/train_data.csv \
+  --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/all_traits.csv \
   --finetune "google/efficientnet-b6" \
   --image-size 528 \
-  --epochs 200 \
+  --epochs 100 \
   --trait flowers \
   --problem-type regression \
   --best-metric f1 \

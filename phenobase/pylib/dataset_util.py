@@ -15,7 +15,7 @@ def get_dataset(
     trait: str,
     problem_type: str,
     *,
-    use_unknowns: bool,
+    use_unknowns: bool = False,
     limit: int = 0,
 ) -> Dataset:
     recs = get_records(
@@ -46,7 +46,7 @@ def get_records(
     trait: str,
     problem_type: str,
     *,
-    use_unknowns: bool,
+    use_unknowns: bool = False,
 ) -> list[dict]:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)

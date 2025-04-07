@@ -5,7 +5,6 @@ import csv
 import logging
 import random
 import sqlite3
-import sys
 import textwrap
 import warnings
 from collections import defaultdict
@@ -37,16 +36,15 @@ ERRORS = (
     ValueError,
 )
 
-OUT_IMAGE_DIR = Path("datasets") / "images"
 
-
-def main(args):
+def main():
+    args = parse_args()
     log.started(args.log_file)
 
     random.seed(args.seed)
 
     records = get_expert_data(args.ant_csv)
-    append_metadata(args.metadata_db, records, gbif_db=args.gbif_db)
+    append_metadata(args.metadata_db, records)
 
     for file_name, row in records.items():
         row["name"] = file_name
@@ -56,9 +54,9 @@ def main(args):
     filter_trait("flowers", records, args.bad_flower_families)
     filter_trait("fruits", records, args.bad_fruit_families)
 
-    split_data(records, args.split_fraction, args.split1, args.split2)
-    write_csv(args.split_csv, records)
-    # process_images(records, args.image_dir, args.max_width)
+    split_data(records, args.seed, args.train_split, args.val_split)
+    write_csv(args.split_dir / "all_traits.csv", records)
+    process_images(records, args.image_dir, args.split_dir, args.max_width)
 
     log.finished()
 
@@ -75,28 +73,7 @@ def get_expert_data(ant_csvs: list[Path]) -> dict[str, dict]:
     return records
 
 
-def append_metadata(
-    metadata_db: Path, records: dict[str, dict], *, gbif_db: bool = False
-) -> None:
-    if gbif_db:
-        from_gbif_db(metadata_db, records)
-        return
-    from_angiosperm_db(metadata_db, records)
-
-
-def from_gbif_db(metadata_db: Path, records: dict[str, dict]):
-    sql = """select * from multimedia join occurrence using (gbifid)
-              where gbifid = ? and tiebreaker = ?"""
-    with sqlite3.connect(metadata_db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        for file_name, rec in records.items():
-            stem = file_name.split(".")[0]
-            gbifid, tiebreaker, *_ = stem.split("_")
-            data = cxn.execute(sql, (gbifid, tiebreaker)).fetchone()
-            rec |= dict(data)
-
-
-def from_angiosperm_db(metadata_db: Path, records: dict[str, dict]):
+def append_metadata(metadata_db: Path, records: dict[str, dict]) -> None:
     sql = """select * from angiosperms where coreid = ?"""
     with sqlite3.connect(metadata_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -111,24 +88,44 @@ def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
     with bad_families.open() as f:
         bad = {row["family"].lower() for row in csv.DictReader(f)}
 
+    bad_value = 0
+    bad_family = 0
+    skipped = 0
     for rec in records:
         label = rec.get(trait, "")
 
         rec[f"old_{trait}"] = label
 
-        if rec["family"].lower() in bad:
+        if not label:
+            skipped += 1
+        elif label not in "01":
+            bad_value += 1
+        elif rec["family"].lower() in bad:
+            bad_family += 1
             rec[trait] = "F"
 
 
 def split_data(
-    records: list[dict], split_fraction: float, split1: const.SPLIT, split2: const.SPLIT
+    records: list[dict],
+    seed: int,
+    train_split: float,
+    val_split: float,
 ) -> None:
+    random.seed(seed)
+
     random.shuffle(records)
 
-    fract = round(len(records) * split_fraction)
+    total = len(records)
+    split1 = round(total * train_split)
+    split2 = split1 + round(total * val_split)
 
     for i, rec in enumerate(records):
-        rec["split"] = split1 if i < fract else split2
+        if i < split1:
+            rec["split"] = "train"
+        elif i < split2:
+            rec["split"] = "val"
+        else:
+            rec["split"] = "test"
 
 
 def write_csv(split_csv: Path, records: list[dict]) -> None:
@@ -136,14 +133,16 @@ def write_csv(split_csv: Path, records: list[dict]) -> None:
     df.to_csv(split_csv, index=False)
 
 
-def process_images(records: list[dict], in_image_dir: Path, max_width: int) -> None:
+def process_images(
+    records: list[dict], image_dir: Path, split_dir: Path, max_width: int
+) -> None:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
 
         try:
             for rec in tqdm(records):
-                src = in_image_dir / rec["name"]
-                dst = OUT_IMAGE_DIR / rec["name"]
+                src = image_dir / rec["name"]
+                dst = split_dir / "images" / rec["name"]
 
                 if not dst.exists():
                     with Image.open(src) as image:
@@ -168,6 +167,18 @@ def process_images(records: list[dict], in_image_dir: Path, max_width: int) -> N
             logging.exception("Could not process image")
 
 
+def validate_splits(args: argparse.Namespace) -> None:
+    splits = (args.train_split, args.val_split, args.test_split)
+
+    if sum(splits) != 1.0:
+        msg = "train, val, and test splits must sum to 1.0"
+        raise ValueError(msg)
+
+    if any(s < 0.0 or s > 1.0 for s in splits):
+        msg = "All splits must be in the interval [0.0, 1.0]"
+        raise ValueError(msg)
+
+
 def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
@@ -178,74 +189,77 @@ def parse_args() -> argparse.Namespace:
 
     arg_parser.add_argument(
         "--ant-csv",
+        metavar="PATH",
         type=Path,
         required=True,
         action="append",
-        metavar="PATH",
         help="""These input CSV files hold expert classifications of the traits.
             Use this argument once for every ant CSV file.""",
     )
 
     arg_parser.add_argument(
-        "--metadata-db",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Get metadata for the classifications from this DB.""",
-    )
-
-    arg_parser.add_argument(
-        "--image-dir",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Get herbarium sheet images from this directory.""",
-    )
-
-    arg_parser.add_argument(
-        "--split-csv",
-        type=Path,
-        required=True,
-        metavar="PATH",
-        help="""Output the split CSV to this file.""",
-    )
-
-    arg_parser.add_argument(
-        "--split1",
-        required=True,
-        choices=const.SPLITS,
-        metavar="SPLIT",
-        help="""Output the split CSV to this file.""",
-    )
-
-    arg_parser.add_argument(
-        "--split2",
-        choices=const.SPLITS,
-        metavar="SPLIT",
-        help="""Output the split CSV to this file.""",
-    )
-
-    arg_parser.add_argument(
-        "--split-fraction",
-        type=float,
-        metavar="FRACTION",
-        default=0.75,
-        help="""What fraction of records to use for training the model [0.0 - 1.0].
-            (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
         "--bad-flower-families",
-        type=Path,
         metavar="PATH",
+        type=Path,
         help="""Make sure flowers in these families are skipped.""",
     )
 
     arg_parser.add_argument(
         "--bad-fruit-families",
-        type=Path,
         metavar="PATH",
+        type=Path,
         help="""Make sure fruits in these families are skipped.""",
+    )
+
+    arg_parser.add_argument(
+        "--metadata-db",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Get metadata for the classifications from this DB.""",
+    )
+
+    arg_parser.add_argument(
+        "--image-dir",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Get herbarium sheet images from this directory.""",
+    )
+
+    arg_parser.add_argument(
+        "--split-dir",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Output the split CSV files into this directory.""",
+    )
+
+    arg_parser.add_argument(
+        "--train-split",
+        type=float,
+        metavar="FRACTION",
+        default=0.6,
+        help="""What fraction of records to use for training the model.
+            (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--val-split",
+        type=float,
+        metavar="FRACTION",
+        default=0.2,
+        help="""What fraction of records to use for validating the model between epochs.
+            (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--test-split",
+        type=float,
+        metavar="FRACTION",
+        default=0.2,
+        help="""What fraction of records to use for testing the model.
+            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
@@ -271,22 +285,12 @@ def parse_args() -> argparse.Namespace:
         help="""Log messages to this file.""",
     )
 
-    arg_parser.add_argument(
-        "--gbif-db",
-        action="store_true",
-        help="""Does the metadata come from a GBIB database?""",
-    )
-
     args = arg_parser.parse_args()
 
-    args.split_fraction = 1.0 if not args.split2 else args.split_fraction
-
-    if args.split_fraction < 0.0 or args.split_fraction > 1.0:
-        sys.exit(f"--split-fraction {args.split_fraction} must be between [0.0 - 1.0]")
+    validate_splits(args)
 
     return args
 
 
 if __name__ == "__main__":
-    ARGS = parse_args()
-    main(ARGS)
+    main()
