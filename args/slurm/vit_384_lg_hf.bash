@@ -23,16 +23,15 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 
 module purge
 
-python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train_hf.py \
+python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
   --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/vit_384_lg_flowers_f1_hf \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
   --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/all_traits.csv \
   --finetune "google/vit-large-patch16-384" \
   --image-size 384 \
-  --epochs 100 \
-  --trait flowers \
+  --batch-size 16 \
   --best-metric f1 \
-  --problem-type regression \
-  --batch-size 16
+  --epochs 100 \
+  --trait flowers
 
 date

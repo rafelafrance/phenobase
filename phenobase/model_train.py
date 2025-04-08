@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import textwrap
 from collections.abc import Callable
 from pathlib import Path
@@ -42,7 +41,7 @@ class BestMetricsCallback(TrainerCallback):
         super().__init__()
         self.bests = []
 
-    def on_log(
+    def on_evaluate(
         self,
         args: TrainingArguments,
         state: TrainerState,
@@ -59,8 +58,8 @@ class BestMetricsCallback(TrainerCallback):
         msg = [
             f"(epoch:{b['epoch']:5.1f}, {metric}: {b[metric]:6.4f})" for b in self.bests
         ]
-        msg = f"best {metric}: " + " ".join(msg)
-        logging.info(msg)
+        msg = f"\nbest {metric}: " + " ".join(msg)
+        print(msg)
 
         epoch = state.log_history[-1]["epoch"]
         control.should_save = any(epoch == b["epoch"] for b in self.bests)
@@ -85,7 +84,7 @@ def main(args):
         "train", args.dataset_csv, args.image_dir, args.trait, args.limit
     )
     valid_dataset = util.get_dataset(
-        "valid", args.dataset_csv, args.image_dir, args.trait, args.limit
+        "val", args.dataset_csv, args.image_dir, args.trait, args.limit
     )
 
     TRAIN_XFORMS = v2.Compose(
