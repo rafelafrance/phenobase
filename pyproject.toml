@@ -120,6 +120,7 @@ lint.select = [
 ]
 
 lint.ignore = [
+    "ARG002",  # Unused method argument
     "COM812",  # Trailing comma missing
     "D100",  # Missing docstring in public module
     "D101",  # Missing docstring in public class

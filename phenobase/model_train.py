@@ -11,10 +11,17 @@ import numpy as np
 import torch
 import transformers
 from pylib import const
-from transformers import AutoModelForImageClassification, Trainer, TrainingArguments
+from torchvision.transforms import v2
+from transformers import (
+    AutoModelForImageClassification,
+    Trainer,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+    TrainingArguments,
+)
 
 from datasets import Dataset, Image, Split
-from phenobase.pylib.labeled_dataset import LabeledDataset
 
 TRAIN_XFORMS: Callable | None = None
 VALID_XFORMS: Callable | None = None
@@ -22,31 +29,69 @@ VALID_XFORMS: Callable | None = None
 METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
-def main():
-    global TRAIN_XFORMS, VALID_XFORMS
+class BestMetricsCallback(TrainerCallback):
+    def __init__(self, trainer: Trainer):
+        super().__init__()
+        self.trainer = trainer
+        self.bests = []
 
-    args = parse_args()
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        self.bests.append(state.log_history[-1])
+
+        sign = -1.0 if args.greater_is_better else 1.0
+        metric = args.metric_for_best_model
+        self.bests = sorted(self.bests, key=lambda b: sign * b[metric])
+        self.bests = self.bests[: args.save_total_limit]
+
+        print(
+            [f"(epoch: {b['epoch']:4d}, metric: {b[metric]:6.4f})" for b in self.bests]
+        )
+
+        epoch = state.log_history[-1]["epoch"]
+        control.should_save = any(epoch == b["epoch"] for b in self.bests)
+
+
+def main(args):
+    global TRAIN_XFORMS, VALID_XFORMS
 
     transformers.set_seed(args.seed)
 
-    problem_type = "regression"  # "single_label_classification"
-    if len(args.traits) > 1:
-        problem_type = "multi_label_classification"
-
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        problem_type=problem_type,
-        num_labels=len(args.trait),
-        id2label={str(i): v for i, v in enumerate(args.trait)},
-        label2id={v: str(i) for i, v in enumerate(args.trait)},
+        num_labels=len(const.LABELS),
+        id2label=const.ID2LABEL,
+        label2id=const.LABEL2ID,
         ignore_mismatched_sizes=True,
     )
 
-    train_dataset = get_dataset("train", args.dataset_csv, args.image_dir)
-    valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir)
+    train_dataset = get_dataset("train", args.dataset_csv, args.image_dir, args.limit)
+    valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir, args.limit)
 
-    TRAIN_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=True)
-    VALID_XFORMS = LabeledDataset.build_transforms(args.image_size, augment=False)
+    TRAIN_XFORMS = v2.Compose(
+        [
+            v2.Resize((args.image_size, args.image_size)),
+            v2.RandomHorizontalFlip(),
+            v2.RandomVerticalFlip(),
+            v2.AutoAugment(),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+        ]
+    )
+    VALID_XFORMS = v2.Compose(
+        [
+            v2.Resize((args.image_size, args.image_size)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+        ]
+    )
 
     train_dataset.set_transform(train_transforms)
     valid_dataset.set_transform(valid_transforms)
@@ -56,16 +101,18 @@ def main():
         remove_unused_columns=False,
         eval_strategy="epoch",
         save_strategy="epoch",
+        logging_strategy="epoch",
         learning_rate=args.learning_rate,
+        weight_decay=0.01,
         per_device_eval_batch_size=args.batch_size,
         per_device_train_batch_size=args.batch_size,
         num_train_epochs=args.epochs,
         load_best_model_at_end=True,
         metric_for_best_model=f"eval_{args.best_metric}",
-        weight_decay=0.01,
-        overwrite_output_dir=True,
-        logging_strategy="epoch",
+        greater_is_better=args.best_metric != "loss",
         save_total_limit=5,
+        overwrite_output_dir=True,
+        seed=args.seed,
         push_to_hub=False,
     )
 
@@ -76,6 +123,9 @@ def main():
         eval_dataset=valid_dataset,
         compute_metrics=compute_metrics,
     )
+
+    callback = BestMetricsCallback(trainer)
+    trainer.add_callback(callback)
 
     trainer.train()
 
@@ -92,19 +142,22 @@ def valid_transforms(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path) -> Dataset:
+def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
     with dataset_csv.open() as inp:
         reader = csv.DictReader(inp)
         recs = list(reader)
 
-    recs = [r for r in recs if r["split"] == split]  # [:16]  # !!!!!!!!!!!!!!!!!!!!!!!
+    recs = [r for r in recs if r["split"] == split]
+    recs = recs[:limit] if limit else recs
 
     split = Split.TRAIN if split == "train" else Split.VALIDATION
 
     images = [str(image_dir / r["name"]) for r in recs]
     labels = [int(r["label"]) for r in recs]
+    ids = [r["name"] for r in recs]
+
     dataset = Dataset.from_dict(
-        {"image": images, "label": labels}, split=split
+        {"image": images, "label": labels, "id": ids}, split=split
     ).cast_column("image", Image())
 
     return dataset
@@ -151,15 +204,6 @@ def parse_args():
         default="google/vit-base-patch16-224",
         metavar="PATH",
         help="""Finetune this model.""",
-    )
-
-    arg_parser.add_argument(
-        "--trait",
-        choices=const.TRAITS,
-        action="append",
-        help=f"""Train to classify this trait. Repeat this argument for multi-label
-            classification not single label multi-class training.
-            (default: all traits {', '.join(const.TRAITS)})""",
     )
 
     arg_parser.add_argument(
@@ -223,12 +267,19 @@ def parse_args():
         default=8174997,
         help="""Seed used for random number generator. (default: %(default)s)""",
     )
-    args = arg_parser.parse_args()
 
-    args.traits = args.trait if args.trait else const.TRAITS
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        metavar="INT",
+        help="""Limit dataset size for testing.""",
+    )
+
+    args = arg_parser.parse_args()
 
     return args
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)
