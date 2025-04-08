@@ -9,7 +9,7 @@ from shutil import copyfile
 
 import pandas as pd
 import torch
-from pylib import const, dataset_util, image_util, log
+from pylib import log, util
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
@@ -34,17 +34,17 @@ def main(args):
 
     logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
 
-    dataset = dataset_util.get_inference_records(args.db, args.limit, args.offset)
+    dataset = util.get_inference_records(args.db, args.limit, args.offset)
     total = len(dataset)
-    dataset = dataset_util.filter_bad_images(dataset)
+    dataset = util.filter_bad_images(dataset)
     good = len(dataset)
-    dataset = dataset_util.filter_bad_families(dataset, args.bad_families)
+    dataset = util.filter_bad_families(dataset, args.bad_families)
     families = len(dataset)
-    dataset = dataset_util.get_inference_dataset(dataset, args.image_dir)
+    dataset = util.get_inference_dataset(dataset, args.image_dir)
 
     logging.info(f"Total records {total}, good images {good}, good families {families}")
 
-    TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
+    TEST_XFORMS = util.build_transforms(args.image_size, augment=False)
     dataset.set_transform(TEST_XFORMS)
 
     loader = DataLoader(dataset, batch_size=1, pin_memory=True)
@@ -163,7 +163,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--trait",
-        choices=const.TRAITS,
+        choices=util.TRAITS,
         required=True,
         help="""Infer this trait.""",
     )

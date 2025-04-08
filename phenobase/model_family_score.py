@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from pylib import const, log
+from pylib import log, util
 from sklearn import metrics
 
 
@@ -221,7 +221,7 @@ def parse_args() -> argparse.Namespace:
 
     arg_parser.add_argument(
         "--trait",
-        choices=const.TRAITS,
+        choices=util.TRAITS,
         required=True,
         help="""The trait to examine.""",
     )

@@ -12,9 +12,8 @@ from pathlib import Path
 
 import pandas as pd
 from PIL import Image
+from pylib import log, util
 from tqdm import tqdm
-
-from phenobase.pylib import const, log
 
 TOO_DAMN_SMALL = 10_000
 
@@ -67,7 +66,7 @@ def get_expert_data(ant_csvs: list[Path]) -> dict[str, dict]:
         with csv_file.open() as inf:
             reader = csv.DictReader(inf)
             for row in reader:
-                for trait in const.TRAITS:
+                for trait in util.TRAITS:
                     if label := row.get(trait):
                         records[row["file"]][trait] = label
     return records

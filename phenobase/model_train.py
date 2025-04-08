@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
+import logging
 import textwrap
 from collections.abc import Callable
 from pathlib import Path
@@ -10,7 +10,7 @@ import evaluate
 import numpy as np
 import torch
 import transformers
-from pylib import const
+from pylib import util
 from torchvision.transforms import v2
 from transformers import (
     AutoModelForImageClassification,
@@ -21,21 +21,28 @@ from transformers import (
     TrainingArguments,
 )
 
-from datasets import Dataset, Image, Split
-
-TRAIN_XFORMS: Callable | None = None
-VALID_XFORMS: Callable | None = None
+TRAIN_XFORMS: Callable = None
+VALID_XFORMS: Callable = None
 
 METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 
 class BestMetricsCallback(TrainerCallback):
-    def __init__(self, trainer: Trainer):
+    """
+    Save the top n models using the given metric as the only criterion.
+
+    The problem is that if you set metric_for_best_model the trainer only saves the top
+    model with that metric, and it then goes back to saving the last n-1 models not
+    considering the metric. This may be useful if we do early stopping, but it is not
+    helpful in my case, so I patched into the trainer with a callback and save models
+    using only the given metric.
+    """
+
+    def __init__(self):
         super().__init__()
-        self.trainer = trainer
         self.bests = []
 
-    def on_evaluate(
+    def on_log(
         self,
         args: TrainingArguments,
         state: TrainerState,
@@ -49,9 +56,11 @@ class BestMetricsCallback(TrainerCallback):
         self.bests = sorted(self.bests, key=lambda b: sign * b[metric])
         self.bests = self.bests[: args.save_total_limit]
 
-        print(
-            [f"(epoch: {b['epoch']:4d}, metric: {b[metric]:6.4f})" for b in self.bests]
-        )
+        msg = [
+            f"(epoch:{b['epoch']:5.1f}, {metric}: {b[metric]:6.4f})" for b in self.bests
+        ]
+        msg = f"best {metric}: " + " ".join(msg)
+        logging.info(msg)
 
         epoch = state.log_history[-1]["epoch"]
         control.should_save = any(epoch == b["epoch"] for b in self.bests)
@@ -62,16 +71,22 @@ def main(args):
 
     transformers.set_seed(args.seed)
 
+    # In theory, I should be using regression here but the scores are bad when I do,
+    # so I'm using a single label classifier with negative/positive classes.
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(const.LABELS),
-        id2label=const.ID2LABEL,
-        label2id=const.LABEL2ID,
+        num_labels=len(util.LABELS),
+        id2label=util.ID2LABEL,
+        label2id=util.LABEL2ID,
         ignore_mismatched_sizes=True,
     )
 
-    train_dataset = get_dataset("train", args.dataset_csv, args.image_dir, args.limit)
-    valid_dataset = get_dataset("valid", args.dataset_csv, args.image_dir, args.limit)
+    train_dataset = util.get_dataset(
+        "train", args.dataset_csv, args.image_dir, args.trait, args.limit
+    )
+    valid_dataset = util.get_dataset(
+        "valid", args.dataset_csv, args.image_dir, args.trait, args.limit
+    )
 
     TRAIN_XFORMS = v2.Compose(
         [
@@ -81,7 +96,7 @@ def main(args):
             v2.AutoAugment(),
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+            v2.Normalize(mean=util.IMAGENET_MEAN, std=util.IMAGENET_STD_DEV),
         ]
     )
     VALID_XFORMS = v2.Compose(
@@ -89,7 +104,7 @@ def main(args):
             v2.Resize((args.image_size, args.image_size)),
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=const.IMAGENET_MEAN, std=const.IMAGENET_STD_DEV),
+            v2.Normalize(mean=util.IMAGENET_MEAN, std=util.IMAGENET_STD_DEV),
         ]
     )
 
@@ -124,7 +139,7 @@ def main(args):
         compute_metrics=compute_metrics,
     )
 
-    callback = BestMetricsCallback(trainer)
+    callback = BestMetricsCallback()
     trainer.add_callback(callback)
 
     trainer.train()
@@ -140,27 +155,6 @@ def valid_transforms(examples):
     pixel_values = [VALID_XFORMS(image.convert("RGB")) for image in examples["image"]]
     labels = torch.tensor(examples["label"])
     return {"pixel_values": pixel_values, "labels": labels}
-
-
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
-    with dataset_csv.open() as inp:
-        reader = csv.DictReader(inp)
-        recs = list(reader)
-
-    recs = [r for r in recs if r["split"] == split]
-    recs = recs[:limit] if limit else recs
-
-    split = Split.TRAIN if split == "train" else Split.VALIDATION
-
-    images = [str(image_dir / r["name"]) for r in recs]
-    labels = [int(r["label"]) for r in recs]
-    ids = [r["name"] for r in recs]
-
-    dataset = Dataset.from_dict(
-        {"image": images, "label": labels, "id": ids}, split=split
-    ).cast_column("image", Image())
-
-    return dataset
 
 
 def compute_metrics(eval_pred):
@@ -204,6 +198,13 @@ def parse_args():
         default="google/vit-base-patch16-224",
         metavar="PATH",
         help="""Finetune this model.""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=util.TRAITS,
+        required=True,
+        help="""Train to classify this trait.""",
     )
 
     arg_parser.add_argument(

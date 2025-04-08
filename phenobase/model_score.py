@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import textwrap
 from collections.abc import Callable
 from copy import deepcopy
@@ -9,12 +10,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from pylib import const, dataset_util, image_util, log
+from pylib import log, util
 from torch.utils.data import DataLoader
+from torchvision.transforms import v2
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
-TEST_XFORMS: Callable | None = None
+from datasets import Dataset, Image, NamedSplit
+
+TEST_XFORMS: Callable = None
 
 
 def main(args):
@@ -22,14 +26,17 @@ def main(args):
 
     log.started()
 
+    with args.dataset_csv.open() as inp:
+        reader = csv.DictReader(inp)
+        recs = list(reader)
+
     base_recs = {
-        d["name"]: d
-        for d in dataset_util.get_records(
-            "test", args.dataset_csv, args.trait, args.problem_type
-        )
+        r["coreid"]: r
+        for r in recs
+        if r["split"] == "test" and r[args.trait] and r[args.trait] in "01"
     }
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
 
     softmax = torch.nn.Softmax(dim=1)
 
@@ -39,21 +46,28 @@ def main(args):
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            problem_type=args.problem_type,
-            num_labels=1 if args.problem_type == const.REGRESSION else 2,
+            num_labels=len(util.LABELS),
+            id2label=util.ID2LABEL,
+            label2id=util.LABEL2ID,
         )
 
         model.to(device)
         model.eval()
 
-        dataset = dataset_util.get_dataset(
-            "test", args.dataset_csv, args.image_dir, args.trait, args.problem_type
+        test_dataset = get_dataset("test", args.dataset_csv, args.image_dir, args.limit)
+
+        TEST_XFORMS = v2.Compose(
+            [
+                v2.Resize((args.image_size, args.image_size)),
+                v2.ToImage(),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.Normalize(mean=util.IMAGENET_MEAN, std=util.IMAGENET_STD_DEV),
+            ]
         )
 
-        TEST_XFORMS = image_util.build_transforms(args.image_size, augment=False)
-        dataset.set_transform(TEST_XFORMS)
+        test_dataset.set_transform(test_transforms)
 
-        loader = DataLoader(dataset, batch_size=1, pin_memory=True)
+        loader = DataLoader(test_dataset, batch_size=1, pin_memory=True)
         total = len(loader)
 
         correct = 0
@@ -67,25 +81,19 @@ def main(args):
                 rec = deepcopy(base_recs[sheet["id"][0]])
                 rec |= {"checkpoint": checkpoint}
 
-                if args.problem_type == const.SINGLE_LABEL:
-                    # Note: Softmax for 2 classes can use the positive class (scores[1])
-                    # for the predicted value. I.e. scores[1] IS always the real score
-                    # in this case, but only when there are exactly two classes and only
-                    # when they are organized as const.LABELS = [without, with].
-                    scores = softmax(result.logits).detach().cpu().tolist()[0]
-                    rec |= {f"{args.trait}_score": scores[1]}
+                # I want scores here vs classes because I do threshold moving later
+                # in an attempt to improve the final results.
+                # If there are 2 classes of neg/pos we can use softmax and take
+                # the positive class (scores[1]) for the predicted value. I.e. I treat
+                # scores[1] as the "real" score. This will only work when there are
+                # exactly two classes and only when they are organized as
+                # util.LABELS = [without, with].
+                scores = softmax(result.logits).detach().cpu().tolist()[0]
+                rec |= {f"{args.trait}_score": scores[1]}
 
-                    true = torch.argmax(sheet["label"].clone().detach()).item()
-                    pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
-                    correct += int(pred == true)
-
-                elif args.problem_type == const.REGRESSION:
-                    true = float(sheet["label"].item())
-                    pred = torch.sigmoid(result.logits)
-                    pred = pred.detach().cpu().tolist()[0]
-
-                    rec |= {f"{args.trait}_score": pred[0]}
-                    correct += int(round(pred[0]) == true)
+                true = torch.argmax(sheet["label"].clone().detach()).item()
+                pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
+                correct += int(pred == true)
 
                 records.append(rec)
 
@@ -99,6 +107,25 @@ def main(args):
             df.to_csv(args.score_csv, index=False)
 
     log.finished()
+
+
+def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
+    with dataset_csv.open() as inp:
+        reader = csv.DictReader(inp)
+        recs = list(reader)
+
+    recs = [r for r in recs if r["split"] == split]
+    recs = recs[:limit] if limit else recs
+
+    images = [str(image_dir / r["name"]) for r in recs]
+    labels = [int(r["label"]) for r in recs]
+    ids = [r["name"] for r in recs]
+
+    dataset = Dataset.from_dict(
+        {"image": images, "label": labels, "id": ids}, split=NamedSplit(split)
+    ).cast_column("image", Image())
+
+    return dataset
 
 
 def test_transforms(examples):
@@ -133,7 +160,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--trait",
-        choices=const.TRAITS,
+        choices=util.TRAITS,
         required=True,
         help="""Score the classification of this trait.""",
     )
@@ -141,6 +168,7 @@ def parse_args():
     arg_parser.add_argument(
         "--score-csv",
         type=Path,
+        required=True,
         metavar="PATH",
         help="""Append scores to this CSV.""",
     )
@@ -159,12 +187,6 @@ def parse_args():
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--problem-type",
-        choices=list(const.PROBLEM_TYPES),
-        help="""This chooses the appropriate scoring function for the problem_type.""",
     )
 
     args = arg_parser.parse_args()
