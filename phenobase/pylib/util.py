@@ -22,7 +22,13 @@ PROBLEM_TYPES = [REGRESSION, SINGLE_LABEL, MULTI_LABEL]
 
 
 def get_dataset(
-    split: str, dataset_csv: Path, image_dir: Path, trait: str, limit=0
+    split: str,
+    dataset_csv: Path,
+    image_dir: Path,
+    trait: str,
+    *,
+    limit=0,
+    regression: bool = False,
 ) -> Dataset:
     with dataset_csv.open() as f:
         reader = csv.DictReader(f)
@@ -34,7 +40,7 @@ def get_dataset(
     recs = recs[:limit] if limit else recs
 
     images = [str(image_dir / r["name"]) for r in recs]
-    labels = [int(r[trait]) for r in recs]
+    labels = [float(r[trait]) if regression else int(r[trait]) for r in recs]
     ids = [r["name"] for r in recs]
 
     dataset = Dataset.from_dict(

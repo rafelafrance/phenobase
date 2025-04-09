@@ -70,21 +70,27 @@ def main(args):
 
     transformers.set_seed(args.seed)
 
-    # In theory, I should be using regression here but the scores are bad when I do,
-    # so I'm using a single label classifier with negative/positive classes.
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=len(util.LABELS),
-        id2label=util.ID2LABEL,
-        label2id=util.LABEL2ID,
+        num_labels=1 if args.regression else 2,
         ignore_mismatched_sizes=True,
     )
 
     train_dataset = util.get_dataset(
-        "train", args.dataset_csv, args.image_dir, args.trait, args.limit
+        "train",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        limit=args.limit,
+        regression=args.regression,
     )
     valid_dataset = util.get_dataset(
-        "val", args.dataset_csv, args.image_dir, args.trait, args.limit
+        "val",
+        args.dataset_csv,
+        args.image_dir,
+        args.trait,
+        limit=args.limit,
+        regression=args.regression,
     )
 
     TRAIN_XFORMS = v2.Compose(
@@ -130,6 +136,11 @@ def main(args):
         push_to_hub=False,
     )
 
+    if args.regression:
+        compute_metrics = compute_metrics_regression
+    else:
+        compute_metrics = compute_metrics_single_label
+
     trainer = Trainer(
         args=training_args,
         model=model,
@@ -156,9 +167,17 @@ def valid_transforms(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-def compute_metrics(eval_pred):
+def compute_metrics_single_label(eval_pred):
     logits, trues = eval_pred
     preds = np.argmax(logits, axis=-1)
+    return METRICS.compute(predictions=preds, references=trues)
+
+
+def compute_metrics_regression(eval_pred):
+    logits, trues = eval_pred
+    preds = torch.sigmoid(torch.tensor(logits))
+    preds = torch.round(preds)
+    trues = torch.tensor(trues)
     return METRICS.compute(predictions=preds, references=trues)
 
 
@@ -212,6 +231,12 @@ def parse_args():
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--regression",
+        action="store_true",
+        help="""Use MSE as the loss function.""",
     )
 
     arg_parser.add_argument(

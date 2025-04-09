@@ -81,19 +81,28 @@ def main(args):
                 rec = deepcopy(base_recs[sheet["id"][0]])
                 rec |= {"checkpoint": checkpoint}
 
-                # I want scores here vs classes because I do threshold moving later
-                # in an attempt to improve the final results.
-                # If there are 2 classes of neg/pos we can use softmax and take
-                # the positive class (scores[1]) for the predicted value. I.e. I treat
-                # scores[1] as the "real" score. This will only work when there are
-                # exactly two classes and only when they are organized as
-                # util.LABELS = [without, with].
-                scores = softmax(result.logits).detach().cpu().tolist()[0]
-                rec |= {f"{args.trait}_score": scores[1]}
+                if args.regression:
+                    true = float(sheet["label"].item())
+                    pred = torch.sigmoid(result.logits)
+                    pred = pred.detach().cpu().tolist()[0]
 
-                true = torch.argmax(sheet["label"].clone().detach()).item()
-                pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
-                correct += int(pred == true)
+                    rec |= {f"{args.trait}_score": pred[0]}
+                    correct += int(round(pred[0]) == true)
+
+                else:
+                    # I want scores here vs classes because I do threshold moving later
+                    # in an attempt to improve the final results.
+                    # If there are 2 classes of neg/pos we can use softmax and take
+                    # the positive class (scores[1]) for the predicted value. I.e.
+                    # I treat scores[1] as the "real" score. This will only work when
+                    # there are exactly two classes and only when they are organized as
+                    # util.LABELS = [without, with].
+                    scores = softmax(result.logits).detach().cpu().tolist()[0]
+                    rec |= {f"{args.trait}_score": scores[1]}
+
+                    true = torch.argmax(sheet["label"].clone().detach()).item()
+                    pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
+                    correct += int(pred == true)
 
                 records.append(rec)
 
@@ -187,6 +196,12 @@ def parse_args():
         metavar="INT",
         default=224,
         help="""Images are this size (pixels). (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--regression",
+        action="store_true",
+        help="""Handle regression scoring.""",
     )
 
     args = arg_parser.parse_args()
