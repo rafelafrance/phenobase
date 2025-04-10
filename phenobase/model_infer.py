@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import logging
+import sqlite3
 import textwrap
-from collections.abc import Callable
 from pathlib import Path
 from shutil import copyfile
 
@@ -11,22 +12,23 @@ import pandas as pd
 import torch
 from pylib import log, util
 from torch.utils.data import DataLoader
+from torchvision.transforms import v2
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
-TEST_XFORMS: Callable | None = None
+from datasets import Dataset, Image
 
 
 def main(args):
-    global TEST_XFORMS
-
     log.started()
+
+    softmax = torch.nn.Softmax(dim=1)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
-        num_labels=1,
+        num_labels=1 if args.regression else 2,
     )
 
     model.to(device)
@@ -34,22 +36,34 @@ def main(args):
 
     logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
 
-    dataset = util.get_inference_records(args.db, args.limit, args.offset)
-    total = len(dataset)
-    dataset = util.filter_bad_images(dataset)
-    good = len(dataset)
-    dataset = util.filter_bad_families(dataset, args.bad_families)
-    families = len(dataset)
-    dataset = util.get_inference_dataset(dataset, args.image_dir)
+    records = get_inference_records(args.db, args.limit, args.offset)
+    total = len(records)
+    records = filter_bad_images(records)
+    good = len(records)
+    records = filter_bad_families(records, args.bad_families)
+    families = len(records)
+
+    dataset = get_inference_dataset(records, args.image_dir, debug=args.debug)
 
     logging.info(f"Total records {total}, good images {good}, good families {families}")
 
-    TEST_XFORMS = util.build_transforms(args.image_size, augment=False)
-    dataset.set_transform(TEST_XFORMS)
+    if args.debug:
+        logging.info(f"Found {len(dataset)} files for debugging.")
+
+    infer_xforms = v2.Compose(
+        [
+            v2.Resize((args.image_size, args.image_size)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=util.IMAGENET_MEAN, std=util.IMAGENET_STD_DEV),
+        ]
+    )
+
+    dataset.set_transform(infer_xforms)
 
     loader = DataLoader(dataset, batch_size=1, pin_memory=True)
 
-    records = []
+    output = []
 
     logging.info("Starting inference")
     logging.info(f"Low threshold: {args.thresh_low}")
@@ -60,7 +74,18 @@ def main(args):
             image = sheet["image"].to(device)
             result = model(image)
 
-            score = torch.sigmoid(torch.tensor(result.logits))
+            if args.regression:
+                score = torch.sigmoid(torch.tensor(result.logits))
+            else:
+                # I want scores here vs classes because I do threshold moving later
+                # in an attempt to improve the final results.
+                # If there are 2 classes of neg/pos we can use softmax and take
+                # the positive class (scores[1]) for the predicted value. I.e.
+                # I treat scores[1] as the score. This will only work when there
+                # are exactly two classes and only when they are organized as
+                # util.LABELS = [without, with].
+                scores = softmax(result.logits)
+                score = scores[0, 1]
 
             if score <= args.thresh_low or score >= args.thresh_high:
                 rec = {
@@ -71,25 +96,72 @@ def main(args):
                     f"{args.trait}_score": score.item(),
                     args.trait: torch.round(score).item(),
                 }
-                records.append(rec)
+                output.append(rec)
 
                 if args.save_dir:
                     src = Path(sheet["path"][0])
                     dst = args.save_dir / src.name
                     copyfile(src, dst)
 
-    df = pd.DataFrame(records)
+    df = pd.DataFrame(output)
     df.to_csv(args.output_csv, index=False)
 
-    logging.info(f"Remaining {len(records)}")
+    logging.info(f"Remaining {len(output)}")
 
     log.finished()
 
 
-def test_transforms(examples):
-    pixel_values = [TEST_XFORMS(image.convert("RGB")) for image in examples["image"]]
-    labels = torch.tensor(examples["label"])
-    return {"pixel_values": pixel_values, "labels": labels}
+def get_inference_records(db, limit, offset):
+    with sqlite3.connect(db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        sql = """select gbifid, tiebreaker, state, family
+            from multimedia join occurrence using (gbifid)
+            limit ? offset ?"""
+        rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
+    return rows
+
+
+def filter_bad_images(rows):
+    rows = [r for r in rows if not r["state"].endswith("error")]
+    return rows
+
+
+def filter_bad_families(rows, bad_family_csv):
+    bad_families = []
+    if bad_family_csv:
+        with bad_family_csv.open() as bad:
+            reader = csv.DictReader(bad)
+            bad_families = [r["family"].lower() for r in reader]
+    rows = [r for r in rows if r["family"].lower() not in bad_families]
+    return rows
+
+
+def get_inference_dataset(rows, image_dir, *, debug: bool = False):
+    images = []
+    ids = []
+    families = []
+    for row in rows:
+        parts = row["state"].split()
+
+        name = f"{row['gbifID']}_{row['tiebreaker']}"
+        name += f"_{parts[-1]}" if len(parts) > 1 else ""
+
+        if debug:
+            path = image_dir / (name + ".jpg")
+            if not path.exists():
+                continue
+        else:
+            path = image_dir / parts[0] / (name + ".jpg")
+
+        ids.append(row["gbifID"])
+        families.append(row["family"])
+        images.append(str(path))
+
+    dataset = Dataset.from_dict(
+        {"image": images, "id": ids, "path": images, "family": families}
+    ).cast_column("image", Image())
+
+    return dataset
 
 
 def parse_args():
@@ -188,6 +260,18 @@ def parse_args():
         type=Path,
         metavar="PATH",
         help="""Where to put images for further analysis.""",
+    )
+
+    arg_parser.add_argument(
+        "--regression",
+        action="store_true",
+        help="""Handle regression scoring.""",
+    )
+
+    arg_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="""Testing this module locally.""",
     )
 
     args = arg_parser.parse_args()

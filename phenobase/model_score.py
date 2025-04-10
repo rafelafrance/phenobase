@@ -2,7 +2,6 @@
 
 import argparse
 import textwrap
-from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
 
@@ -15,17 +14,9 @@ from torchvision.transforms import v2
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
-from phenobase.pylib.util import get_records
-
-TEST_XFORMS: Callable = None
-
 
 def main(args):
-    global TEST_XFORMS
-
     log.started()
-
-    records = get_records("test", args.dataset_csv, args.trait)
 
     device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
 
@@ -49,7 +40,7 @@ def main(args):
             regression=args.regression,
         )
 
-        TEST_XFORMS = v2.Compose(
+        test_xforms = v2.Compose(
             [
                 v2.Resize((args.image_size, args.image_size)),
                 v2.ToImage(),
@@ -58,7 +49,7 @@ def main(args):
             ]
         )
 
-        dataset.set_transform(test_transforms)
+        dataset.set_transform(test_xforms)
 
         loader = DataLoader(dataset, batch_size=1, pin_memory=True)
         total = len(loader)
@@ -66,15 +57,15 @@ def main(args):
         output = []
 
         with torch.no_grad():
-            for item, sheet in tqdm(zip(loader, records, strict=True)):
-                pixels = item["pixel_values"].to(device)
-                result = model(pixels)
+            for sheet in tqdm(loader):
+                image = sheet["image"].to(device)
+                result = model(image)
 
                 out = deepcopy(sheet)
                 out |= {"checkpoint": checkpoint}
 
                 if args.regression:
-                    true = item["labels"].item()
+                    true = sheet["label"].item()
                     pred = torch.sigmoid(result.logits)
                     pred = pred.detach().cpu().tolist()[0]
 
@@ -86,13 +77,13 @@ def main(args):
                     # in an attempt to improve the final results.
                     # If there are 2 classes of neg/pos we can use softmax and take
                     # the positive class (scores[1]) for the predicted value. I.e.
-                    # I treat scores[1] as the "real" score. This will only work when
-                    # there are exactly two classes and only when they are organized as
+                    # I treat scores[1] as the score. This will only work when there
+                    # are exactly two classes and only when they are organized as
                     # util.LABELS = [without, with].
                     scores = softmax(result.logits).detach().cpu().tolist()[0]
                     out |= {f"{args.trait}_score": scores[1]}
 
-                    true = torch.argmax(sheet["label"].clone().detach()).item()
+                    true = float(sheet["label"])
                     pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
                     correct += int(pred == true)
 
@@ -101,38 +92,13 @@ def main(args):
         print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
 
         if args.score_csv:
-            df = pd.DataFrame(records)
+            df = pd.DataFrame(output)
             if args.score_csv.exists():
                 df_old = pd.read_csv(args.score_csv, low_memory=False)
                 df = pd.concat((df_old, df))
             df.to_csv(args.score_csv, index=False)
 
     log.finished()
-
-
-def test_transforms(examples):
-    pixel_values = [TEST_XFORMS(image.convert("RGB")) for image in examples["image"]]
-    labels = torch.tensor(examples["label"])
-    return {"pixel_values": pixel_values, "labels": labels}
-
-
-# def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
-#     with dataset_csv.open() as inp:
-#         reader = csv.DictReader(inp)
-#         recs = list(reader)
-#
-#     recs = [r for r in recs if r["split"] == split]
-#     recs = recs[:limit] if limit else recs
-#
-#     images = [str(image_dir / r["name"]) for r in recs]
-#     labels = [int(r["label"]) for r in recs]
-#     ids = [r["name"] for r in recs]
-#
-#     dataset = Dataset.from_dict(
-#         {"image": images, "label": labels, "id": ids}, split=NamedSplit(split)
-#     ).cast_column("image", Image())
-#
-#     return dataset
 
 
 def parse_args():
