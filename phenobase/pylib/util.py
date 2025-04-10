@@ -30,14 +30,7 @@ def get_dataset(
     limit=0,
     regression: bool = False,
 ) -> Dataset:
-    with dataset_csv.open() as f:
-        reader = csv.DictReader(f)
-        recs = list(reader)
-
-    recs = [
-        r for r in recs if r["split"] == split and r.get(trait) and r[trait] in "01"
-    ]
-    recs = recs[:limit] if limit else recs
+    recs = get_records(split, dataset_csv, trait, limit=limit)
 
     images = [str(image_dir / r["name"]) for r in recs]
     labels = [float(r[trait]) if regression else int(r[trait]) for r in recs]
@@ -48,3 +41,15 @@ def get_dataset(
     ).cast_column("image", Image())
 
     return dataset
+
+
+def get_records(split: str, dataset_csv: Path, trait: str, *, limit=0) -> list[dict]:
+    with dataset_csv.open() as f:
+        reader = csv.DictReader(f)
+        recs = list(reader)
+
+    recs = [
+        r for r in recs if r["split"] == split and r.get(trait) and r[trait] in "01"
+    ]
+    recs = recs[:limit] if limit else recs
+    return recs

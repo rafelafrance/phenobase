@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import textwrap
 from collections.abc import Callable
 from copy import deepcopy
@@ -16,7 +15,7 @@ from torchvision.transforms import v2
 from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
-from datasets import Dataset, Image, NamedSplit
+from phenobase.pylib.util import get_records
 
 TEST_XFORMS: Callable = None
 
@@ -26,15 +25,7 @@ def main(args):
 
     log.started()
 
-    with args.dataset_csv.open() as inp:
-        reader = csv.DictReader(inp)
-        recs = list(reader)
-
-    base_recs = {
-        r["coreid"]: r
-        for r in recs
-        if r["split"] == "test" and r[args.trait] and r[args.trait] in "01"
-    }
+    records = get_records("test", args.dataset_csv, args.trait)
 
     device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
 
@@ -46,15 +37,17 @@ def main(args):
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            num_labels=len(util.LABELS),
-            id2label=util.ID2LABEL,
-            label2id=util.LABEL2ID,
+            num_labels=1 if args.regression else 2,
         )
-
         model.to(device)
-        model.eval()
 
-        test_dataset = get_dataset("test", args.dataset_csv, args.image_dir, args.limit)
+        dataset = util.get_dataset(
+            "test",
+            args.dataset_csv,
+            args.image_dir,
+            args.trait,
+            regression=args.regression,
+        )
 
         TEST_XFORMS = v2.Compose(
             [
@@ -65,28 +58,27 @@ def main(args):
             ]
         )
 
-        test_dataset.set_transform(test_transforms)
+        dataset.set_transform(test_transforms)
 
-        loader = DataLoader(test_dataset, batch_size=1, pin_memory=True)
+        loader = DataLoader(dataset, batch_size=1, pin_memory=True)
         total = len(loader)
-
         correct = 0
-        records = []
+        output = []
 
         with torch.no_grad():
-            for sheet in tqdm(loader):
-                image = sheet["image"].to(device)
-                result = model(image)
+            for item, sheet in tqdm(zip(loader, records, strict=True)):
+                pixels = item["pixel_values"].to(device)
+                result = model(pixels)
 
-                rec = deepcopy(base_recs[sheet["id"][0]])
-                rec |= {"checkpoint": checkpoint}
+                out = deepcopy(sheet)
+                out |= {"checkpoint": checkpoint}
 
                 if args.regression:
-                    true = float(sheet["label"].item())
+                    true = item["labels"].item()
                     pred = torch.sigmoid(result.logits)
                     pred = pred.detach().cpu().tolist()[0]
 
-                    rec |= {f"{args.trait}_score": pred[0]}
+                    out |= {f"{args.trait}_score": pred[0]}
                     correct += int(round(pred[0]) == true)
 
                 else:
@@ -98,13 +90,13 @@ def main(args):
                     # there are exactly two classes and only when they are organized as
                     # util.LABELS = [without, with].
                     scores = softmax(result.logits).detach().cpu().tolist()[0]
-                    rec |= {f"{args.trait}_score": scores[1]}
+                    out |= {f"{args.trait}_score": scores[1]}
 
                     true = torch.argmax(sheet["label"].clone().detach()).item()
                     pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
                     correct += int(pred == true)
 
-                records.append(rec)
+                output.append(out)
 
         print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
 
@@ -118,29 +110,29 @@ def main(args):
     log.finished()
 
 
-def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
-    with dataset_csv.open() as inp:
-        reader = csv.DictReader(inp)
-        recs = list(reader)
-
-    recs = [r for r in recs if r["split"] == split]
-    recs = recs[:limit] if limit else recs
-
-    images = [str(image_dir / r["name"]) for r in recs]
-    labels = [int(r["label"]) for r in recs]
-    ids = [r["name"] for r in recs]
-
-    dataset = Dataset.from_dict(
-        {"image": images, "label": labels, "id": ids}, split=NamedSplit(split)
-    ).cast_column("image", Image())
-
-    return dataset
-
-
 def test_transforms(examples):
     pixel_values = [TEST_XFORMS(image.convert("RGB")) for image in examples["image"]]
     labels = torch.tensor(examples["label"])
     return {"pixel_values": pixel_values, "labels": labels}
+
+
+# def get_dataset(split: str, dataset_csv: Path, image_dir: Path, limit=0) -> Dataset:
+#     with dataset_csv.open() as inp:
+#         reader = csv.DictReader(inp)
+#         recs = list(reader)
+#
+#     recs = [r for r in recs if r["split"] == split]
+#     recs = recs[:limit] if limit else recs
+#
+#     images = [str(image_dir / r["name"]) for r in recs]
+#     labels = [int(r["label"]) for r in recs]
+#     ids = [r["name"] for r in recs]
+#
+#     dataset = Dataset.from_dict(
+#         {"image": images, "label": labels, "id": ids}, split=NamedSplit(split)
+#     ).cast_column("image", Image())
+#
+#     return dataset
 
 
 def parse_args():
