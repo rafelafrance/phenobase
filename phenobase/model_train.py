@@ -55,8 +55,9 @@ class BestMetricsCallback(TrainerCallback):
         self.bests = sorted(self.bests, key=lambda b: sign * b[metric])
         self.bests = self.bests[: args.save_total_limit]
 
+        short = metric.removeprefix("eval_")
         msg = [
-            f"(epoch:{b['epoch']:5.1f}, {metric}: {b[metric]:6.4f})" for b in self.bests
+            f"(epoch:{b['epoch']:5.1f}, {short}: {b[metric]:6.4f})" for b in self.bests
         ]
         msg = f"\nbest {metric}: " + " ".join(msg)
         print(msg)
