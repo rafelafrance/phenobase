@@ -28,10 +28,10 @@ METRICS = evaluate.combine(["f1", "precision", "recall", "accuracy"])
 
 class BestMetricsCallback(TrainerCallback):
     """
-    Save the top n models using the given metric as the only criterion.
+    Save the top N models using the given metric as the only criterion.
 
-    The problem is that if you set metric_for_best_model the trainer only saves the top
-    model with that metric, and it then goes back to saving the last n-1 models not
+    The problem is that if you set metric_for_best_model the trainer it only saves the
+    top model with that metric, and it then goes back to saving the last n-1 models not
     considering the metric. This may be useful if we do early stopping, but it is not
     helpful in my case, so I patched into the trainer with a callback and save models
     using only the given metric.
@@ -59,7 +59,7 @@ class BestMetricsCallback(TrainerCallback):
         msg = [
             f"(epoch:{b['epoch']:5.1f}, {short}: {b[metric]:6.4f})" for b in self.bests
         ]
-        msg = f"\nbest {metric}: " + " ".join(msg)
+        msg = f"\n\nbest {metric}: " + " ".join(msg) + "\n"
         print(msg)
 
         epoch = state.log_history[-1]["epoch"]

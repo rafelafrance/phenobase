@@ -77,13 +77,8 @@ def main(args):
             if args.regression:
                 score = torch.sigmoid(torch.tensor(result.logits))
             else:
-                # I want scores here vs classes because I do threshold moving later
-                # in an attempt to improve the final results.
-                # If there are 2 classes of neg/pos we can use softmax and take
-                # the positive class (scores[1]) for the predicted value. I.e.
-                # I treat scores[1] as the score. This will only work when there
-                # are exactly two classes and only when they are organized as
-                # util.LABELS = [without, with].
+                # I'm filtering on the score.
+                # I can use softmax and take the positive class for the predicted value
                 scores = softmax(result.logits)
                 score = scores[0, 1]
 

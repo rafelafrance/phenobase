@@ -75,11 +75,7 @@ def main(args):
                 else:
                     # I want scores here vs classes because I do threshold moving later
                     # in an attempt to improve the final results.
-                    # If there are 2 classes of neg/pos we can use softmax and take
-                    # the positive class (scores[1]) for the predicted value. I.e.
-                    # I treat scores[1] as the score. This will only work when there
-                    # are exactly two classes and only when they are organized as
-                    # util.LABELS = [without, with].
+                    # I can softmax the logits and take scores[0, 1] as the score
                     scores = softmax(result.logits).detach().cpu().tolist()[0]
                     out |= {f"{args.trait}_score": scores[1]}
 
