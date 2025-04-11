@@ -101,7 +101,8 @@ def main(args):
                 if args.save_dir:
                     src = Path(sheet["path"][0])
                     dst = args.save_dir / src.name
-                    copyfile(src, dst)
+                    if not dst.exists():
+                        copyfile(src, dst)
 
     df = pd.DataFrame(output)
     df.to_csv(args.output_csv, index=False)
@@ -122,7 +123,11 @@ def get_inference_records(db, limit, offset):
 
 
 def filter_bad_images(rows):
-    rows = [r for r in rows if not r["state"].endswith("error")]
+    rows = [
+        r
+        for r in rows
+        if r["state"].startswith("images") and not r["state"].endswith("error")
+    ]
     return rows
 
 
