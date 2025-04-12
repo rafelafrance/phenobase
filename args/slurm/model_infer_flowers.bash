@@ -32,7 +32,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_0_10000.csv \
     --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_528_flowers_f1_sl/checkpoint-15260 \
     --image-size 528 \
-    --limit 1000000 \
+    --limit 100000 \
     --offset 0 \
     --trait flowers \
     --thresh-low 0.05 \

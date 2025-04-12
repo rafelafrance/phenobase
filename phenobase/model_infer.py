@@ -18,8 +18,10 @@ from transformers import AutoModelForImageClassification
 
 from datasets import Dataset, Image
 
+BATCH = 100_000
 
-def main(args):
+
+def main(args):  # noqa: PLR0915
     log.started()
 
     softmax = torch.nn.Softmax(dim=1)
@@ -64,6 +66,8 @@ def main(args):
     loader = DataLoader(dataset, batch_size=1, pin_memory=True)
 
     output = []
+    mode = "w"
+    header = True
 
     logging.info("Starting inference")
     logging.info(f"Low threshold: {args.thresh_low}")
@@ -93,6 +97,13 @@ def main(args):
                 }
                 output.append(rec)
 
+                if len(output) >= BATCH:
+                    df = pd.DataFrame(output)
+                    df.to_csv(args.output_csv, mode=mode, header=header, index=False)
+                    output = []
+                    mode = "a"
+                    header = False
+
                 if args.save_dir:
                     src = Path(sheet["path"][0])
                     dst = args.save_dir / src.name
@@ -100,7 +111,7 @@ def main(args):
                         copyfile(src, dst)
 
     df = pd.DataFrame(output)
-    df.to_csv(args.output_csv, index=False)
+    df.to_csv(args.output_csv, mode=mode, header=header, index=False)
 
     logging.info(f"Remaining {len(output)}")
 
