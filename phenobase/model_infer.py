@@ -23,9 +23,13 @@ BATCH = 100_000
 def main(args):
     log.started()
 
+    logging.info(args)
+
     softmax = torch.nn.Softmax(dim=1)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    logging.info(f"Device {device}")
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
@@ -69,8 +73,6 @@ def main(args):
     header = True
 
     logging.info("Starting inference")
-    logging.info(f"Low threshold: {args.thresh_low}")
-    logging.info(f"High threshold: {args.thresh_high}")
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -85,23 +87,22 @@ def main(args):
                 scores = softmax(result.logits)
                 score = scores[0, 1]
 
-            if score <= args.thresh_low or score >= args.thresh_high:
-                rec = {
-                    "gbifid": sheet["id"][0],
-                    "score": score,
-                    "family": sheet["family"][0],
-                    "path": sheet["path"][0],
-                    f"{args.trait}_score": score.item(),
-                    args.trait: torch.round(score).item(),
-                }
-                output.append(rec)
+            rec = {
+                "gbifid": sheet["id"][0],
+                "score": score,
+                "family": sheet["family"][0],
+                "path": sheet["path"][0],
+                f"{args.trait}_score": score.item(),
+                args.trait: torch.round(score).item(),
+            }
+            output.append(rec)
 
-                if len(output) >= BATCH:
-                    df = pd.DataFrame(output)
-                    df.to_csv(args.output_csv, mode=mode, header=header, index=False)
-                    output = []
-                    mode = "a"
-                    header = False
+            if len(output) >= BATCH:
+                df = pd.DataFrame(output)
+                df.to_csv(args.output_csv, mode=mode, header=header, index=False)
+                output = []
+                mode = "a"
+                header = False
 
     df = pd.DataFrame(output)
     df.to_csv(args.output_csv, mode=mode, header=header, index=False)
@@ -242,21 +243,6 @@ def parse_args():
         choices=util.TRAITS,
         required=True,
         help="""Infer this trait.""",
-    )
-
-    arg_parser.add_argument(
-        "--thresh-low",
-        type=float,
-        default=0.05,
-        help="""Low threshold for being in the negative class (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--thresh-high",
-        type=float,
-        default=0.95,
-        help="""high threshold for being in the positive class
-            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
