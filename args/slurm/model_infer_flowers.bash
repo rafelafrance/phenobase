@@ -34,8 +34,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --image-size 528 \
     --limit 100000 \
     --offset 0 \
-    --trait flowers \
-    --thresh-low 0.05 \
-    --thresh-high 0.95
+    --trait flowers
 
 date
