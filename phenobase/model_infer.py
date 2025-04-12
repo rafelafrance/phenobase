@@ -6,7 +6,6 @@ import logging
 import sqlite3
 import textwrap
 from pathlib import Path
-from shutil import copyfile
 
 import pandas as pd
 import torch
@@ -21,7 +20,7 @@ from datasets import Dataset, Image
 BATCH = 100_000
 
 
-def main(args):  # noqa: PLR0915
+def main(args):
     log.started()
 
     softmax = torch.nn.Softmax(dim=1)
@@ -103,12 +102,6 @@ def main(args):  # noqa: PLR0915
                     output = []
                     mode = "a"
                     header = False
-
-                if args.save_dir:
-                    src = Path(sheet["path"][0])
-                    dst = args.save_dir / src.name
-                    if not dst.exists():
-                        copyfile(src, dst)
 
     df = pd.DataFrame(output)
     df.to_csv(args.output_csv, mode=mode, header=header, index=False)
@@ -264,13 +257,6 @@ def parse_args():
         default=0.95,
         help="""high threshold for being in the positive class
             (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--save-dir",
-        type=Path,
-        metavar="PATH",
-        help="""Where to put images for further analysis.""",
     )
 
     arg_parser.add_argument(

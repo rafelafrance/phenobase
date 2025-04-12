@@ -36,7 +36,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --offset 0 \
     --trait flowers \
     --thresh-low 0.05 \
-    --thresh-high 0.95 \
-    --save-dir /home/rafe.lafrance/blue/phenobase/data/images/infer
+    --thresh-high 0.95
 
 date
