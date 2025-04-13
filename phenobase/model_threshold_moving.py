@@ -21,7 +21,7 @@ class Best:
 
 
 def main(args):
-    log.started()
+    log.started(args=args)
 
     df_all = pd.read_csv(args.score_csv, low_memory=False)
     df_all = filter_families(df_all, args.bad_families)

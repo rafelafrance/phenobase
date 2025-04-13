@@ -36,9 +36,8 @@ ERRORS = (
 )
 
 
-def main():
-    args = parse_args()
-    log.started(args.log_file)
+def main(args):
+    log.started(args.log_file, args=args)
 
     random.seed(args.seed)
 
@@ -292,4 +291,5 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

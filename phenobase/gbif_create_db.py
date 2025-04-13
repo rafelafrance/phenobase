@@ -13,10 +13,8 @@ from phenobase.pylib import log
 CACHE = "https://api.gbif.org/v1/image/cache/occurrence/{}/media/{}"
 
 
-def main():
-    log.started()
-
-    args = parse_args()
+def main(args):
+    log.started(args=args)
 
     create_multimedia(args.gbif_db, args.multimedia_tsv)
     create_occurrence(args.gbif_db, args.occurrence_tsv)
@@ -180,4 +178,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

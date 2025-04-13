@@ -21,15 +21,13 @@ BATCH = 100_000
 
 
 def main(args):
-    log.started()
-
-    logging.info(args)
+    log.started(args=args)
 
     softmax = torch.nn.Softmax(dim=1)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    logging.info(f"Device {device}")
+    logging.info(f"Device = {device}")
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),

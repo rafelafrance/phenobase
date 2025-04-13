@@ -48,10 +48,8 @@ Image.MAX_IMAGE_PIXELS = 300_000_000
 socket.setdefaulttimeout(TIMEOUT)
 
 
-def main():
-    log.started()
-    args = parse_args()
-    logging.info(args)
+def main(args):
+    log.started(args=args)
 
     args.image_dir.mkdir(parents=True, exist_ok=True)
 
@@ -268,4 +266,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

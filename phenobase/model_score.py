@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import textwrap
 from copy import deepcopy
 from pathlib import Path
@@ -16,11 +17,13 @@ from transformers import AutoModelForImageClassification
 
 
 def main(args):
-    log.started()
+    log.started(args=args)
 
     device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
 
     softmax = torch.nn.Softmax(dim=1)
+
+    logging.info(f"Device {device}")
 
     checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
     for checkpoint in sorted(checkpoints):

@@ -19,11 +19,8 @@ class Dupe:
 Dupes = dict[str, list[Dupe]]
 
 
-def main():
-    log.started()
-
-    args = parse_args()
-    logging.info(args)
+def main(args):
+    log.started(args=args)
 
     all_dupes: Dupes = get_paths(args.image_dir)
     choose_file(all_dupes)
@@ -113,4 +110,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

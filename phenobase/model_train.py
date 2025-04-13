@@ -9,7 +9,7 @@ import evaluate
 import numpy as np
 import torch
 import transformers
-from pylib import util
+from pylib import log, util
 from torchvision.transforms import v2
 from transformers import (
     AutoModelForImageClassification,
@@ -32,7 +32,7 @@ class BestMetricsCallback(TrainerCallback):
 
     The problem is that if you set metric_for_best_model the trainer it only saves the
     top model with that metric, and it then goes back to saving the last n-1 models not
-    considering the metric. This may be useful if we do early stopping, but it is not
+    considering any metric. This may be useful if we do early stopping, but it is not
     helpful in my case, so I patched into the trainer with a callback and save models
     using only the given metric.
     """
@@ -68,6 +68,7 @@ class BestMetricsCallback(TrainerCallback):
 
 def main(args):
     global TRAIN_XFORMS, VALID_XFORMS
+    log.started(args=args)
 
     transformers.set_seed(args.seed)
 
@@ -154,6 +155,8 @@ def main(args):
     trainer.add_callback(callback)
 
     trainer.train()
+
+    log.finished()
 
 
 def train_transforms(examples):

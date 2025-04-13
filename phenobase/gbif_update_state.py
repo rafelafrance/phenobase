@@ -12,11 +12,8 @@ from pylib import log
 UPDATE = """update multimedia set state = ? where gbifid = ? and tiebreaker = ?;"""
 
 
-def main():
-    log.started()
-
-    args = parse_args()
-    logging.info(args)
+def main(args):
+    log.started(args=args)
 
     counts: dict[str, int] = defaultdict(int)
 
@@ -112,4 +109,5 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    main()
+    ARGS = parse_args()
+    main(ARGS)

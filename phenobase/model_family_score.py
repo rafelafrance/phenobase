@@ -29,7 +29,7 @@ class Family:
 
 
 def main(args):
-    log.started()
+    log.started(args=args)
 
     with args.score_csv.open() as fin:
         reader = csv.DictReader(fin)
