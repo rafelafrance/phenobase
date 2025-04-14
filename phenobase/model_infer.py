@@ -85,9 +85,11 @@ def main(args):
                 scores = softmax(result.logits)
                 score = scores[0, 1]
 
+            if args.use_thresholds and args.thresh_low < score < args.thresh_high:
+                continue
+
             rec = {
                 "gbifid": sheet["id"][0],
-                "score": score,
                 "family": sheet["family"][0],
                 "path": sheet["path"][0],
                 f"{args.trait}_score": score.item(),
@@ -247,6 +249,27 @@ def parse_args():
         "--regression",
         action="store_true",
         help="""Handle regression scoring.""",
+    )
+
+    arg_parser.add_argument(
+        "--use-thresholds",
+        action="store_true",
+        help="""Filter sheets based upon the thresholds.""",
+    )
+
+    arg_parser.add_argument(
+        "--thresh-low",
+        type=float,
+        default=0.05,
+        help="""Low threshold for being in the negative class (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--thresh-high",
+        type=float,
+        default=0.95,
+        help="""high threshold for being in the positive class
+            (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
