@@ -71,7 +71,7 @@ def main(args):
 def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        description=textwrap.dedent("""Get images."""),
+        description=textwrap.dedent("""Get inferred data for auditing results."""),
     )
 
     arg_parser.add_argument(
@@ -80,14 +80,6 @@ def parse_args():
         metavar="PATH",
         required=True,
         help="""A CSV file with images and trait labels.""",
-    )
-
-    arg_parser.add_argument(
-        "--image-dir",
-        type=Path,
-        metavar="PATH",
-        required=True,
-        help="""A path to the directory where the images are.""",
     )
 
     arg_parser.add_argument(
@@ -101,15 +93,14 @@ def parse_args():
         "--thresh-low",
         type=float,
         default=0.05,
-        help="""Low threshold for being in the negative class (default: %(default)s)""",
+        help="""Threshold for being in the negative class (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
         "--thresh-high",
         type=float,
         default=0.95,
-        help="""high threshold for being in the positive class
-            (default: %(default)s)""",
+        help="""Threshold for being in the positive class (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
