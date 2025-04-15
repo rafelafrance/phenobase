@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from phenobase.pylib import util
 
-DST = Path("/home/rafe.lafrance/blue/phenobase/data/images/xfer")
+DST = Path("/home/rafe.lafrance/blue/phenobase/data/audit_infer")
 
 TAKE = {
     "neg_equivocal": 200,
@@ -25,12 +25,7 @@ TAKE = {
 def main(args):
     seed(args.seed)
 
-    groups = {
-        "neg_equivocal": [],
-        "neg_unequivocal": [],
-        "pos_equivocal": [],
-        "pos_unequivocal": [],
-    }
+    groups = {key: [] for key in TAKE}
 
     pred_col = f"{args.trait}_score"
 
@@ -39,6 +34,9 @@ def main(args):
         for row in tqdm(reader, desc="reading"):
             if row.get(pred_col) is None:
                 continue
+            if Path(row["path"]).stem.endswith("_small"):
+                continue
+
             pred = float(row[pred_col])
             if pred <= args.thresh_low:
                 groups["neg_unequivocal"].append(row)
