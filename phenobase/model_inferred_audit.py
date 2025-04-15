@@ -10,9 +10,9 @@ from random import seed, shuffle
 import pandas as pd
 from tqdm import tqdm
 
-from phenobase.pylib import util
+from phenobase.pylib import log, util
 
-DST = Path("/home/rafe.lafrance/blue/phenobase/data/audit_infer")
+DST = Path("/home/rafe.lafrance/blue/phenobase/data/audit_inferred")
 
 TAKE = {
     "neg_equivocal": 200,
@@ -23,6 +23,8 @@ TAKE = {
 
 
 def main(args):
+    log.started(args=args)
+
     seed(args.seed)
 
     groups = {key: [] for key in TAKE}
@@ -64,6 +66,8 @@ def main(args):
             dst = dir_ / src.name
             if not dst.exists():
                 shutil.copy(src, dst)
+
+    log.finished()
 
 
 def parse_args():
