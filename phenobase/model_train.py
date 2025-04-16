@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import textwrap
 from collections.abc import Callable
 from pathlib import Path
@@ -59,8 +60,8 @@ class BestMetricsCallback(TrainerCallback):
         msg = [
             f"(epoch:{b['epoch']:5.1f}, {short}: {b[metric]:6.4f})" for b in self.bests
         ]
-        msg = f"\n\nbest {metric}: " + " ".join(msg) + "\n"
-        print(msg)
+        msg = f"best {metric}: " + " ".join(msg)
+        logging.info(msg)
 
         epoch = state.log_history[-1]["epoch"]
         control.should_save = any(epoch == b["epoch"] for b in self.bests)
@@ -274,12 +275,6 @@ def parse_args():
         default=100,
         metavar="INT",
         help="""How many epochs to train. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--use-weights",
-        action="store_true",
-        help="""Use positive weights when training.""",
     )
 
     arg_parser.add_argument(

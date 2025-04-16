@@ -25,6 +25,10 @@ def main(args):
 
     logging.info(f"Device {device}")
 
+    base_recs = {
+        r["coreid"]: r for r in util.get_records("test", args.dataset_csv, args.trait)
+    }
+
     checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
     for checkpoint in sorted(checkpoints):
         print(checkpoint)
@@ -64,7 +68,8 @@ def main(args):
                 image = sheet["image"].to(device)
                 result = model(image)
 
-                out = deepcopy(sheet)
+                name = sheet["id"][0].removesuffix(".jpg")
+                out = deepcopy(base_recs[name])
                 out |= {"checkpoint": checkpoint}
 
                 if args.regression:

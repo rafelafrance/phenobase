@@ -86,20 +86,14 @@ def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
     with bad_families.open() as f:
         bad = {row["family"].lower() for row in csv.DictReader(f)}
 
-    bad_value = 0
-    bad_family = 0
-    skipped = 0
     for rec in records:
         label = rec.get(trait, "")
 
         rec[f"old_{trait}"] = label
 
-        if not label:
-            skipped += 1
-        elif label not in "01":
-            bad_value += 1
-        elif rec["family"].lower() in bad:
-            bad_family += 1
+        if not label or label not in "01":
+            continue
+        if rec["family"].lower() in bad:
             rec[trait] = "F"
 
 

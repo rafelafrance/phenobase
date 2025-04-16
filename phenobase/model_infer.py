@@ -115,8 +115,7 @@ def main(args):
 def get_inference_records(db, limit, offset):
     with sqlite3.connect(db) as cxn:
         cxn.row_factory = sqlite3.Row
-        sql = """select gbifid, tiebreaker, state, family
-            from multimedia join occurrence using (gbifid)
+        sql = """select * from multimedia join occurrence using (gbifid)
             limit ? offset ?"""
         rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
     return rows
