@@ -55,7 +55,7 @@ def main(args):
 
         shuffle(rows)
         rows = rows[: TAKE[key]]
-        rows = sorted(rows, key=lambda r: r["gbifid"])
+        rows = sorted(rows, key=lambda r: r["gbifID"])
 
         csv_path = DST / f"{key}.csv"
         df = pd.DataFrame(rows)
