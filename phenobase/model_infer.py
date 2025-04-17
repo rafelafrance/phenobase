@@ -88,13 +88,10 @@ def main(args):
             if args.use_thresholds and args.thresh_low < score < args.thresh_high:
                 continue
 
-            rec = {
-                "gbifid": sheet["id"][0],
-                "family": sheet["family"][0],
-                "path": sheet["path"][0],
-                f"{args.trait}_score": score.item(),
-                args.trait: torch.round(score).item(),
-            }
+            rec = records[sheet["id"][0]]
+            rec[args.trait] = torch.round(score).item()
+            rec[f"{args.trait}_score"] = score.item()
+            rec["path"] = sheet["path"][0]
             output.append(rec)
 
             if len(output) >= BATCH:
@@ -112,7 +109,7 @@ def main(args):
     log.finished()
 
 
-def get_inference_records(db, limit, offset):
+def get_inference_records(db, limit, offset) -> list[dict]:
     with sqlite3.connect(db) as cxn:
         cxn.row_factory = sqlite3.Row
         sql = """select * from multimedia join occurrence using (gbifid)
@@ -121,7 +118,7 @@ def get_inference_records(db, limit, offset):
     return rows
 
 
-def filter_bad_images(rows):
+def filter_bad_images(rows) -> list[dict]:
     rows = [
         r
         for r in rows
@@ -130,7 +127,7 @@ def filter_bad_images(rows):
     return rows
 
 
-def filter_bad_families(rows, bad_family_csv):
+def filter_bad_families(rows, bad_family_csv) -> list[dict]:
     bad_families = []
     if bad_family_csv:
         with bad_family_csv.open() as bad:
@@ -140,10 +137,9 @@ def filter_bad_families(rows, bad_family_csv):
     return rows
 
 
-def get_inference_dataset(rows, image_dir, *, debug: bool = False):
+def get_inference_dataset(rows, image_dir, *, debug: bool = False) -> Dataset:
     images = []
     ids = []
-    families = []
     for row in rows:
         parts = row["state"].split()
 
@@ -158,11 +154,10 @@ def get_inference_dataset(rows, image_dir, *, debug: bool = False):
             path = image_dir / parts[0] / (name + ".jpg")
 
         ids.append(row["gbifID"])
-        families.append(row["family"])
         images.append(str(path))
 
     dataset = Dataset.from_dict(
-        {"image": images, "id": ids, "path": images, "family": families}
+        {"image": images, "id": ids, "path": images}
     ).cast_column("image", Image())
 
     return dataset
