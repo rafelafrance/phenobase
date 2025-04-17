@@ -162,7 +162,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(util.PROBLEM_TYPES),
+        choices=util.PROBLEM_TYPES,
         default=util.ProblemType.SINGLE_LABEL,
         help="""What kind of a model are we scoring. (default: %(default)s)""",
     )

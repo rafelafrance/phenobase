@@ -25,7 +25,7 @@ def main(args):
 
     softmax = torch.nn.Softmax(dim=1)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
 
     logging.info(f"Device = {device}")
 
@@ -40,10 +40,7 @@ def main(args):
     logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
 
     records = filter_records(args)
-
-    base_recs = {
-        r["coreid"]: r for r in util.get_records("test", args.dataset_csv, args.trait)
-    }
+    base_recs = {r["gbifID"]: r for r in records}
 
     dataset = get_inference_dataset(records, args.image_dir, debug=args.debug)
 
@@ -249,7 +246,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(util.PROBLEM_TYPES),
+        choices=util.PROBLEM_TYPES,
         default=util.ProblemType.SINGLE_LABEL,
         help="""What kind of a model are we scoring. (default: %(default)s)""",
     )

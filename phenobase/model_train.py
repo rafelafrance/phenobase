@@ -242,7 +242,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--problem-type",
-        choices=list(util.PROBLEM_TYPES),
+        choices=util.PROBLEM_TYPES,
         default=util.ProblemType.SINGLE_LABEL,
         help="""This chooses the appropriate loss function and label format.
             regression = MSELoss for predicting a single value,
