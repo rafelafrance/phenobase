@@ -35,7 +35,7 @@ def main(args):
 
         model = AutoModelForImageClassification.from_pretrained(
             str(checkpoint),
-            num_labels=1 if args.regression else 2,
+            num_labels=1 if args.problem_type == util.ProblemType.REGRESSION else 2,
         )
         model.to(device)
 
@@ -44,7 +44,7 @@ def main(args):
             args.dataset_csv,
             args.image_dir,
             args.trait,
-            regression=args.regression,
+            problem_type=args.problem_type,
         )
 
         test_xforms = v2.Compose(
@@ -72,7 +72,7 @@ def main(args):
                 out = deepcopy(base_recs[name])
                 out |= {"checkpoint": checkpoint}
 
-                if args.regression:
+                if args.problem_type == util.ProblemType.REGRESSION:
                     true = sheet["label"].item()
                     pred = torch.sigmoid(result.logits)
                     pred = pred.detach().cpu().tolist()[0]
@@ -161,9 +161,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--regression",
-        action="store_true",
-        help="""Handle regression scoring.""",
+        "--problem-type",
+        choices=list(util.PROBLEM_TYPES),
+        default=util.ProblemType.SINGLE_LABEL,
+        help="""What kind of a model are we scoring. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()

@@ -39,16 +39,13 @@ def main(args):
 
     logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
 
-    records = get_inference_records(args.db, args.limit, args.offset)
-    total = len(records)
-    records = filter_bad_images(records)
-    good = len(records)
-    records = filter_bad_families(records, args.bad_families)
-    families = len(records)
+    records = filter_records(args)
+
+    base_recs = {
+        r["coreid"]: r for r in util.get_records("test", args.dataset_csv, args.trait)
+    }
 
     dataset = get_inference_dataset(records, args.image_dir, debug=args.debug)
-
-    logging.info(f"Total records {total}, good images {good}, good families {families}")
 
     if args.debug:
         logging.info(f"Found {len(dataset)} files for debugging.")
@@ -77,7 +74,7 @@ def main(args):
             image = sheet["image"].to(device)
             result = model(image)
 
-            if args.regression:
+            if args.problem_type == util.ProblemType.REGRESSION:
                 score = torch.sigmoid(torch.tensor(result.logits))
             else:
                 # I'm filtering on the score.
@@ -88,7 +85,7 @@ def main(args):
             if args.use_thresholds and args.thresh_low < score < args.thresh_high:
                 continue
 
-            rec = records[sheet["id"][0]]
+            rec = base_recs[sheet["id"][0]]
             rec[args.trait] = torch.round(score).item()
             rec[f"{args.trait}_score"] = score.item()
             rec["path"] = sheet["path"][0]
@@ -107,6 +104,17 @@ def main(args):
     logging.info(f"Remaining {len(output)}")
 
     log.finished()
+
+
+def filter_records(args):
+    records = get_inference_records(args.db, args.limit, args.offset)
+    total = len(records)
+    records = filter_bad_images(records)
+    good = len(records)
+    records = filter_bad_families(records, args.bad_families)
+    families = len(records)
+    logging.info(f"Total records {total}, good images {good}, good families {families}")
+    return records
 
 
 def get_inference_records(db, limit, offset) -> list[dict]:
@@ -240,9 +248,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--regression",
-        action="store_true",
-        help="""Handle regression scoring.""",
+        "--problem-type",
+        choices=list(util.PROBLEM_TYPES),
+        default=util.ProblemType.SINGLE_LABEL,
+        help="""What kind of a model are we scoring. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(
