@@ -7,7 +7,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 import evaluate
-import numpy as np
 import torch
 import transformers
 from pylib import log, util
@@ -75,7 +74,8 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         args.finetune,
-        num_labels=1 if args.regression else 2,
+        num_labels=1 if args.problem_type == util.ProblemType.REGRESSION else 2,
+        problem_type=args.problem_type,
         ignore_mismatched_sizes=True,
     )
 
@@ -85,7 +85,7 @@ def main(args):
         args.image_dir,
         args.trait,
         limit=args.limit,
-        regression=args.regression,
+        problem_type=args.problem_type,
     )
     valid_dataset = util.get_dataset(
         "val",
@@ -93,7 +93,7 @@ def main(args):
         args.image_dir,
         args.trait,
         limit=args.limit,
-        regression=args.regression,
+        problem_type=args.problem_type,
     )
 
     TRAIN_XFORMS = v2.Compose(
@@ -139,10 +139,10 @@ def main(args):
         push_to_hub=False,
     )
 
-    if args.regression:
+    if args.problem_type == util.ProblemType.REGRESSION:
         compute_metrics = compute_metrics_regression
     else:
-        compute_metrics = compute_metrics_single_label
+        compute_metrics = compute_metrics_labeled
 
     trainer = Trainer(
         args=training_args,
@@ -172,9 +172,11 @@ def valid_transforms(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-def compute_metrics_single_label(eval_pred):
+def compute_metrics_labeled(eval_pred):
     logits, trues = eval_pred
-    preds = np.argmax(logits, axis=-1)
+    preds = torch.sigmoid(torch.tensor(logits))
+    preds = torch.round(preds).flatten()
+    trues = torch.tensor(trues).flatten()
     return METRICS.compute(predictions=preds, references=trues)
 
 
@@ -239,9 +241,14 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--regression",
-        action="store_true",
-        help="""Use MSE as the loss function.""",
+        "--problem-type",
+        choices=list(util.PROBLEM_TYPES),
+        default=util.ProblemType.SINGLE_LABEL,
+        help="""This chooses the appropriate loss function and label format.
+            regression = MSELoss for predicting a single value,
+            single_label = CrossEntropyLoss for prediction a label with several options,
+            and multi_label = BCEWithLogitsLoss for when multiple labels can be true at
+            the same time. (default: %(default)s)""",
     )
 
     arg_parser.add_argument(

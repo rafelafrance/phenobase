@@ -15,9 +15,9 @@ from phenobase.pylib import log, util
 DST = Path("/home/rafe.lafrance/blue/phenobase/data/audit_inferred")
 
 TAKE = {
-    "neg_equivocal": 200,
-    "neg_unequivocal": 200,
-    "pos_equivocal": 200,
+    # "neg_equivocal": 200,
+    # "neg_unequivocal": 200,
+    # "pos_equivocal": 200,
     "pos_unequivocal": 500,
 }
 
@@ -40,14 +40,14 @@ def main(args):
                 continue
 
             pred = float(row[pred_col])
-            if pred <= args.thresh_low:
-                groups["neg_unequivocal"].append(row)
-            elif pred < 0.5:
-                groups["neg_equivocal"].append(row)
-            elif pred >= args.thresh_high:
+            # if pred <= args.thresh_low:
+            #     groups["neg_unequivocal"].append(row)
+            # elif pred < 0.5:
+            #     groups["neg_equivocal"].append(row)
+            if pred >= args.thresh_high:
                 groups["pos_unequivocal"].append(row)
-            else:
-                groups["pos_equivocal"].append(row)
+            # else:
+            #     groups["pos_equivocal"].append(row)
 
     for key, rows in groups.items():
         dir_ = DST / key
