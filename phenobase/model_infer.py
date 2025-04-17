@@ -31,7 +31,7 @@ def main(args):
 
     model = AutoModelForImageClassification.from_pretrained(
         str(args.checkpoint),
-        num_labels=1 if args.regression else 2,
+        num_labels=1 if args.problem_type == util.ProblemType.REGRESSION else 2,
     )
 
     model.to(device)
