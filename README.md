@@ -6,22 +6,9 @@ There is a lot of effort to digitize and annotate photographs of plant images an
 
 The basic steps are:
 
-1. Obtain a database of plant images with corresponding annotations.
-   1. I'm using data from the [iDigBio](https://www.idigbio.org/) project to get the URL of images to download.
-      1. Clean the database to only contain records with a single Angiosperm herbarium sheet, that also contain phenology annotations.
-   2. We can either use the records from above that are pre-identified or have experts annotate the images. The later is preferable.
+1. Have experts annotate traits on images of herbarium sheets.
 2. Train a neural network(s) to recognize the traits. We are using the [pytorch](https://pytorch.org/) library to build the neural networks. I am also, using models and scripts from [HuggingFace](https://huggingface.co/docs/transformers/model_doc/vit_mae).
-   1. Because it can be difficult to get a significant amount of quality annotations I'm using masked [autoencoders](https://arxiv.org/abs/2111.06377v2) for a pretraining step.
-   2. Use the encoding part of the masked autoencoder as a backbone for the actual phenology trait classifier.
 3. Use the trained neural networks to annotate images _en masse_.
-
-## Stay tuned
-
-Coming soon!
-
-- More thrills
-- More spills
-- More explanations of what I'm actually doing here.
 
 ## Setup
 

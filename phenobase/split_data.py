@@ -6,105 +6,237 @@ import logging
 import random
 import sqlite3
 import textwrap
-import warnings
 from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
-from PIL import Image
 from pylib import log, util
-from tqdm import tqdm
 
-TOO_DAMN_SMALL = 10_000
-
-ERRORS = (
-    AttributeError,
-    BufferError,
-    ConnectionError,
-    EOFError,
-    FileNotFoundError,
-    IOError,
-    Image.DecompressionBombError,
-    Image.UnidentifiedImageError,
-    IndexError,
-    OSError,
-    RuntimeError,
-    SyntaxError,
-    TimeoutError,
-    TypeError,
-    ValueError,
-)
+FILTER_COUNT = 5
+FILTER_RATE = 0.25
 
 
 def main(args):
-    log.started(args.log_file, args=args)
-
+    log.started(args=args)
     random.seed(args.seed)
 
-    records = get_expert_data(args.ant_csv)
-    append_metadata(args.metadata_db, records)
+    gbif_recs = get_expert_gbif_data(args.ant_gbif)
+    idigbio_recs = get_expert_idigbio_data(args.ant_idigbio)
 
-    for file_name, row in records.items():
-        row["name"] = file_name
+    append_gbif_metadata(gbif_recs, args.gbif_db)
+    append_idigbio_metadata(idigbio_recs, args.idigbio_db)
 
-    records = list(records.values())
+    records = gbif_recs + idigbio_recs
+    msg = f"Total records before filtering = {len(records)}"
+    logging.info(msg)
 
-    filter_trait("flowers", records, args.bad_flower_families)
-    filter_trait("fruits", records, args.bad_fruit_families)
+    format_taxa(records)
 
-    split_data(records, args.seed, args.train_split, args.val_split)
-    write_csv(args.split_dir / "all_traits.csv", records)
-    process_images(records, args.image_dir, args.split_dir, args.max_width)
+    filter_records(records, "flowers")
+    # filter_records(records, "fruits")
+
+    # split_data(records, args.train_split, args.val_split)
+    # missing_images(records)
+    # write_csv(args.split_csv, records)
 
     log.finished()
 
 
-def get_expert_data(ant_csvs: list[Path]) -> dict[str, dict]:
-    records = defaultdict(dict)
-    for csv_file in ant_csvs:
-        with csv_file.open() as inf:
-            reader = csv.DictReader(inf)
+def get_expert_gbif_data(ant_gbif: Path) -> list[dict]:
+    recs: dict[str, dict] = defaultdict(
+        lambda: {
+            "file": f,
+            "db": "gbif",
+            "split": "",
+            "formatted_genus": "",
+            "formatted_family": "",
+        }
+        | dict.fromkeys(util.TRAITS, "")
+    )
+
+    for path in ant_gbif.glob("*.csv"):
+        with path.open() as ant:
+            reader = csv.DictReader(ant)
             for row in reader:
+                f = row["file"]
+                if f.find("_small") > -1:
+                    continue
                 for trait in util.TRAITS:
                     if label := row.get(trait):
-                        records[row["file"]][trait] = label
+                        recs[f][trait] = label
+
+    return list(recs.values())
+
+
+def get_expert_idigbio_data(ant_idigbio: Path) -> list[dict]:
+    recs: dict[str, dict] = defaultdict(
+        lambda: {
+            "file": f,
+            "db": "idigbio",
+            "split": "",
+            "formatted_genus": "",
+            "formatted_family": "",
+        }
+        | dict.fromkeys(util.TRAITS, "")
+    )
+
+    for path in ant_idigbio.glob("*.csv"):
+        with path.open() as ant:
+            reader = csv.DictReader(ant)
+            for row in reader:
+                f = row["file"]
+                for trait in util.TRAITS:
+                    if label := row.get(trait):
+                        recs[f][trait] = label
+
+    return list(recs.values())
+
+
+def append_gbif_metadata(records, gbif_db) -> None:
+    sql = """
+        select * from multimedia join occurrence using (gbifid)
+        where gbifid = ? and tiebreaker = ?
+        """
+    with sqlite3.connect(gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        for rec in records:
+            name = rec["file"].split(".")[0]
+            gbifid, tiebreaker, *_ = name.split("_")
+            data = dict(cxn.execute(sql, (gbifid, tiebreaker)).fetchone())
+            data = {k.lower(): v for k, v in data.items()}
+            rec |= data
+
+
+def append_idigbio_metadata(records, idigbio_db) -> None:
+    sql = "select * from angiosperms where coreid = ?"
+    with sqlite3.connect(idigbio_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        for rec in records:
+            coreid = rec["file"].split(".")[0]
+            data = dict(cxn.execute(sql, (coreid,)).fetchone())
+            data = {k.lower(): v for k, v in data.items() if k != "filter_set"}
+            rec |= data
+
+
+def format_taxa(records):
+    for rec in records:
+        rec["formatted_family"] = rec["family"].lower()
+
+        genus = rec["genus"] if rec["genus"] else rec["scientificname"].split()[0]
+        genus = genus.lower()
+        rec["formatted_genus"] = genus
+
+
+def filter_records(records, trait):
+    by_genus = group_by_genus(records, trait)
+    genus_keep, genus_remove, genus_out = filter_by_genus(by_genus)
+
+    by_family = group_by_family(genus_keep)
+    family_keep, family_remove, family_out = filter_by_family(by_family)
+
+    out = sorted(genus_out) + sorted(family_out)
+    for ln in out:
+        print(ln)
+
+    total = sum(len(g) for g in by_genus.values())
+
+    genus_kept = sum(len(k) for k in genus_keep.values())
+    genus_removed = sum(len(r) for r in genus_remove.values())
+
+    family_kept = sum(len(k) for k in family_keep.values())
+    family_removed = sum(len(r) for r in family_remove.values())
+    total_removed = genus_removed + family_removed
+    percent_removed = total_removed / total * 100.0
+
+    print(f"total count {total}")
+    print(f"genus kept {genus_kept}")
+    print(f"genus removed {genus_removed}")
+    print(f"family kept {family_kept}")
+    print(f"family removed {family_removed}")
+    print(f"total removed {total_removed}")
+    print(f"percent removed {percent_removed:5.1f} %")
+
     return records
 
 
-def append_metadata(metadata_db: Path, records: dict[str, dict]) -> None:
-    sql = """select * from angiosperms where coreid = ?"""
-    with sqlite3.connect(metadata_db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        for file_name, rec in records.items():
-            coreid = file_name.split(".")[0]
-            data = cxn.execute(sql, (coreid,)).fetchone()
-            rec |= dict(data)
-            del rec["filter_set"]
-
-
-def filter_trait(trait: str, records: list[dict], bad_families: Path) -> None:
-    with bad_families.open() as f:
-        bad = {row["family"].lower() for row in csv.DictReader(f)}
-
+def group_by_genus(records, trait):
+    by_genus = defaultdict(list)
     for rec in records:
-        label = rec.get(trait, "")
-
-        rec[f"old_{trait}"] = label
-
-        if not label or label not in "01":
+        label = rec[trait].lower()
+        if not label or label not in "u01":
             continue
-        if rec["family"].lower() in bad:
-            rec[trait] = "F"
+        by_genus[(rec["formatted_family"], rec["formatted_genus"])].append(label)
+
+    by_genus = dict(sorted(by_genus.items()))
+    return by_genus
 
 
-def split_data(
-    records: list[dict],
-    seed: int,
-    train_split: float,
-    val_split: float,
-) -> None:
-    random.seed(seed)
+def group_by_family(genus_keep):
+    by_family = defaultdict(list)
+    for (family, _), labels in genus_keep.items():
+        by_family[family] += labels
+    return by_family
 
+
+def filter_by_genus(by_genus):
+    genus_keep = {}
+    genus_remove = {}
+    genus_out = []
+
+    for (family, genus), labels in by_genus.items():
+        unknown = sum(1 for lb in labels if lb == "u")
+        fract = unknown / len(labels)
+        percent = fract * 100.0
+
+        if len(labels) <= FILTER_COUNT:
+            genus_out.append(
+                f"keep genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
+            )
+            genus_keep[(family, genus)] = labels
+        elif fract < FILTER_RATE:
+            genus_out.append(
+                f"keep genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
+            )
+            genus_keep[(family, genus)] = labels
+        else:
+            genus_out.append(
+                f"remove genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
+            )
+            genus_remove[(family, genus)] = labels
+
+    return genus_keep, genus_remove, genus_out
+
+
+def filter_by_family(by_family):
+    family_keep = {}
+    family_remove = {}
+    family_out = []
+
+    for family, labels in by_family.items():
+        unknown = sum(1 for lb in labels if lb == "u")
+        fract = unknown / len(labels)
+        percent = fract * 100.0
+
+        if len(labels) <= FILTER_COUNT:
+            family_out.append(f"keep family {family} {percent:5.1f} {' '.join(labels)}")
+            family_keep[family] = labels
+        elif fract < FILTER_RATE:
+            family_out.append(f"keep family {family} {percent:5.1f} {' '.join(labels)}")
+            family_keep[family] = labels
+        else:
+            family_out.append(
+                f"remove family {family} {percent:5.1f} {' '.join(labels)}"
+            )
+            family_remove[family] = labels
+
+    return family_keep, family_remove, family_out
+
+
+def missing_images(records):
+    _ = records
+
+
+def split_data(records: list[dict], train_split: float, val_split: float) -> None:
     random.shuffle(records)
 
     total = len(records)
@@ -123,40 +255,6 @@ def split_data(
 def write_csv(split_csv: Path, records: list[dict]) -> None:
     df = pd.DataFrame(records)
     df.to_csv(split_csv, index=False)
-
-
-def process_images(
-    records: list[dict], image_dir: Path, split_dir: Path, max_width: int
-) -> None:
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=UserWarning)  # No EXIF warnings
-
-        try:
-            for rec in tqdm(records):
-                src = image_dir / rec["name"]
-                dst = split_dir / "images" / rec["name"]
-
-                if not dst.exists():
-                    with Image.open(src) as image:
-                        width, height = image.size
-
-                        if width * height < TOO_DAMN_SMALL:
-                            raise ValueError
-
-                        if max_width < width < height:
-                            height = int(height * (max_width / width))
-                            width = max_width
-
-                        elif max_width < height:
-                            width = int(width * (max_width / height))
-                            height = max_width
-
-                        image = image.resize((width, height))
-
-                        image.save(dst)
-
-        except ERRORS:
-            logging.exception("Could not process image")
 
 
 def validate_splits(args: argparse.Namespace) -> None:
@@ -180,35 +278,35 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--ant-csv",
+        "--ant-gbif",
+        type=Path,
+        metavar="PATH",
+        help="""This directory contains all of the expert classifications from the
+            GBIF database.""",
+    )
+
+    arg_parser.add_argument(
+        "--ant-idigbio",
+        type=Path,
+        metavar="PATH",
+        help="""This directory contains all of the expert classifications from the
+            iDigBio database.""",
+    )
+
+    arg_parser.add_argument(
+        "--gbif-db",
         metavar="PATH",
         type=Path,
         required=True,
-        action="append",
-        help="""These input CSV files hold expert classifications of the traits.
-            Use this argument once for every ant CSV file.""",
+        help="""Get metadata for classifications from the GBIF DB.""",
     )
 
     arg_parser.add_argument(
-        "--bad-flower-families",
-        metavar="PATH",
-        type=Path,
-        help="""Make sure flowers in these families are skipped.""",
-    )
-
-    arg_parser.add_argument(
-        "--bad-fruit-families",
-        metavar="PATH",
-        type=Path,
-        help="""Make sure fruits in these families are skipped.""",
-    )
-
-    arg_parser.add_argument(
-        "--metadata-db",
+        "--idigbio-db",
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Get metadata for the classifications from this DB.""",
+        help="""Get metadata for classifications from the iDigBio DB.""",
     )
 
     arg_parser.add_argument(
@@ -220,11 +318,19 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--split-dir",
+        "--filter-dir",
         metavar="PATH",
         type=Path,
         required=True,
-        help="""Output the split CSV files into this directory.""",
+        help="""Put lists of genera and families to filter in this directory.""",
+    )
+
+    arg_parser.add_argument(
+        "--split-csv",
+        metavar="PATH",
+        type=Path,
+        required=True,
+        help="""Output the split data to thisCSV file.""",
     )
 
     arg_parser.add_argument(
@@ -260,21 +366,6 @@ def parse_args() -> argparse.Namespace:
         metavar="INT",
         default=2114987,
         help="""Seed used for random number generator. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--max-width",
-        type=int,
-        default=1024,
-        metavar="PIXELS",
-        help="""Resize the image to this width, short edge. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--log-file",
-        metavar="PATH",
-        type=Path,
-        help="""Log messages to this file.""",
     )
 
     args = arg_parser.parse_args()
