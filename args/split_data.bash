@@ -7,4 +7,4 @@
     --idigbio-db data/angiosperms.sqlite \
     --image-dir datasets/images \
     --filter-dir datasets/filter \
-    --split-csv datasets/splits_2025-04-21.csv
+    --split-csv datasets/splits_2025-04-22.csv

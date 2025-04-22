@@ -32,12 +32,12 @@ def main(args):
 
     format_taxa(records)
 
-    filter_records(records, "flowers")
-    # filter_records(records, "fruits")
+    records, flowers_out = filter_records(records, "flowers")
+    records, fruits_out = filter_records(records, "fruits")
 
-    # split_data(records, args.train_split, args.val_split)
-    # missing_images(records)
-    # write_csv(args.split_csv, records)
+    split_data(records, args.train_split, args.val_split)
+    missing_images(records)
+    write_csvs(args.split_csv, records, flowers_out, fruits_out)
 
     log.finished()
 
@@ -129,14 +129,13 @@ def format_taxa(records):
 
 def filter_records(records, trait):
     by_genus = group_by_genus(records, trait)
+
     genus_keep, genus_remove, genus_out = filter_by_genus(by_genus)
+    genus_out = sorted(genus_out, key=lambda g: (g["action"], g["family"], g["genus"]))
 
     by_family = group_by_family(genus_keep)
     family_keep, family_remove, family_out = filter_by_family(by_family)
-
-    out = sorted(genus_out) + sorted(family_out)
-    for ln in out:
-        print(ln)
+    family_out = sorted(family_out, key=lambda f: (f["action"], f["family"]))
 
     total = sum(len(g) for g in by_genus.values())
 
@@ -145,18 +144,26 @@ def filter_records(records, trait):
 
     family_kept = sum(len(k) for k in family_keep.values())
     family_removed = sum(len(r) for r in family_remove.values())
+
     total_removed = genus_removed + family_removed
-    percent_removed = total_removed / total * 100.0
+    percent_removed = round(total_removed / total * 100.0, 1)
 
-    print(f"total count {total}")
-    print(f"genus kept {genus_kept}")
-    print(f"genus removed {genus_removed}")
-    print(f"family kept {family_kept}")
-    print(f"family removed {family_removed}")
-    print(f"total removed {total_removed}")
-    print(f"percent removed {percent_removed:5.1f} %")
+    unknowns = sum(f["unknown"] for f in family_out)
 
-    return records
+    out = [
+        {"action": "total", "family": "grand total", "total": total},
+        {"action": "total", "family": "genus kept", "total": genus_kept},
+        {"action": "total", "family": "genus removed", "total": genus_removed},
+        {"action": "total", "family": "family kept", "total": family_kept},
+        {"action": "total", "family": "family removed", "total": family_removed},
+        {"action": "total", "family": "total removed", "total": total_removed},
+        {"action": "total", "family": "percent removed", "total": percent_removed},
+        {"action": "total", "family": "unknowns remaining", "total": unknowns},
+    ]
+    out += genus_out
+    out += family_out
+
+    return records, out
 
 
 def group_by_genus(records, trait):
@@ -184,25 +191,32 @@ def filter_by_genus(by_genus):
     genus_out = []
 
     for (family, genus), labels in by_genus.items():
+        if len(labels) == 0:
+            continue
         unknown = sum(1 for lb in labels if lb == "u")
         fract = unknown / len(labels)
-        percent = fract * 100.0
+        out = {
+            "action": "",
+            "family": family,
+            "genus": genus,
+            "count": len(labels),
+            "unknown": unknown,
+            "percent": round(fract * 100.0, 1),
+            "labels": sorted(labels),
+        }
 
         if len(labels) <= FILTER_COUNT:
-            genus_out.append(
-                f"keep genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
-            )
             genus_keep[(family, genus)] = labels
+            out["action"] = "keep"
+            genus_out.append(out)
         elif fract < FILTER_RATE:
-            genus_out.append(
-                f"keep genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
-            )
             genus_keep[(family, genus)] = labels
+            out["action"] = "keep"
+            genus_out.append(out)
         else:
-            genus_out.append(
-                f"remove genus {family} {genus} {percent:5.1f} {' '.join(labels)}"
-            )
             genus_remove[(family, genus)] = labels
+            out["action"] = "remove"
+            genus_out.append(out)
 
     return genus_keep, genus_remove, genus_out
 
@@ -213,21 +227,32 @@ def filter_by_family(by_family):
     family_out = []
 
     for family, labels in by_family.items():
+        if len(labels) == 0:
+            continue
         unknown = sum(1 for lb in labels if lb == "u")
         fract = unknown / len(labels)
-        percent = fract * 100.0
+        out = {
+            "action": "",
+            "family": family,
+            "genus": "all",
+            "count": len(labels),
+            "unknown": unknown,
+            "percent": round(fract * 100.0, 1),
+            "labels": sorted(labels),
+        }
 
         if len(labels) <= FILTER_COUNT:
-            family_out.append(f"keep family {family} {percent:5.1f} {' '.join(labels)}")
             family_keep[family] = labels
+            out["action"] = "keep"
+            family_out.append(out)
         elif fract < FILTER_RATE:
-            family_out.append(f"keep family {family} {percent:5.1f} {' '.join(labels)}")
             family_keep[family] = labels
+            out["action"] = "keep"
+            family_out.append(out)
         else:
-            family_out.append(
-                f"remove family {family} {percent:5.1f} {' '.join(labels)}"
-            )
             family_remove[family] = labels
+            out["action"] = "remove"
+            family_out.append(out)
 
     return family_keep, family_remove, family_out
 
@@ -252,9 +277,22 @@ def split_data(records: list[dict], train_split: float, val_split: float) -> Non
             rec["split"] = "test"
 
 
-def write_csv(split_csv: Path, records: list[dict]) -> None:
+def write_csvs(
+    split_csv: Path,
+    records: list[dict],
+    flowers_out: list[dict],
+    fruits_out: list[dict],
+) -> None:
     df = pd.DataFrame(records)
     df.to_csv(split_csv, index=False)
+
+    path = split_csv.with_stem(f"{split_csv.stem}_flowers_summary")
+    df = pd.DataFrame(flowers_out)
+    df.to_csv(path, index=False)
+
+    path = split_csv.with_stem(f"{split_csv.stem}_fruits_summary")
+    df = pd.DataFrame(fruits_out)
+    df.to_csv(path, index=False)
 
 
 def validate_splits(args: argparse.Namespace) -> None:
