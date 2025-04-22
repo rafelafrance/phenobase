@@ -2,11 +2,11 @@
 
 import argparse
 import csv
-import logging
 import random
 import sqlite3
 import textwrap
 from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +14,24 @@ from pylib import log, util
 
 FILTER_COUNT = 5
 FILTER_RATE = 0.25
+
+
+@dataclass
+class Taxon:
+    family: str = ""
+    genus: str = ""
+    labels: list[str] = field(default_factory=list)
+
+    @property
+    def keep(self):
+        count = len(self.labels)
+        unknown = sum(1 for lb in self.labels if lb == "u")
+        fract = unknown / count
+        return count <= FILTER_COUNT or fract < FILTER_RATE
+
+    @property
+    def remove(self):
+        return not self.keep
 
 
 def main(args):
@@ -27,17 +45,14 @@ def main(args):
     append_idigbio_metadata(idigbio_recs, args.idigbio_db)
 
     records = gbif_recs + idigbio_recs
-    msg = f"Total records before filtering = {len(records)}"
-    logging.info(msg)
 
     format_taxa(records)
 
-    records, flowers_out = filter_records(records, "flowers")
-    records, fruits_out = filter_records(records, "fruits")
+    filter_records(records, "flowers")
+    filter_records(records, "fruits")
 
     split_data(records, args.train_split, args.val_split)
-    missing_images(records)
-    write_csvs(args.split_csv, records, flowers_out, fruits_out)
+    write_csvs(args.split_csv, records)
 
     log.finished()
 
@@ -129,136 +144,42 @@ def format_taxa(records):
 
 def filter_records(records, trait):
     by_genus = group_by_genus(records, trait)
+    by_family = group_by_family(by_genus)
 
-    genus_keep, genus_remove, genus_out = filter_by_genus(by_genus)
-    genus_out = sorted(genus_out, key=lambda g: (g["action"], g["family"], g["genus"]))
+    to_remove = {(g.family, g.genus) for g in by_genus if g.remove}
+    to_remove |= {(f.family, "") for f in by_family if f.remove}
 
-    by_family = group_by_family(genus_keep)
-    family_keep, family_remove, family_out = filter_by_family(by_family)
-    family_out = sorted(family_out, key=lambda f: (f["action"], f["family"]))
-
-    total = sum(len(g) for g in by_genus.values())
-
-    genus_kept = sum(len(k) for k in genus_keep.values())
-    genus_removed = sum(len(r) for r in genus_remove.values())
-
-    family_kept = sum(len(k) for k in family_keep.values())
-    family_removed = sum(len(r) for r in family_remove.values())
-
-    total_removed = genus_removed + family_removed
-    percent_removed = round(total_removed / total * 100.0, 1)
-
-    unknowns = sum(f["unknown"] for f in family_out)
-
-    out = [
-        {"action": "total", "family": "grand total", "total": total},
-        {"action": "total", "family": "genus kept", "total": genus_kept},
-        {"action": "total", "family": "genus removed", "total": genus_removed},
-        {"action": "total", "family": "family kept", "total": family_kept},
-        {"action": "total", "family": "family removed", "total": family_removed},
-        {"action": "total", "family": "total removed", "total": total_removed},
-        {"action": "total", "family": "percent removed", "total": percent_removed},
-        {"action": "total", "family": "unknowns remaining", "total": unknowns},
-    ]
-    out += genus_out
-    out += family_out
-
-    return records, out
+    for rec in records:
+        family = rec["formatted_family"]
+        genus = rec["formatted_genus"]
+        if (family, genus) in to_remove or (family, "") in to_remove:
+            rec[trait] = f"x{rec[trait]}"
 
 
 def group_by_genus(records, trait):
-    by_genus = defaultdict(list)
+    by_genus = {}
     for rec in records:
         label = rec[trait].lower()
-        if not label or label not in "u01":
+        if not label or label not in "01u":
             continue
-        by_genus[(rec["formatted_family"], rec["formatted_genus"])].append(label)
+        family = rec["formatted_family"]
+        genus = rec["formatted_genus"]
+        key = (family, genus)
+        if key not in by_genus:
+            by_genus[key] = Taxon(family=family, genus=genus)
+        by_genus[key].labels.append(label)
 
-    by_genus = dict(sorted(by_genus.items()))
-    return by_genus
-
-
-def group_by_family(genus_keep):
-    by_family = defaultdict(list)
-    for (family, _), labels in genus_keep.items():
-        by_family[family] += labels
-    return by_family
+    return list(by_genus.values())
 
 
-def filter_by_genus(by_genus):
-    genus_keep = {}
-    genus_remove = {}
-    genus_out = []
-
-    for (family, genus), labels in by_genus.items():
-        if len(labels) == 0:
-            continue
-        unknown = sum(1 for lb in labels if lb == "u")
-        fract = unknown / len(labels)
-        out = {
-            "action": "",
-            "family": family,
-            "genus": genus,
-            "count": len(labels),
-            "unknown": unknown,
-            "percent": round(fract * 100.0, 1),
-            "labels": sorted(labels),
-        }
-
-        if len(labels) <= FILTER_COUNT:
-            genus_keep[(family, genus)] = labels
-            out["action"] = "keep"
-            genus_out.append(out)
-        elif fract < FILTER_RATE:
-            genus_keep[(family, genus)] = labels
-            out["action"] = "keep"
-            genus_out.append(out)
-        else:
-            genus_remove[(family, genus)] = labels
-            out["action"] = "remove"
-            genus_out.append(out)
-
-    return genus_keep, genus_remove, genus_out
-
-
-def filter_by_family(by_family):
-    family_keep = {}
-    family_remove = {}
-    family_out = []
-
-    for family, labels in by_family.items():
-        if len(labels) == 0:
-            continue
-        unknown = sum(1 for lb in labels if lb == "u")
-        fract = unknown / len(labels)
-        out = {
-            "action": "",
-            "family": family,
-            "genus": "all",
-            "count": len(labels),
-            "unknown": unknown,
-            "percent": round(fract * 100.0, 1),
-            "labels": sorted(labels),
-        }
-
-        if len(labels) <= FILTER_COUNT:
-            family_keep[family] = labels
-            out["action"] = "keep"
-            family_out.append(out)
-        elif fract < FILTER_RATE:
-            family_keep[family] = labels
-            out["action"] = "keep"
-            family_out.append(out)
-        else:
-            family_remove[family] = labels
-            out["action"] = "remove"
-            family_out.append(out)
-
-    return family_keep, family_remove, family_out
-
-
-def missing_images(records):
-    _ = records
+def group_by_family(by_genus):
+    by_family = {}
+    for taxon in by_genus:
+        if taxon.keep:
+            if taxon.family not in by_family:
+                by_family[taxon.family] = Taxon(taxon.family)
+            by_family[taxon.family].labels += taxon.labels
+    return list(by_family.values())
 
 
 def split_data(records: list[dict], train_split: float, val_split: float) -> None:
@@ -277,22 +198,9 @@ def split_data(records: list[dict], train_split: float, val_split: float) -> Non
             rec["split"] = "test"
 
 
-def write_csvs(
-    split_csv: Path,
-    records: list[dict],
-    flowers_out: list[dict],
-    fruits_out: list[dict],
-) -> None:
+def write_csvs(split_csv: Path, records: list[dict]) -> None:
     df = pd.DataFrame(records)
     df.to_csv(split_csv, index=False)
-
-    path = split_csv.with_stem(f"{split_csv.stem}_flowers_summary")
-    df = pd.DataFrame(flowers_out)
-    df.to_csv(path, index=False)
-
-    path = split_csv.with_stem(f"{split_csv.stem}_fruits_summary")
-    df = pd.DataFrame(fruits_out)
-    df.to_csv(path, index=False)
 
 
 def validate_splits(args: argparse.Namespace) -> None:
@@ -351,7 +259,6 @@ def parse_args() -> argparse.Namespace:
         "--image-dir",
         metavar="PATH",
         type=Path,
-        required=True,
         help="""Get herbarium sheet images from this directory.""",
     )
 

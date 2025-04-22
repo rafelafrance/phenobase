@@ -66,7 +66,9 @@ def get_records(split: str, dataset_csv: Path, trait: str, *, limit=0) -> list[d
         recs = list(reader)
 
     recs = [
-        r for r in recs if r["split"] == split and r.get(trait) and r[trait] in "01"
+        r
+        for r in recs
+        if r["split"] == split and r.get(trait) and r[trait] in ("0", "1")
     ]
     recs = recs[:limit] if limit else recs
     return recs
