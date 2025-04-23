@@ -43,7 +43,7 @@ def get_dataset(
 ) -> Dataset:
     recs = get_records(split, dataset_csv, trait, limit=limit)
 
-    images = [str(image_dir / r["name"]) for r in recs]
+    images = [str(image_dir / r["file"]) for r in recs]
     if problem_type == ProblemType.REGRESSION:
         labels = [float(r[trait]) for r in recs]
     elif problem_type == ProblemType.MULTI_LABEL:
@@ -51,7 +51,7 @@ def get_dataset(
     else:
         labels = [int(r[trait]) for r in recs]
 
-    ids = [r["name"] for r in recs]
+    ids = [r["file"].split(".")[0] for r in recs]
 
     dataset = Dataset.from_dict(
         {"image": images, "label": labels, "id": ids}, split=NamedSplit(split)

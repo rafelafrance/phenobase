@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import evaluate
+import numpy as np
 import torch
 import transformers
 from pylib import log, util
@@ -141,8 +142,10 @@ def main(args):
 
     if args.problem_type == util.ProblemType.REGRESSION:
         compute_metrics = compute_metrics_regression
+    elif args.problem_type == util.ProblemType.MULTI_LABEL:
+        compute_metrics = compute_metrics_multi_label
     else:
-        compute_metrics = compute_metrics_labeled
+        compute_metrics = compute_metrics_single_label
 
     trainer = Trainer(
         args=training_args,
@@ -172,7 +175,7 @@ def valid_transforms(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-def compute_metrics_labeled(eval_pred):
+def compute_metrics_multi_label(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
     preds = torch.round(preds).flatten()
@@ -180,11 +183,16 @@ def compute_metrics_labeled(eval_pred):
     return METRICS.compute(predictions=preds, references=trues)
 
 
+def compute_metrics_single_label(eval_pred):
+    logits, trues = eval_pred
+    preds = np.argmax(logits, axis=-1)
+    return METRICS.compute(predictions=preds, references=trues)
+
+
 def compute_metrics_regression(eval_pred):
     logits, trues = eval_pred
     preds = torch.sigmoid(torch.tensor(logits))
     preds = torch.round(preds)
-    trues = torch.tensor(trues)
     return METRICS.compute(predictions=preds, references=trues)
 
 
