@@ -32,6 +32,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
   --epochs 100 \
   --trait flowers \
   --best-metric accuracy \
-  --batch-size 24
+  --batch-size 16
 
 date
