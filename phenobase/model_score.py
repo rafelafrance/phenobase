@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import textwrap
-from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import torch
 from pylib import log, util
 from torch.utils.data import DataLoader
@@ -25,11 +24,10 @@ def main(args):
 
     logging.info(f"Device {device}")
 
-    base_recs = {
-        r["coreid"]: r for r in util.get_records("test", args.dataset_csv, args.trait)
-    }
+    checkpoints = sorted([p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()])
 
-    checkpoints = [p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()]
+    skel = skeleton_start(args.dataset_csv, args.trait, checkpoints)
+
     for checkpoint in sorted(checkpoints):
         print(checkpoint)
 
@@ -61,23 +59,19 @@ def main(args):
         loader = DataLoader(dataset, batch_size=1, pin_memory=True)
         total = len(loader)
         correct = 0
-        output = []
 
         with torch.no_grad():
             for sheet in tqdm(loader):
                 image = sheet["image"].to(device)
                 result = model(image)
 
-                name = sheet["id"][0].removesuffix(".jpg")
-                out = deepcopy(base_recs[name])
-                out |= {"checkpoint": checkpoint}
+                file_ = sheet["id"][0]
 
                 if args.problem_type == util.ProblemType.REGRESSION:
                     true = sheet["label"].item()
                     pred = torch.sigmoid(result.logits)
                     pred = pred.detach().cpu().tolist()[0]
-
-                    out |= {f"{args.trait}_score": pred[0]}
+                    skel[file_]["scores"][checkpoint.stem] = pred[0]
                     correct += int(round(pred[0]) == true)
 
                 else:
@@ -85,24 +79,52 @@ def main(args):
                     # in an attempt to improve the final results.
                     # I can softmax the logits and take scores[0, 1] as the score
                     scores = softmax(result.logits).detach().cpu().tolist()[0]
-                    out |= {f"{args.trait}_score": scores[1]}
+                    skel[file_]["scores"][checkpoint.stem] = scores[1]
 
                     true = float(sheet["label"])
                     pred = np.argmax(result.logits.detach().cpu(), axis=-1).item()
                     correct += int(pred == true)
 
-                output.append(out)
-
         print(f"Accuracy {correct}/{total} = {(correct / total):0.3f}\n")
 
-        if args.score_csv:
-            df = pd.DataFrame(output)
-            if args.score_csv.exists():
-                df_old = pd.read_csv(args.score_csv, low_memory=False)
-                df = pd.concat((df_old, df))
-            df.to_csv(args.score_csv, index=False)
+    skeleton_finish(skel, args)
 
     log.finished()
+
+
+def skeleton_start(dataset_csv, trait, checkpoints) -> dict[str, dict]:
+    fields = (
+        f"scientificname formatted_genus formatted_family file split db {trait}".split()
+    )
+    recs = util.get_records("test", dataset_csv, trait)
+    skel = {
+        r["file"].split(".")[0]: {f: r[f] for f in fields}
+        | {"scores": {c.stem: 0.0 for c in checkpoints}}
+        for r in recs
+    }
+    for rec in skel.values():
+        rec[trait] = float(rec[trait])
+    return skel
+
+
+def skeleton_finish(skel, args):
+    out = {
+        "score_args": {},
+        "train_args": [],
+        "records": skel,
+    }
+
+    for key, val in sorted(vars(args).items()):
+        out["score_args"][key] = str(val)
+
+    if args.training_log:
+        with args.training_log.open() as f:
+            for ln in f.readlines():
+                if ln.find("Argument:") > -1:
+                    out["train_args"].append(ln.strip())
+
+    with args.score_json.open("w") as f:
+        json.dump(out, f, indent=4)
 
 
 def parse_args():
@@ -137,11 +159,11 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--score-csv",
+        "--score-json",
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Append scores to this CSV.""",
+        help="""Output scores to this JSON file.""",
     )
 
     arg_parser.add_argument(
@@ -150,6 +172,13 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""Directory containing the training checkpoints.""",
+    )
+
+    arg_parser.add_argument(
+        "--training-log",
+        type=Path,
+        metavar="PATH",
+        help="""Get the training arguments from this log file.""",
     )
 
     arg_parser.add_argument(

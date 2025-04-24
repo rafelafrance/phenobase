@@ -2,7 +2,7 @@
 
 python ./phenobase/model_train.py \
   --dataset-csv ./datasets/all_traits.csv \
-  --image-dir ./datasets/images \
+  --image-dir ./data/images \
   --output-dir ./data/models/vit_384_base_fruits_f1_loc_sl \
   --finetune "google/vit-base-patch16-384" \
   --image-size 384 \
