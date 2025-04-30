@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
+import csv
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from pylib import log, util
+from pylib import log
 from sklearn import metrics
+
+STEP = 0.05
 
 
 @dataclass
@@ -16,115 +18,99 @@ class Best:
     accuracy: float
     threshold_lo: float
     threshold_hi: float
-    trait: str
     checkpoint: str = ""
 
 
 def main(args):
     log.started(args=args)
 
-    df_all = pd.read_csv(args.score_csv, low_memory=False)
-    df_all = filter_families(df_all, args.bad_families)
+    with args.score_csv.open() as f:
+        reader = csv.DictReader(f)
+        rows: list[dict] = list(reader)
 
-    checkpoints = df_all["checkpoint"].unique()
+    checkpoints = [c for c in rows[0] if c.find("checkpoint") > -1]
+    trait = rows[0]["trait"]
+
+    all_trues = [float(r[trait]) for r in rows]
 
     bests = []
     for checkpoint in checkpoints:
-        df = df_all.loc[(df_all["checkpoint"] == checkpoint)]
-        if len(df) == 0:
-            continue
-
-        all_trues, all_scores = get_raw_data(df, args.trait)
-        if all_trues is None or len(all_trues) == 0:
-            continue
-
-        cp_best = checkpoint_best(all_trues, all_scores, args.trait, args.pos_limit)
-        cp_best.checkpoint = checkpoint
+        all_scores = [float(r[checkpoint]) for r in rows]
+        cp_best = checkpoint_best(checkpoint, all_trues, all_scores, args.pos_limit)
         bests.append(cp_best)
 
     best = max_best(bests)
 
     print(
-        f"""
-        Trait:          {best.trait}
-        Checkpoint:     {best.checkpoint}
-        Accuracy:       {best.accuracy:0.3f}
-        Low Threshold:  {best.threshold_lo:0.2f}
-        High Threshold: {best.threshold_hi:0.2f}
+        textwrap.dedent(
+            f"""
+            Trait:          {trait}
+            Checkpoint:     {best.checkpoint}
+            Accuracy:       {best.accuracy:0.3f}
+            Low Threshold:  {best.threshold_lo:0.2f}
+            High Threshold: {best.threshold_hi:0.2f}
         """
+        )
     )
 
-    df = df_all.loc[df_all["checkpoint"] == best.checkpoint]
-    y_trues, y_scores = get_raw_data(df, args.trait)
-
-    y_trues, y_preds = get_preds(y_trues, y_scores)
+    all_scores = [float(r[best.checkpoint]) for r in rows]
+    y_trues, y_preds = get_preds(all_trues, all_scores)
     all_count = len(y_trues)
-    print("Starting metrics")
-    print(metrics.confusion_matrix(y_trues, y_preds))
-    print(f"Starting accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}")
-    print(f"Starting f1        = {metrics.f1_score(y_trues, y_preds):0.3f}")
-    beta = metrics.fbeta_score(y_trues, y_preds, beta=0.5)
-    print(f"Starting f0.5      = {beta:0.3f}")
-    print(f"Starting precision = {metrics.precision_score(y_trues, y_preds):0.3f}")
-    print(f"Starting recall    = {metrics.recall_score(y_trues, y_preds):0.3f}")
-    print(f"Starting count     = {all_count}")
-    print()
+    cells = metrics.confusion_matrix(y_trues, y_preds).ravel()
+    tn, fp, fn, tp = cells
+    print(
+        textwrap.dedent(
+            f"""
+            Starting metrics:
+              tp={tp:4d}, fp={fp:4d}
+              fn={fn:4d}, tn={tn:4d}
+            Starting accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}
+            Starting f1        = {metrics.f1_score(y_trues, y_preds):0.3f}
+            Starting f0.5      = {metrics.fbeta_score(y_trues, y_preds, beta=0.5):0.3f}
+            Starting precision = {metrics.precision_score(y_trues, y_preds):0.3f}
+            Starting recall    = {metrics.recall_score(y_trues, y_preds):0.3f}
+            Starting count     = {all_count}
+        """
+        )
+    )
 
     y_trues, y_preds = get_preds(
-        y_trues, y_scores, best.threshold_lo, best.threshold_hi
+        all_trues, all_scores, best.threshold_lo, best.threshold_hi
     )
+    cells = metrics.confusion_matrix(y_trues, y_preds).ravel()
+    tn, fp, fn, tp = cells
     count = len(y_trues)
-    print("Best metrics")
-    print(metrics.confusion_matrix(y_trues, y_preds))
-    print(f"Best accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}")
-    print(f"Best f1        = {metrics.f1_score(y_trues, y_preds):0.3f}")
-    beta = metrics.fbeta_score(y_trues, y_preds, beta=0.5)
-    print(f"Best f0.5      = {beta:0.3f}")
-    print(f"Best precision = {metrics.precision_score(y_trues, y_preds):0.3f}")
-    print(f"Best recall    = {metrics.recall_score(y_trues, y_preds):0.3f}")
-    print(f"Best count     = {count}  fraction of orginal = {(count / all_count):0.3f}")
-    print()
+    print(
+        textwrap.dedent(
+            f"""
+            Best metrics:
+              tp={tp:4d}, fp={fp:4d}
+              fn={fn:4d}, tn={tn:4d}
+            Best accuracy  = {metrics.accuracy_score(y_trues, y_preds):0.3f}
+            Best f1        = {metrics.f1_score(y_trues, y_preds):0.3f}
+            Best f0.5      = {metrics.fbeta_score(y_trues, y_preds, beta=0.5):0.3f}
+            Best precision = {metrics.precision_score(y_trues, y_preds):0.3f}
+            Best recall    = {metrics.recall_score(y_trues, y_preds):0.3f}
+            Best count     = {count}  fraction of original {(count / all_count):0.3f}
+        """
+        )
+    )
 
     log.finished()
 
 
-def max_best(bests):
-    return max(bests, key=lambda b: (b.accuracy, b.threshold_hi - b.threshold_lo))
-
-
-def filter_families(df, bad_families):
-    if not bad_families:
-        return df
-    bad = pd.read_csv(bad_families)
-    df = df.loc[~df["family"].isin(bad["family"]), :]
-    return df
-
-
-def get_raw_data(df, trait):
-    try:
-        y_trues = df[trait].astype(float)
-        y_scores = df[f"{trait}_score"].astype(float)
-    except ValueError:
-        return None, None
-    return y_trues, y_scores
-
-
-def checkpoint_best(all_trues, all_scores, trait, pos_limit):
+def checkpoint_best(checkpoint, all_trues, all_scores, pos_limit):
     all_trues, all_preds = get_preds(all_trues, all_scores)
-
-    all_tn, all_fp, all_fn, all_tp = metrics.confusion_matrix(
-        all_trues, all_preds
-    ).ravel()
-
     all_count = len(all_trues)
 
-    step = 0.05
+    all_tn, _fp, _fn, all_tp = metrics.confusion_matrix(all_trues, all_preds).ravel()
 
     accuracies = []
-    for thresh_lo in np.arange(0.0, 0.5 + step, step):
+
+    for thresh_lo in np.arange(0.0, 0.5 + STEP, STEP):
         thresh_lo = float(thresh_lo)  # squash linters, float != np.floating
 
-        for thresh_hi in np.arange(0.5, 1.0 + step, step):
+        for thresh_hi in np.arange(0.5, 1.0 + STEP, STEP):
             thresh_hi = float(thresh_hi)  # squash linters, float != np.floating
 
             y_trues, y_preds = get_preds(all_trues, all_scores, thresh_lo, thresh_hi)
@@ -138,14 +124,14 @@ def checkpoint_best(all_trues, all_scores, trait, pos_limit):
 
             tn, fp, fn, tp = cells
 
-            if (tp / all_tp) > pos_limit and (tn / all_tn) > pos_limit:
+            if (tp / all_tp) >= pos_limit and (tn / all_tn) >= pos_limit:
                 accuracy = metrics.accuracy_score(y_trues, y_preds)
 
                 new_best = Best(
                     accuracy=accuracy,
                     threshold_lo=thresh_lo,
                     threshold_hi=thresh_hi,
-                    trait=trait,
+                    checkpoint=checkpoint,
                 )
                 accuracies.append(new_best)
     best = max_best(accuracies)
@@ -162,6 +148,10 @@ def get_preds(y_true, y_scores, threshold_lo=0.5, threshold_hi=0.5):
             trues.append(true)
             preds.append(1.0)
     return trues, preds
+
+
+def max_best(bests):
+    return max(bests, key=lambda b: (b.accuracy, b.threshold_hi - b.threshold_lo))
 
 
 def parse_args() -> argparse.Namespace:
@@ -188,25 +178,12 @@ def parse_args() -> argparse.Namespace:
     )
 
     arg_parser.add_argument(
-        "--trait",
-        choices=util.TRAITS,
-        help="""The trait to examine.""",
-    )
-
-    arg_parser.add_argument(
         "--pos-limit",
         type=float,
         metavar="FRACTION",
         default=0.7,
         help="""Do not remove more than this fraction of true positives &
             true negatives. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--bad-families",
-        metavar="PATH",
-        type=Path,
-        help="""Make sure records in these families are skipped.""",
     )
 
     args = arg_parser.parse_args()

@@ -25,6 +25,9 @@ def main(args):
     logging.info(f"Device {device}")
 
     checkpoints = sorted([p for p in args.model_dir.glob("checkpoint-*") if p.is_dir()])
+    if not checkpoints:
+        msg = "No checkpoints"
+        raise ValueError(msg)
 
     skel = skeleton_start(args.dataset_csv, args.trait, checkpoints)
 

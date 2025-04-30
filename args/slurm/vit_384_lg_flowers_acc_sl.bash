@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=vit_384_lg_flowers_acc_sl
+#SBATCH --job-name=vit_384_lg_flowers_f1_sl
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -24,13 +24,13 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/vit_384_lg_flowers_acc_sl \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/vit_384_lg_flowers_f1_sl \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
   --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/splits_2025-04-22.csv \
   --finetune "google/vit-large-patch16-384" \
   --image-size 384 \
   --batch-size 16 \
-  --best-metric accuracy \
+  --best-metric f1 \
   --epochs 100 \
   --trait flowers
 

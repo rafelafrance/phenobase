@@ -24,6 +24,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "requests",
+    "rich",
     "scikit-image",
     "scikit-learn",
     "scipy",
