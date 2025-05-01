@@ -31,6 +31,8 @@ PROBLEM_TYPES = [
     ProblemType.MULTI_LABEL,
 ]
 
+LABEL_VALUES = {"0": 0.0, "1": 1.0, "U": 0.5, "u": 0.5}
+
 
 def get_dataset(
     split: str,
@@ -39,12 +41,18 @@ def get_dataset(
     trait: str,
     problem_type: ProblemType,
     *,
+    use_unknowns: bool = False,
     limit=0,
 ) -> Dataset:
-    recs = get_records(split, dataset_csv, trait, limit=limit)
+    recs = get_records(
+        split, dataset_csv, trait, use_unknowns=use_unknowns, limit=limit
+    )
 
     images = [str(image_dir / r["file"]) for r in recs]
-    if problem_type == ProblemType.REGRESSION:
+
+    if problem_type == ProblemType.REGRESSION and use_unknowns:
+        labels = [LABEL_VALUES[r[trait]] for r in recs]
+    elif problem_type == ProblemType.REGRESSION:
         labels = [float(r[trait]) for r in recs]
     elif problem_type == ProblemType.MULTI_LABEL:
         labels = [WITHOUT if r[trait] == "0" else WITH for r in recs]
@@ -60,15 +68,16 @@ def get_dataset(
     return dataset
 
 
-def get_records(split: str, dataset_csv: Path, trait: str, *, limit=0) -> list[dict]:
+def get_records(
+    split: str, dataset_csv: Path, trait: str, *, use_unknowns=False, limit=0
+) -> list[dict]:
     with dataset_csv.open() as f:
         reader = csv.DictReader(f)
         recs = list(reader)
 
+    keeps = ("0", "1", "U", "u") if use_unknowns else ("0", "1")
     recs = [
-        r
-        for r in recs
-        if r["split"] == split and r.get(trait) and r[trait] in ("0", "1")
+        r for r in recs if r["split"] == split and r.get(trait) and r[trait] in keeps
     ]
     recs = recs[:limit] if limit else recs
     return recs

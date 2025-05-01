@@ -87,6 +87,7 @@ def main(args):
         args.trait,
         limit=args.limit,
         problem_type=args.problem_type,
+        use_unknowns=args.use_unknowns,
     )
     valid_dataset = util.get_dataset(
         "val",
@@ -260,6 +261,14 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--use-unknowns",
+        action="store_true",
+        help="""Use samples with traits identified as unknown by experts, and set their
+            expected value to 0.5. Do this only for training splits because validation
+            metrics don't work for well with 3 values.""",
+    )
+
+    arg_parser.add_argument(
         "--learning-rate",
         "--lr",
         type=float,
@@ -315,6 +324,13 @@ def parse_args():
     )
 
     args = arg_parser.parse_args()
+
+    if args.use_unknowns and args.problem_type != util.ProblemType.REGRESSION:
+        msg = (
+            "--use-unknowns only works with "
+            f"--problem-type {util.ProblemType.REGRESSION}"
+        )
+        raise ValueError(msg)
 
     return args
 

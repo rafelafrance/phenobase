@@ -37,7 +37,8 @@ def main(args):
     for checkpoint in checkpoints:
         all_scores = [float(r[checkpoint]) for r in rows]
         cp_best = checkpoint_best(checkpoint, all_trues, all_scores, args.pos_limit)
-        bests.append(cp_best)
+        if cp_best:
+            bests.append(cp_best)
 
     best = max_best(bests)
 
@@ -104,6 +105,8 @@ def checkpoint_best(checkpoint, all_trues, all_scores, pos_limit):
     all_count = len(all_trues)
 
     all_tn, _fp, _fn, all_tp = metrics.confusion_matrix(all_trues, all_preds).ravel()
+    if all_tn == 0 or all_tp == 0:
+        return None
 
     accuracies = []
 
@@ -134,6 +137,9 @@ def checkpoint_best(checkpoint, all_trues, all_scores, pos_limit):
                     checkpoint=checkpoint,
                 )
                 accuracies.append(new_best)
+    if not accuracies:
+        return None
+
     best = max_best(accuracies)
     return best
 

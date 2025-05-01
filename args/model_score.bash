@@ -272,3 +272,63 @@ if [ ! -f "$score" ]; then
     --trait flowers \
     --problem-type single_label_classification
 fi
+
+score="data/scores/flowers/effnet_600_flowers_f1_loc_sl_51.json"
+if [ ! -f "$score" ]; then
+./phenobase/model_score.py \
+    --dataset-csv datasets/splits_2025-04-22.csv \
+    --image-dir data/images \
+    --model-dir data/models/flowers_2025-05-02/effnet_600_flowers_f1_loc_sl_51 \
+    --score-json "$score" \
+    --image-size 600 \
+    --trait flowers \
+    --problem-type single_label_classification
+fi
+
+score="data/scores/flowers/effnet_600_flowers_f1_reg_51.json"
+if [ ! -f "$score" ]; then
+./phenobase/model_score.py \
+    --dataset-csv datasets/splits_2025-04-22.csv \
+    --image-dir data/images \
+    --model-dir data/models/flowers_2025-05-02/effnet_600_flowers_f1_reg_51 \
+    --score-json "$score" \
+    --image-size 600 \
+    --trait flowers \
+    --problem-type regression
+fi
+
+score="data/scores/flowers/effnet_600_flowers_f1_sl_51.json"
+if [ ! -f "$score" ]; then
+./phenobase/model_score.py \
+    --dataset-csv datasets/splits_2025-04-22.csv \
+    --image-dir data/images \
+    --model-dir data/models/flowers_2025-05-02/effnet_600_flowers_f1_sl_51 \
+    --score-json "$score" \
+    --image-size 600 \
+    --trait flowers \
+    --problem-type single_label_classification
+fi
+
+score="data/scores/flowers/vit_384_lg_flowers_f1_reg_51.json"
+if [ ! -f "$score" ]; then
+./phenobase/model_score.py \
+    --dataset-csv datasets/splits_2025-04-22.csv \
+    --image-dir data/images \
+    --model-dir data/models/flowers_2025-05-02/vit_384_lg_flowers_f1_reg_51 \
+    --score-json "$score" \
+    --image-size 384 \
+    --trait flowers \
+    --problem-type regression
+fi
+
+score="data/scores/flowers/vit_384_lg_flowers_f1_sl_51.json"
+if [ ! -f "$score" ]; then
+./phenobase/model_score.py \
+    --dataset-csv datasets/splits_2025-04-22.csv \
+    --image-dir data/images \
+    --model-dir data/models/flowers_2025-05-02/vit_384_lg_flowers_f1_sl_51 \
+    --score-json "$score" \
+    --image-size 384 \
+    --trait flowers \
+    --problem-type single_label_classification
+fi
