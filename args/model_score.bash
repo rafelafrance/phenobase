@@ -256,19 +256,19 @@ if [ ! -f "$score" ]; then
     --image-dir data/images \
     --model-dir data/models/flowers_2025-04-04/vit_384_lg_flowers_f1_a \
     --score-json "$score" \
-    --image-size 528 \
+    --image-size 384 \
     --trait flowers \
     --problem-type regression
 fi
 
-score="data/scores/flowers/flowers/vit_384_lg_flowers_sl_f1_a.json"
+score="data/scores/flowers/vit_384_lg_flowers_sl_f1_a.json"
 if [ ! -f "$score" ]; then
 ./phenobase/model_score.py \
     --dataset-csv datasets/splits_2025-04-22.csv \
     --image-dir data/images \
     --model-dir data/models/flowers_2025-04-04/vit_384_lg_flowers_sl_f1_a \
     --score-json "$score" \
-    --image-size 528 \
+    --image-size 384 \
     --trait flowers \
     --problem-type single_label_classification
 fi
