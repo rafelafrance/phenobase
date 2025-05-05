@@ -18,6 +18,27 @@ WITHOUT = [1.0, 0.0]
 ID2LABEL = {str(i): v for i, v in enumerate(LABELS)}
 LABEL2ID = {v: k for k, v in ID2LABEL.items()}
 
+METRICS_INT: list[str] = [
+    "tp",
+    "fp",
+    "fn",
+    "tn",
+    "count",
+]
+
+METRICS_FLOAT: list[str] = [
+    "fraction",
+    "accuracy",
+    "f1",
+    "f0.5",
+    "precision",
+    "recall",
+]
+
+METRICS: list[str] = METRICS_INT + METRICS_FLOAT
+
+INDEXES = ["threshold_low", "threshold_high", *METRICS, "error"]
+
 
 class ProblemType(StrEnum):
     REGRESSION = "regression"

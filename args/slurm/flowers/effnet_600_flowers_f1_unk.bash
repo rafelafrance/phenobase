@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=effnet_600_flowers_f1_reg
+#SBATCH --job-name=effnet_600_flowers_f1_unk_51
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -24,7 +24,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_train.py \
-  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_600_flowers_f1_reg \
+  --output-dir /blue/guralnick/rafe.lafrance/phenobase/data/models/effnet_600_flowers_f1_unk_51 \
   --image-dir /blue/guralnick/rafe.lafrance/phenobase/data/images/phenobase \
   --dataset-csv /blue/guralnick/rafe.lafrance/phenobase/datasets/splits_2025-04-22.csv \
   --finetune "google/efficientnet-b7" \

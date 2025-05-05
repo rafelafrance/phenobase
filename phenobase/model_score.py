@@ -29,7 +29,7 @@ def main(args):
         msg = "No checkpoints"
         raise ValueError(msg)
 
-    skel = skeleton_start(args.dataset_csv, args.trait, checkpoints)
+    skel = skeleton_start(args.dataset_csv, args.trait, checkpoints, args.split)
 
     for checkpoint in sorted(checkpoints):
         print(checkpoint)
@@ -41,7 +41,7 @@ def main(args):
         model.to(device)
 
         dataset = util.get_dataset(
-            "test",
+            args.split,
             args.dataset_csv,
             args.image_dir,
             args.trait,
@@ -95,11 +95,11 @@ def main(args):
     log.finished()
 
 
-def skeleton_start(dataset_csv, trait, checkpoints) -> dict[str, dict]:
+def skeleton_start(dataset_csv, trait, checkpoints, split) -> dict[str, dict]:
     fields = (
         f"scientificname formatted_genus formatted_family file split db {trait}".split()
     )
-    recs = util.get_records("test", dataset_csv, trait)
+    recs = util.get_records(split, dataset_csv, trait)
     skel = {
         r["file"].split(".")[0]: {f: r[f] for f in fields}
         | {"scores": {c.stem: 0.0 for c in checkpoints}}
@@ -197,6 +197,12 @@ def parse_args():
         choices=util.PROBLEM_TYPES,
         default=util.ProblemType.SINGLE_LABEL,
         help="""What kind of a model are we scoring. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--split",
+        default="test",
+        help="""Name of the test split to score: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
