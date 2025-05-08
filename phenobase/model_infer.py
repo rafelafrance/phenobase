@@ -191,13 +191,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--bad-families",
-        metavar="PATH",
-        type=Path,
-        help="""Make sure records in these families are skipped.""",
-    )
-
-    arg_parser.add_argument(
         "--output-csv",
         type=Path,
         required=True,
