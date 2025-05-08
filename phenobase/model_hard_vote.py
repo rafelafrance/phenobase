@@ -2,11 +2,11 @@
 
 import argparse
 import csv
+import json
 import textwrap
 from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
-from pprint import pp
 
 from pylib import log, util
 from sklearn import metrics
@@ -87,39 +87,37 @@ def main(args):
             }
         )
 
-    print_summary(args, bests, metric)
+    to_json(args, bests, metric, scores)
+
+    log.finished()
 
 
-def print_summary(args, bests, metric):
+def to_json(args, bests, metric, scores):
     # Filter combinations to remove really bad ones
     bests = [b for b in bests if b[args.combo_filter] >= args.combo_limit]
     # Now sort combos to find the best
     bests = sorted(bests, key=lambda m: m[args.combo_order], reverse=True)
 
-    pp(bests[0]["combo"])
-    print()
-    for idx in util.METRICS_INT:
-        print(idx.ljust(15), bests[0].get(idx, ""))
-    for idx in util.METRICS_FLOAT:
-        print(idx.ljust(15), f"{bests[0].get(idx, 0.0):0.3f}")
+    best = bests[0]
+    best["args"] = {k: str(v) for k, v in sorted(vars(args).items())}
+    best["total_records"] = len(scores)
+    best["combo"] = [str(c) for c in best["combo"]]
+    best["checkpoints"] = [
+        {"checkpoint": str(cp)}
+        | {k: int(metric[k][cp]) for k in util.METRICS_INT}
+        | {k: float(metric[k][cp]) for k in util.METRICS_FLOAT}
+        for cp in bests[0]["combo"]
+    ]
+    best["top_10"] = [
+        {
+            args.combo_order: b[args.combo_order],
+            "combo": [str(c) for c in best["combo"]],
+        }
+        for b in bests[:10]
+    ]
 
-    for cp in bests[0]["combo"]:
-        print()
-        print(cp)
-        for idx in util.METRICS_INT:
-            print(idx.ljust(15), metric[idx][cp])
-        for idx in util.METRICS_FLOAT:
-            print(idx.ljust(15), f"{metric[idx][cp]:0.3f}")
-
-    print()
-    print("Top 10 combo scores")
-    print()
-    for i, combo in enumerate(bests[:10], 1):
-        print(i, args.combo_order, f"{combo[args.combo_order]:0.3f}")
-        pp(combo["combo"])
-        print()
-
-    log.finished()
+    with args.output_json.open("w") as f:
+        json.dump(best, f, indent=4)
 
 
 def parse_args():
@@ -142,6 +140,14 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""File that contains metrics for the scores above.""",
+    )
+
+    arg_parser.add_argument(
+        "--output-json",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""Output the best ensemble to this JSON file.""",
     )
 
     arg_parser.add_argument(

@@ -27,6 +27,8 @@ METRICS_INT: list[str] = [
 ]
 
 METRICS_FLOAT: list[str] = [
+    "threshold_low",
+    "threshold_high",
     "fraction",
     "accuracy",
     "f1",
@@ -36,8 +38,7 @@ METRICS_FLOAT: list[str] = [
 ]
 
 METRICS: list[str] = METRICS_INT + METRICS_FLOAT
-
-INDEXES = ["threshold_low", "threshold_high", *METRICS, "error"]
+INDEXES = [*METRICS, "error"]
 
 
 class ProblemType(StrEnum):
