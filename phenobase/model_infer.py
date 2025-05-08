@@ -108,7 +108,7 @@ def filter_records(args):
     total = len(records)
     records = filter_bad_images(records)
     good = len(records)
-    records = filter_bad_taxa(records, args.bad_families)
+    records = filter_bad_taxa(records, args.bad_taxa)
     families = len(records)
     logging.info(f"Total records {total}, good images {good}, good families {families}")
     return records
