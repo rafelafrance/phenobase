@@ -108,7 +108,7 @@ def filter_records(args):
     total = len(records)
     records = filter_bad_images(records)
     good = len(records)
-    records = filter_bad_families(records, args.bad_families)
+    records = filter_bad_taxa(records, args.bad_families)
     families = len(records)
     logging.info(f"Total records {total}, good images {good}, good families {families}")
     return records
@@ -132,14 +132,29 @@ def filter_bad_images(rows) -> list[dict]:
     return rows
 
 
-def filter_bad_families(rows, bad_family_csv) -> list[dict]:
-    bad_families = []
-    if bad_family_csv:
-        with bad_family_csv.open() as bad:
-            reader = csv.DictReader(bad)
-            bad_families = [r["family"].lower() for r in reader]
-    rows = [r for r in rows if r["family"].lower() not in bad_families]
-    return rows
+def filter_bad_taxa(rows, bad_taxa: Path | None = None) -> list[dict]:
+    to_remove = []
+    if not bad_taxa:
+        return rows
+
+    # Get the bad taxa
+    with bad_taxa.open() as bad:
+        reader = csv.DictReader(bad)
+        to_remove = [
+            (r["family"].lower(), r["genus"].lower() if r["genus"] else "")
+            for r in reader
+        ]
+
+    # Filter bad taxa from the rows
+    filtered = []
+    for row in rows:
+        family = row["family"].lower()
+        genus = row["genus"] if row["genus"] else row["scientificname"].split()[0]
+        genus = genus.lower()
+        if (family, genus) in to_remove or (family, "") in to_remove:
+            continue
+        filtered.append(row)
+    return filtered
 
 
 def get_inference_dataset(rows, image_dir, *, debug: bool = False) -> Dataset:
@@ -188,6 +203,14 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""A path to the directory where the images are.""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-taxa",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""A path to the CSV file with the list of bad families and genera.""",
     )
 
     arg_parser.add_argument(

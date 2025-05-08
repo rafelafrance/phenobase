@@ -48,8 +48,8 @@ def main(args):
 
     format_taxa(records)
 
-    filter_records(records, "flowers")
-    filter_records(records, "fruits")
+    filter_records(records, "flowers", args.split_csv)
+    filter_records(records, "fruits", args.split_csv)
 
     split_data(records, args.train_split, args.val_split)
     write_csvs(args.split_csv, records)
@@ -142,7 +142,7 @@ def format_taxa(records):
         rec["formatted_genus"] = genus
 
 
-def filter_records(records, trait):
+def filter_records(records, trait: str, split_csv: Path | None = None):
     by_genus = group_by_genus(records, trait)
     by_family = group_by_family(by_genus)
 
@@ -154,6 +154,12 @@ def filter_records(records, trait):
         genus = rec["formatted_genus"]
         if (family, genus) in to_remove or (family, "") in to_remove:
             rec[trait] = f"x{rec[trait]}"
+
+    if split_csv:
+        removes = [{"family": p[0], "genus": p[1]} for p in to_remove]
+        path = split_csv.with_stem(f"remove_{trait}.csv")
+        df = pd.DataFrame(removes)
+        df.to_csv(path, index=False)
 
 
 def group_by_genus(records, trait):
@@ -260,14 +266,6 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         type=Path,
         help="""Get herbarium sheet images from this directory.""",
-    )
-
-    arg_parser.add_argument(
-        "--filter-dir",
-        metavar="PATH",
-        type=Path,
-        required=True,
-        help="""Put lists of genera and families to filter in this directory.""",
     )
 
     arg_parser.add_argument(

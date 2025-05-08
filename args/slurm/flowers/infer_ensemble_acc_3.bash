@@ -33,6 +33,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --image-size 384 \
     --limit 10000 \
     --offset 20000 \
+    --bad-taxa /home/rafe.lafrance/blue/phenobase/datasets/remove_flowers.csv \
     --trait flowers
 
 date
