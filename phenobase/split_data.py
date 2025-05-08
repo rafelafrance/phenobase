@@ -157,7 +157,7 @@ def filter_records(records, trait: str, split_csv: Path | None = None):
 
     if split_csv:
         removes = [{"family": p[0], "genus": p[1]} for p in to_remove]
-        path = split_csv.with_stem(f"remove_{trait}.csv")
+        path = split_csv.with_stem(f"remove_{trait}")
         df = pd.DataFrame(removes)
         df.to_csv(path, index=False)
 
