@@ -34,6 +34,7 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --image-size 384 \
     --limit 10000 \
     --offset 30000 \
+    --problem-type regression \
     --trait flowers
 
 date
