@@ -149,7 +149,7 @@ def filter_bad_taxa(rows, bad_taxa: Path | None = None) -> list[dict]:
     filtered = []
     for row in rows:
         family = row["family"].lower()
-        genus = row["genus"] if row["genus"] else row["scientificname"].split()[0]
+        genus = row["genus"] if row["genus"] else row["scientificName"].split()[0]
         genus = genus.lower()
         if (family, genus) in to_remove or (family, "") in to_remove:
             continue
