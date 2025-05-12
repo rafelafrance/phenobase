@@ -87,12 +87,12 @@ def main(args):
             }
         )
 
-    to_json(args, bests, metric, scores)
+    to_json(args, bests, metric, scores, trait)
 
     log.finished()
 
 
-def to_json(args, bests, metric, scores):
+def to_json(args, bests, metric, scores, trait):
     # Filter combinations to remove really bad ones
     bests = [b for b in bests if b[args.combo_filter] >= args.combo_limit]
     # Now sort combos to find the best
@@ -101,6 +101,7 @@ def to_json(args, bests, metric, scores):
     best = bests[0]
     best["args"] = {k: str(v) for k, v in sorted(vars(args).items())}
     best["total_records"] = len(scores)
+    best["trait"] = trait
     best["combo"] = [str(c) for c in best["combo"]]
     best["checkpoints"] = [
         {"checkpoint": str(cp)}
