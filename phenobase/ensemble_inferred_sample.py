@@ -17,6 +17,12 @@ def main(args):
 
     df = pd.read_csv(args.winners_csv, low_memory=False)
     df = df.sample(frac=1.0).reset_index(drop=True)
+    print(df.shape)
+
+    if args.exclude_csv:
+        exclude = pd.read_csv(args.exclude_csv, usecols=["path"])
+        df = df.loc[~df["path"].isin(exclude["path"])]
+        print(df.shape)
 
     make_script = args.image_bash and args.image_dir
 
@@ -67,6 +73,13 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""The CSV file that contains all of the ensemble winners.""",
+    )
+
+    arg_parser.add_argument(
+        "--exclude-csv",
+        type=Path,
+        metavar="PATH",
+        help="""Don't include any records that are in this file.""",
     )
 
     arg_parser.add_argument(
