@@ -18,7 +18,9 @@ def main(args):
     df = pd.read_csv(args.winners_csv, low_memory=False)
     df = df.sample(frac=1.0).reset_index(drop=True)
 
-    if args.image_bash and args.image_dir:
+    make_script = args.image_bash and args.image_dir
+
+    if make_script:
         src = Path() / "args" / "slurm" / "template.bash"
         shutil.copy(src, args.image_bash)
         with args.image_bash.open("a") as f:
@@ -29,7 +31,7 @@ def main(args):
         pos_df = pos_df.iloc[: args.sample_positive]
         path = args.output_sample.with_stem(f"{args.output_sample.stem}_pos")
         pos_df.to_csv(path, index=False)
-        if args.image_bash and args.image_dir:
+        if make_script:
             pos_df["cp"] = "cp " + pos_df["path"] + " " + str(args.image_dir)
             pos_df["cp"].to_csv(args.image_bash, index=False, mode="a", header=False)
 
@@ -38,9 +40,13 @@ def main(args):
         neg_df = neg_df.iloc[: args.sample_negative]
         path = args.output_sample.with_stem(f"{args.output_sample.stem}_neg")
         neg_df.to_csv(path, index=False)
-        if args.image_bash and args.image_dir:
+        if make_script:
             neg_df["cp"] = "cp " + neg_df["path"] + " " + str(args.image_dir)
             neg_df["cp"].to_csv(args.image_bash, index=False, mode="a", header=False)
+
+    if make_script:
+        with args.image_bash.open("a") as f:
+            f.write(f"\ntar czf {args.image_dir}.tgz {args.image_dir}\n\n")
 
     log.finished()
 

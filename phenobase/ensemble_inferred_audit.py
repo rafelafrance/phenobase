@@ -34,11 +34,12 @@ def main(args):
     output = []
 
     for path, votes in vote_tally.items():
-        top = Counter(votes).most_common(1)
-        winner = top[0][0]
-        winners[path] = None
-        if winner is not None and top[0][1] >= vote_threshold:
-            winners[path] = winner
+        top = Counter(votes).most_common()
+        best = top[0][0]
+        winner = None
+        if best is not None and top[0][1] >= vote_threshold:
+            winner = best
+        winners[path] = winner
         output.append({"path": path, "votes": votes, "winner": winner} | metadata[path])
 
     # Output votes and metadata to a CSV file
