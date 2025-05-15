@@ -67,7 +67,8 @@ exclude = [
     "**/external/*.py", # External code
 ]
 
-lint.select = [
+[tool.ruff.lint]
+select = [
     "F",
     "E",
     "W",
@@ -120,7 +121,7 @@ lint.select = [
     "RUF",
 ]
 
-lint.ignore = [
+ignore = [
     "ARG002",  # Unused method argument
     "COM812",  # Trailing comma missing
     "D100",    # Missing docstring in public module
@@ -149,7 +150,7 @@ lint.ignore = [
     "S608",    # Possible sql ingection vector through string-based query construction
     "SIM114",  # Combine if branches using logical or operator
     "SIM117",  # Use a single with statement with multiple contexts instead of nested with statements
-    # "SIM905",  # split-static-string
+#    "SIM905",  # split-static-string
     "SLF001", # Private member accessed: {access}
     "T201",   # print found
     "TD002",  # Missing author in TODO

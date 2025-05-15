@@ -303,7 +303,7 @@ def parse_args():
 
     arg_parser.add_argument(
         "--best-metric",
-        choices=["precision", "f1", "accuracy", "loss"],
+        choices=["precision", "recall", "f1", "accuracy", "loss"],
         default="precision",
         help="""Model evaluation strategy.""",
     )
