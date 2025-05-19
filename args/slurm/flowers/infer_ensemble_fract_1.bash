@@ -3,7 +3,7 @@
 #SBATCH --account=guralnick
 #SBATCH --qos=guralnick
 
-#SBATCH --job-name=flower_inference_fract_10000_30000_1
+#SBATCH --job-name=flower_inference_fract_15000_40000_1
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -29,11 +29,11 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
     --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
     --bad-taxa /home/rafe.lafrance/blue/phenobase/datasets/remove_flowers.csv \
-    --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_fract_10000_30000_1_2025-05-09.csv \
+    --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_fract_15000_40000_1_2025-05-19.csv \
     --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/models/best_3combo_fract/effnet_528_flowers_reg_f1_a_checkpoint-17424 \
     --image-size 528 \
-    --limit 10000 \
-    --offset 30000 \
+    --limit 15000 \
+    --offset 40000 \
     --problem-type regression \
     --trait flowers
 
