@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#SBATCH --account=guralnick
-#SBATCH --qos=guralnick
-
 #SBATCH --job-name=infer_fruits_0_10000
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#SBATCH --account=guralnick
-#SBATCH --qos=guralnick
-
 #SBATCH --job-name=flower_inference_fract_15000_40000_3
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#SBATCH --account=guralnick
-#SBATCH --qos=guralnick
-
 #SBATCH --job-name=move_images_template
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu

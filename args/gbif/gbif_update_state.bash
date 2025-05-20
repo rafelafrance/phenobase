@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#SBATCH --account=guralnick
-#SBATCH --qos=guralnick
-
 #SBATCH --job-name=gbif_update_state
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
