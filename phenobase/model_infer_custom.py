@@ -36,8 +36,6 @@ def main(args):
     model.to(device)
     model.eval()
 
-    logging.info(f"Getting dataset limit {args.limit} offset {args.offset}")
-
     records = get_records(args.custom_dataset)
     base_recs = {r["gbifID"]: r for r in records}
 
