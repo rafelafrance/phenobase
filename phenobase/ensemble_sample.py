@@ -22,7 +22,6 @@ def main(args):
     if args.exclude_csv:
         exclude = pd.read_csv(args.exclude_csv, usecols=["path"])
         df = df.loc[~df["path"].isin(exclude["path"])]
-        print(df.shape)
 
     make_script = args.image_bash and args.image_dir
 
