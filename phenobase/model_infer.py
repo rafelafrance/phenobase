@@ -10,7 +10,7 @@ from pylib import inference_util, log
 
 def main(args):
     log.started(args=args)
-    records = filter_records(args.db, args.limit, args.offset, args.bad_taxa)
+    records = get_records(args.db, args.limit, args.offset, args.bad_taxa)
 
     inference_util.infer_records(
         records,
@@ -27,7 +27,7 @@ def main(args):
     log.finished()
 
 
-def filter_records(db, limit, offset, bad_taxa):
+def get_records(db, limit, offset, bad_taxa):
     records = inference_util.get_inference_records(db, limit, offset)
     total = len(records)
     records = inference_util.filter_bad_images(records)
