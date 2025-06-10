@@ -55,22 +55,7 @@ def get_inference_records(db, limit, offset) -> list[dict]:
     with sqlite3.connect(db) as cxn:
         cxn.row_factory = sqlite3.Row
         sql = """
-            select 'gbif' as datasource,
-                verbatimeventdate as verbatim_date,
-                startDayOfYear as day_of_year,
-                year,
-                deimalLatitude as latitude,
-                decimalLongitude as longitude,
-                coordinateUncertaintyInMeters as coordinate_uncertainty_meters,
-                family,
-                genus,
-                scientificName as scientific_name,
-                taxonRank as taxon_rank,
-                basisOfRecord as basis_of_record,
-                gbifID as individual_id,
-                occurrenceID as occurrence_id,
-                identifier as observed_image_url,
-                ** TODO **
+            select gbifID, tiebreaker, state, family, genus, scientificName
             from multimedia join occurrence using (gbifid)
             limit ? offset ?"""
         rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
