@@ -19,9 +19,8 @@ def main(args):
         args.image_dir,
         args.image_size,
         args.trait,
-        args.threshold_low,
-        args.threshold_high,
         args.output_csv,
+        debug=args.debug,
     )
 
     log.finished()

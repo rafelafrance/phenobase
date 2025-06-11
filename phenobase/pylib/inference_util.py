@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
+from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
 from datasets import Dataset, Image
@@ -61,7 +62,7 @@ def get_inference_records(db, limit, offset) -> list[dict]:
     return rows
 
 
-def get_inference_dataset(rows, image_dir) -> Dataset:
+def get_inference_dataset(rows, image_dir, *, debug: bool = False) -> Dataset:
     images = []
     ids = []
     for row in rows:
@@ -70,7 +71,12 @@ def get_inference_dataset(rows, image_dir) -> Dataset:
         name = f"{row['gbifID']}_{row['tiebreaker']}"
         name += f"_{parts[-1]}" if len(parts) > 1 else ""
 
-        path = image_dir / parts[0] / (name + ".jpg")
+        if debug:
+            path = image_dir / (name + ".jpg")
+            if not path.exists():
+                continue
+        else:
+            path = image_dir / parts[0] / (name + ".jpg")
 
         ids.append(row["gbifID"])
         images.append(str(path))
@@ -105,9 +111,9 @@ def infer_records(
     image_dir,
     image_size,
     trait,
-    threshold_low,
-    threshold_high,
     output_csv,
+    *,
+    debug: bool = False,
 ):
     softmax = torch.nn.Softmax(dim=1)
 
@@ -125,7 +131,7 @@ def infer_records(
 
     base_recs = {r["gbifID"]: r for r in records}
 
-    dataset = get_inference_dataset(records, image_dir)
+    dataset = get_inference_dataset(records, image_dir, debug=debug)
 
     loader = get_data_loader(dataset, image_size)
 
@@ -136,7 +142,7 @@ def infer_records(
     header = True
 
     with torch.no_grad():
-        for sheet in loader:
+        for sheet in tqdm(loader):
             image = sheet["image"].to(device)
             result = model(image)
 
@@ -144,13 +150,9 @@ def infer_records(
                 scores = torch.sigmoid(result.logits)
                 score = scores[0, 0]
             else:
-                # I'm filtering on the score.
                 # I can use softmax and take the positive class for the predicted value
                 scores = softmax(result.logits)
                 score = scores[0, 1]
-
-            if threshold_low < score < threshold_high:
-                continue
 
             rec = base_recs[sheet["id"][0]]
             rec[trait] = torch.round(score).item()
@@ -167,7 +169,7 @@ def infer_records(
 
     df = pd.DataFrame(output)
     df.to_csv(output_csv, mode=mode, header=header, index=False)
-    logging.info(f"Remaining {len(output)}")
+    logging.info("Finished inference")
     return output
 
 
@@ -219,18 +221,9 @@ def common_args(arg_parser):
     )
 
     arg_parser.add_argument(
-        "--threshold-low",
-        type=float,
-        default=0.05,
-        help="""Low threshold for being in the negative class (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--threshold-high",
-        type=float,
-        default=0.95,
-        help="""high threshold for being in the positive class
-            (default: %(default)s)""",
+        "--debug",
+        action="store_true",
+        help="""Use when debugging locally.""",
     )
 
     args = arg_parser.parse_args()
