@@ -21,7 +21,7 @@ def main(args):
 
     # Tally votes
     pred_col = ensemble["trait"] + "_score"  # Column that holds the trait's score
-    vote_tally = get_vote_tally(args, ensemble, pred_col)
+    vote_tally = get_vote_tally(args.score_csv, ensemble, pred_col)
 
     # Get metadata
     with args.score_csv[0].open() as f:
@@ -45,7 +45,7 @@ def main(args):
     # Output votes and metadata to a CSV file
     df = pd.DataFrame(output)
     df = df.drop([ensemble["trait"], pred_col], axis=1)
-    df.to_csv(args.output_csv, index=False)
+    df.to_csv(args.vote_csv, index=False)
 
     print_results(winners)
 
@@ -60,35 +60,37 @@ def print_results(winners):
     print(f"Total {total:5}")
 
 
-def get_vote_tally(args, ensemble, pred_col):
+def get_vote_tally(score_csvs, ensemble, pred_col):
     vote_tally = defaultdict(list)
-    for cp, score_csv in zip(ensemble["checkpoints"], args.score_csv, strict=True):
-        low = cp["threshold_low"]
-        high = cp["threshold_high"]
 
-        # Get all votes for the checkpoint
+    for model, score_csv in zip(ensemble["checkpoints"], score_csvs, strict=True):
+        # Get all votes for a model
         with score_csv.open() as f:
             reader = csv.DictReader(f)
-            scores = list(reader)
+            checkpoint_scores = list(reader)
 
         duplicates = set()
 
-        for row in scores:
-            key = row["path"]
-            pred = float(row[pred_col])
+        for score_row in checkpoint_scores:
+            image_path = score_row["path"]
+            score = float(score_row[pred_col])
 
-            if key in duplicates:
+            # Make sure we only get an image's score once per model
+            # It happened once so the check is here now
+            if image_path in duplicates:
                 continue
-            duplicates.add(key)
+            duplicates.add(image_path)
 
-            if pred < low:
+            # Convert a score into a vote for the model
+            if score < model["threshold_low"]:
                 vote = 0.0
-            elif pred >= high:
+            elif score >= model["threshold_high"]:
                 vote = 1.0
             else:
                 vote = None
 
-            vote_tally[key].append(vote)
+            vote_tally[image_path].append(vote)
+
     return vote_tally
 
 
@@ -123,10 +125,10 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--output-csv",
+        "--vote-csv",
         type=Path,
         metavar="PATH",
-        help="""Output the results to this CSV file.""",
+        help="""Output the vote results to this CSV file.""",
     )
 
     args = arg_parser.parse_args()

@@ -7,7 +7,6 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
-from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
 from datasets import Dataset, Image
@@ -137,12 +136,13 @@ def infer_records(
     header = True
 
     with torch.no_grad():
-        for sheet in tqdm(loader):
+        for sheet in loader:
             image = sheet["image"].to(device)
             result = model(image)
 
             if problem_type == util.ProblemType.REGRESSION:
-                score = torch.sigmoid(torch.tensor(result.logits))
+                scores = torch.sigmoid(result.logits)
+                score = scores[0, 0]
             else:
                 # I'm filtering on the score.
                 # I can use softmax and take the positive class for the predicted value

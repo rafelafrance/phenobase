@@ -29,11 +29,13 @@ However, in our training data, we are targeting traits as close as we can get to
 These traits may be easy to identify in some taxa,
 but the same trait in other taxa can be surprisingly challenging to identify, even by an expert under ideal conditions.
 Couple that with aging and deterioration of the herbarium specimens themselves and you wind up with ~~a difficult~~ an interesting problem.
-Sometimes traits too difficult to discern from the given images, so the expert identified these images as `unknown`.
+Sometimes traits are too difficult to discern from the given images, so the expert identified these images as `unknown`.
 Finally, sometimes images are not appropriate as training data (like line drawings),
 and they are set to `not applicable`.
 
-Our team consists of experts in botany and museum practices along with a computer programmer. Each of us used what we know best to shape the data and algorithms to improve the trait extraction process. In short, there has been a leaning curve, and there have been several iterations of scripting and training datasets.
+Our team consists of experts in botany and museum practices along with a computer programmer.
+Each of us used what we know best to shape the data and algorithms to improve the trait extraction process.
+In short, there has been a leaning curve, and there have been several iterations of scripting and training datasets.
 
 ![herbarium Sheet](assets/1f2a1704-5f54-40b0-8acf-136f0d19b86d.jpg)
 
@@ -43,7 +45,9 @@ Our team consists of experts in botany and museum practices along with a compute
 
 ### Hardware
 
-We use SLURM to submit jobs to the UF data center. The models we use are small and can typically fit on a single GPU, an NVidia A100 GPU. We also request 4 GB of memory and 4 CPUs per job for training models.
+We use SLURM to submit jobs to the UF data center.
+The models we use are small and can typically fit on a single GPU, an NVidia A100 GPU.
+We also request 4 GB of memory and 4 CPUs per job for training models.
 
 ### Data
 
@@ -157,7 +161,8 @@ Threshold moving is finding the cutoff points high and low that maximize a metri
 Images that have a score below the high threshold and above the low threshold are considered equivocal and are dropped.
 We do threshold moving for every model checkpoint, which means that we can compare models to find the "best" one.
 
-We want to find the best score, but we also want to classify as many images as possible, so we don't allow the moved thresholds to eliminate more than 30% of the records.
+We want to find the best score, but we also want to classify as many images as possible,
+so we don't allow the moved thresholds to eliminate more than 30% of the records.
 
 ### Model inference
 
