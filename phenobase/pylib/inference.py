@@ -30,16 +30,14 @@ def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset
     images = []
     ids = []
     for rec in records:
-        parts = gbif.GbifRec(rec)
-
         if debug:
-            path = parts.local_path(image_dir)
+            path = rec.local_path(image_dir)
             if not path.exists():
                 continue
         else:
-            path = parts.hipergator_path(image_dir)
+            path = rec.hipergator_path(image_dir)
 
-        ids.append(parts.stem)
+        ids.append(rec.stem)
         images.append(str(path))
 
     dataset = Dataset.from_dict(
