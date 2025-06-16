@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phenobase.pylib import log
+from phenobase.pylib import gbif, log
 
 
 def main(args):
@@ -16,8 +16,28 @@ def main(args):
 
     if args.redbud:
         redbud(args)
+    elif args.counts:
+        counts(args)
 
     log.finished()
+
+
+def counts(args):
+    logging.info("Started counts")
+    with sqlite3.connect(args.gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        sql = """
+            select gbifID, tiebreaker, state, family, genus, scientificName
+            from multimedia join occurrence using (gbifID)
+            """
+        rows = [gbif.GbifRec(r) for r in cxn.execute(sql)]
+        logging.info(f"Total records = {len(rows)}")
+
+        images = gbif.filter_bad_images(rows)
+        logging.info(f"Good images = {len(images)}")
+
+        taxa = gbif.filter_bad_images(images)
+        logging.info(f"Good taxa = {len(taxa)}")
 
 
 def redbud(args):
@@ -33,14 +53,6 @@ def redbud(args):
 
         msg = f"Raw records = {len(rows)}"
         logging.info(msg)
-
-    # rows = [
-    #     r for r in rows
-    #     if not (r["state"].endswith("error") or r["state"].endswith("small"))
-    # ]
-
-    # msg = f"Filtered records = {len(rows)}"
-    # logging.info(msg)
 
     df = pd.DataFrame(rows)
     df.to_csv(args.output_csv, index=False)
@@ -71,10 +83,23 @@ def parse_args():
     )
 
     arg_parser.add_argument(
+        "--counts",
+        action="store_true",
+        help="""Count valid records in the database.""",
+    )
+
+    arg_parser.add_argument(
         "--output-csv",
         type=Path,
         metavar="PATH",
         help="""Output the results to this CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-taxa",
+        type=Path,
+        metavar="PATH",
+        help="""A path to the CSV file with the list of bad families and genera.""",
     )
 
     args = arg_parser.parse_args()

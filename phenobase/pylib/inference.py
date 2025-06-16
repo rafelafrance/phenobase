@@ -1,4 +1,3 @@
-import csv
 import logging
 import sqlite3
 from pathlib import Path
@@ -11,74 +10,36 @@ from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
 from datasets import Dataset, Image
-from phenobase.pylib import util
+from phenobase.pylib import gbif, util
 
 BATCH = 100_000
 
 
-def filter_bad_images(rows) -> list[dict]:
-    rows = [
-        r
-        for r in rows
-        if r["state"].startswith("images")
-        and not (r["state"].endswith("error") or r["state"].endswith("small"))
-    ]
-    return rows
-
-
-def filter_bad_taxa(rows: list[dict], bad_taxa: Path | None = None) -> list[dict]:
-    to_remove = []
-    if not bad_taxa:
-        return rows
-
-    # Get the bad taxa
-    with bad_taxa.open() as bad:
-        reader = csv.DictReader(bad)
-        to_remove = [
-            (r["family"].lower(), r["genus"].lower() if r["genus"] else "")
-            for r in reader
-        ]
-
-    # Filter bad taxa from the rows
-    filtered = []
-    for row in rows:
-        family = row["family"].lower()
-        genus = row["genus"] if row["genus"] else row["scientificName"].split()[0]
-        genus = genus.lower()
-        if (family, genus) in to_remove or (family, "") in to_remove:
-            continue
-        filtered.append(row)
-    return filtered
-
-
-def get_inference_records(db, limit, offset) -> list[dict]:
+def get_inference_records(db, limit, offset) -> list[gbif.GbifRec]:
     with sqlite3.connect(db) as cxn:
         cxn.row_factory = sqlite3.Row
         sql = """
             select gbifID, tiebreaker, state, family, genus, scientificName
-            from multimedia join occurrence using (gbifid)
+            from multimedia join occurrence using (gbifID)
             limit ? offset ?"""
-        rows = [dict(r) for r in cxn.execute(sql, (limit, offset))]
-    return rows
+        records = [gbif.GbifRec(r) for r in cxn.execute(sql, (limit, offset))]
+    return records
 
 
-def get_inference_dataset(rows, image_dir, *, debug: bool = False) -> Dataset:
+def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset:
     images = []
     ids = []
-    for row in rows:
-        parts = row["state"].split()
-
-        name = f"{row['gbifID']}_{row['tiebreaker']}"
-        name += f"_{parts[-1]}" if len(parts) > 1 else ""
+    for rec in records:
+        parts = gbif.GbifRec(rec)
 
         if debug:
-            path = image_dir / (name + ".jpg")
+            path = parts.local_path(image_dir)
             if not path.exists():
                 continue
         else:
-            path = image_dir / parts[0] / (name + ".jpg")
+            path = parts.hipergator_path(image_dir)
 
-        ids.append(row["gbifID"])
+        ids.append(parts.stem)
         images.append(str(path))
 
     dataset = Dataset.from_dict(
@@ -105,7 +66,7 @@ def get_data_loader(dataset, image_size):
 
 
 def infer_records(
-    records,
+    records: list[gbif.GbifRec],
     checkpoint,
     problem_type,
     image_dir,
@@ -129,7 +90,7 @@ def infer_records(
     model.to(device)
     model.eval()
 
-    base_recs = {r["gbifID"]: r for r in records}
+    base_recs = {r.id: r.as_dict() for r in records}
 
     dataset = get_inference_dataset(records, image_dir, debug=debug)
 

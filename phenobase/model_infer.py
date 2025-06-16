@@ -5,14 +5,14 @@ import logging
 import textwrap
 from pathlib import Path
 
-from pylib import inference_util, log
+from pylib import gbif, inference, log
 
 
 def main(args):
     log.started(args=args)
     records = get_records(args.db, args.limit, args.offset, args.bad_taxa)
 
-    inference_util.infer_records(
+    inference.infer_records(
         records,
         args.checkpoint,
         args.problem_type,
@@ -27,11 +27,11 @@ def main(args):
 
 
 def get_records(db, limit, offset, bad_taxa):
-    records = inference_util.get_inference_records(db, limit, offset)
+    records = inference.get_inference_records(db, limit, offset)
     total = len(records)
-    records = inference_util.filter_bad_images(records)
+    records = gbif.filter_bad_images(records)
     good = len(records)
-    records = inference_util.filter_bad_taxa(records, bad_taxa)
+    records = gbif.filter_bad_taxa(records, bad_taxa)
     families = len(records)
     logging.info(f"Total records {total}, good images {good}, good families {families}")
     return records
@@ -75,7 +75,7 @@ def parse_args():
         help="""A path to the CSV file with the list of bad families and genera.""",
     )
 
-    return inference_util.common_args(arg_parser)
+    return inference.common_args(arg_parser)
 
 
 if __name__ == "__main__":

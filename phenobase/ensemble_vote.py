@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import sys
 import textwrap
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -78,6 +79,8 @@ def get_vote_tally(score_csvs, ensemble, pred_col):
             # Make sure we only get an image's score once per model
             # It happened once so the check is here now
             if image_path in duplicates:
+                print(image_path)
+                sys.exit()
                 continue
             duplicates.add(image_path)
 
