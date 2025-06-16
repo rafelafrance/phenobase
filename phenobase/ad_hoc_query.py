@@ -33,11 +33,14 @@ def counts(args):
         rows = [gbif.GbifRec(r) for r in cxn.execute(sql)]
         logging.info(f"Total records = {len(rows)}")
 
-        images = gbif.filter_bad_images(rows)
-        logging.info(f"Good images = {len(images)}")
+        rows = [r for r in rows if not r.bad_image]
+        logging.info(f"Good images = {len(rows)}")
 
-        taxa = gbif.filter_bad_images(images)
-        logging.info(f"Good taxa = {len(taxa)}")
+        rows = [r for r in rows if not r.too_small]
+        logging.info(f"Large images = {len(rows)}")
+
+        rows = gbif.filter_bad_taxa(rows, args.bad_taxa)
+        logging.info(f"Good taxa = {len(rows)}")
 
 
 def redbud(args):
