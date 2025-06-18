@@ -33,6 +33,9 @@ def counts(args):
         rows = [gbif.GbifRec(r) for r in cxn.execute(sql)]
         logging.info(f"Total records = {len(rows)}")
 
+        rows = [r for r in rows if not r.no_url]
+        logging.info(f"With URL = {len(rows)}")
+
         rows = [r for r in rows if not r.bad_image]
         logging.info(f"Good images = {len(rows)}")
 

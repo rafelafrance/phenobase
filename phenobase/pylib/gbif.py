@@ -39,11 +39,15 @@ class GbifRec:
 
     @property
     def bad_image(self):
-        return self.state.startswith("images") and self.state.endswith("error")
+        return self.state.endswith("error")
 
     @property
     def too_small(self):
-        return self.state.startswith("images") and self.state.endswith("small")
+        return self.state.endswith("small")
+
+    @property
+    def no_url(self):
+        return not self.state.startswith("image")
 
     def local_path(self, image_dir):
         return image_dir / (self.stem + ".jpg")
