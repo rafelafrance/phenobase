@@ -36,6 +36,9 @@ def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset
                 continue
         else:
             path = rec.hipergator_path(image_dir)
+            if path.stat().st_size < util.TOO_DAMN_SMALL:
+                logging.warning(f"Bad image file {path.stem}")
+                continue
 
         ids.append(rec.stem)
         images.append(str(path))

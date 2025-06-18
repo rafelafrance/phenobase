@@ -5,6 +5,8 @@ from typing import Literal
 
 from datasets import Dataset, Image, NamedSplit
 
+TOO_DAMN_SMALL = 10_000
+
 TRAITS = ["flowers", "fruits", "leaves", "buds"]
 SPLIT = Literal["train", "val", "test"]
 SPLITS = ["train", "val", "test"]

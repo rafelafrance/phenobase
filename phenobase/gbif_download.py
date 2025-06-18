@@ -15,13 +15,12 @@ from pathlib import Path
 
 import requests
 from PIL import Image
-from pylib import log
+from pylib import log, util
 
 TIMEOUT = 10  # Seconds to wait for a server reply
 DELAY = 5  # Seconds to delay between attempts to download an image
 
 IMAGES_PER_DIR = 100_000
-TOO_DAMN_SMALL = 10_000
 
 ERRORS = (
     AttributeError,
@@ -159,7 +158,7 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
             with Image.open(BytesIO(req.content)) as image:
                 width, height = image.size
 
-                if width * height < TOO_DAMN_SMALL:
+                if width * height < util.TOO_DAMN_SMALL:
                     raise ValueError
 
                 if max_width < width < height:
