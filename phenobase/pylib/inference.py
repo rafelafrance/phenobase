@@ -12,7 +12,7 @@ from transformers import AutoModelForImageClassification
 from datasets import Dataset, Image
 from phenobase.pylib import gbif, util
 
-BATCH = 100_000
+BATCH = 1_000_000
 
 
 def get_inference_records(db, limit, offset) -> list[gbif.GbifRec]:

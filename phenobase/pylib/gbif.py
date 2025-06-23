@@ -8,23 +8,29 @@ class GbifRec:
     dir: str = ""
     stem: str = ""
     state: str = ""
+    gbifid: str = ""
     family: str = ""
     genus: str = ""
     sci_name: str = ""
+    tiebreaker: int = 0
 
     def __init__(self, row):
+        row = dict(row)
+
         self.state = row["state"]
-        self.family = row["family"].lower()
-        self.sci_name = row["scientificName"].lower()
+        self.tiebreaker = row["tiebreaker"]
+        self.gbifid = row["gbifID"]
 
-        genus = row["genus"] if row["genus"] else self.sci_name.split()[0]
-        self.genus = genus.lower()
+        self.family = row.get("family", "").lower()
+        self.sci_name = row.get("scientificName", "").lower()
 
-        parts = row["state"].split()
+        self.genus = row.get("genus", "").lower()
+        if not self.genus and self.sci_name:
+            self.genus = self.sci_name.split()[0]
 
+        parts = self.state.split()
         self.dir = parts[0]
-
-        self.stem = f"{row['gbifID']}_{row['tiebreaker']}"
+        self.stem = f"{self.gbifid}_{self.tiebreaker}"
         self.stem += f"_{parts[-1]}" if len(parts) > 1 else ""
 
     @property
@@ -48,6 +54,11 @@ class GbifRec:
     @property
     def no_url(self):
         return not self.state.startswith("image")
+
+    def get_path(self, image_dir, *, debug: bool = False):
+        if debug:
+            return self.local_path(image_dir)
+        return self.hipergator_path(image_dir)
 
     def local_path(self, image_dir):
         return image_dir / (self.stem + ".jpg")

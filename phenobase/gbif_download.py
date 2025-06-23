@@ -22,25 +22,6 @@ DELAY = 5  # Seconds to delay between attempts to download an image
 
 IMAGES_PER_DIR = 100_000
 
-ERRORS = (
-    AttributeError,
-    BufferError,
-    ConnectionError,
-    EOFError,
-    FileNotFoundError,
-    IOError,
-    Image.DecompressionBombError,
-    Image.UnidentifiedImageError,
-    IndexError,
-    OSError,
-    RuntimeError,
-    SyntaxError,
-    TimeoutError,
-    TypeError,
-    ValueError,
-    requests.exceptions.ReadTimeout,
-)
-
 Image.MAX_IMAGE_PIXELS = 300_000_000
 
 # Set a timeout for requests
@@ -140,11 +121,12 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
     if path.exists():
         return "exists"
 
+    req = None
     for _attempt in range(attempts):
         try:
             req = requests.get(url, timeout=DELAY)
             break
-        except ERRORS:
+        except util.IMAGE_ERRORS:
             time.sleep(DELAY)
     else:
         error = path.with_stem(f"{path.stem}_download_error")
@@ -161,6 +143,9 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
                 if width * height < util.TOO_DAMN_SMALL:
                     raise ValueError
 
+                if image.mode != "RGB":
+                    image.convert("RGB")
+
                 if max_width < width < height:
                     height = int(height * (max_width / width))
                     width = max_width
@@ -176,7 +161,7 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
 
                 image.save(path)
 
-        except ERRORS:
+        except util.IMAGE_ERRORS:
             error = path.with_stem(f"{path.stem}_image_error")
             error.touch()
             return "image_error"
@@ -201,7 +186,7 @@ def parse_args():
         type=Path,
         required=True,
         metavar="PATH",
-        help="""This SQLite DB data contains the image image links.""",
+        help="""This SQLite DB data contains image links.""",
     )
 
     arg_parser.add_argument(

@@ -89,7 +89,7 @@ def report(all_dupes: Dupes, removed: int) -> None:
 def parse_args():
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        description=textwrap.dedent("""Audit the downloaded images."""),
+        description=textwrap.dedent("""Handle duplicate images for a single record."""),
     )
 
     arg_parser.add_argument(
@@ -102,7 +102,7 @@ def parse_args():
     arg_parser.add_argument(
         "--remove-duplicates",
         action="store_true",
-        help="""Destination image directory.""",
+        help="""Remove unused duplicate images if set.""",
     )
 
     args = arg_parser.parse_args()

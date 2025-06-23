@@ -3,9 +3,32 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
+import requests
+from PIL import Image as PilImage
+
 from datasets import Dataset, Image, NamedSplit
 
 TOO_DAMN_SMALL = 10_000
+
+IMAGE_ERRORS = (
+    AttributeError,
+    BufferError,
+    ConnectionError,
+    EOFError,
+    FileNotFoundError,
+    IOError,
+    PilImage.DecompressionBombError,
+    PilImage.UnidentifiedImageError,
+    IndexError,
+    OSError,
+    RuntimeError,
+    SyntaxError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+    requests.exceptions.ReadTimeout,
+)
+
 
 TRAITS = ["flowers", "fruits", "leaves", "buds"]
 SPLIT = Literal["train", "val", "test"]
