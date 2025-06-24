@@ -86,8 +86,6 @@ def main(args):
                         cxn.execute(update, (rec.state, rec.gbifid, rec.tiebreaker))
                         continue
 
-            cxn.commit()
-
     logging.info(f"Total records     {total:,}")
     logging.info(f"Skipped records   {skipped:,}")
     logging.info(f"Processed records {processed:,}")
