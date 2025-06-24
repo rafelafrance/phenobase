@@ -11,6 +11,8 @@ from PIL import Image
 from pylib import gbif, inference, log, util
 from tqdm import tqdm
 
+UPDATE = "update multimedia set state = '{}' where gbifid = '{}' and tiebreaker = {};"
+
 
 def main(args):
     log.started(args=args)
@@ -19,8 +21,6 @@ def main(args):
 
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
-
-        update = "update multimedia set state = ? where gbifid = ? and tiebreaker = ?"
 
         select = """
             select gbifID, tiebreaker, state
@@ -42,7 +42,7 @@ def main(args):
 
             total += len(rows)
 
-            for row in tqdm(rows, desc=f"total: {total:,}"):
+            for row in tqdm(rows, desc=f"total: {total + args.offset:,}"):
                 rec: gbif.GbifRec = gbif.GbifRec(row)
 
                 if not rec.good_image:
@@ -61,7 +61,9 @@ def main(args):
                     logging.warning(f"Image is too damn small {path.stem}")
                     too_small += 1
                     rec.state += " small"
-                    cxn.execute(update, (rec.state, rec.gbifid, rec.tiebreaker))
+                    logging.warning(
+                        UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
+                    )
                     continue
 
                 with warnings.catch_warnings():
@@ -72,7 +74,7 @@ def main(args):
                     try:
                         with Image.open(path) as image:
                             if image.mode != "RGB":
-                                logging.info(
+                                logging.warning(
                                     f"Image mode {image.mode} to RGB {path.name}"
                                 )
                                 image = image.convert("RGB")
@@ -83,7 +85,9 @@ def main(args):
                         logging.warning(f"Image error {path.stem} {err}")
                         rec.state += " error"
                         errors += 1
-                        cxn.execute(update, (rec.state, rec.gbifid, rec.tiebreaker))
+                        logging.warning(
+                            UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
+                        )
                         continue
 
     logging.info(f"Total records     {total:,}")
