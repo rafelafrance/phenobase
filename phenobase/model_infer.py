@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import sqlite3
 import textwrap
 from pathlib import Path
 
@@ -10,31 +11,47 @@ from pylib import gbif, inference, log
 
 def main(args):
     log.started(args=args)
-    records = get_records(args.db, args.limit, args.offset, args.bad_taxa)
+    bad_taxa = gbif.get_bad_taxa(args.bad_taxa)
 
-    inference.infer_records(
-        records,
-        args.checkpoint,
-        args.problem_type,
-        args.image_dir,
-        args.image_size,
-        args.trait,
-        args.output_csv,
-        debug=args.debug,
-    )
+    total, processed = 0, 0
+
+    with sqlite3.connect(args.gbif_db) as cxn:
+        cxn.row_factory = sqlite3.Row
+        select = """
+            select gbifID, tiebreaker, state, family, genus, scientificName
+            from multimedia join occurrence using (gbifID)
+            """
+        cursor = cxn.cursor()
+        cursor.execute(select)
+
+        while True:
+            rows = cursor.fetchmany(inference.BATCH)
+            if not rows:
+                break
+
+            total += len(rows)
+
+            rows = [gbif.GbifRec(r) for r in rows]
+            rows = gbif.filter_bad_images(rows)
+            rows = gbif.filter_bad_taxa(rows, bad_taxa)
+
+            processed += len(rows)
+
+            inference.infer_records(
+                rows,
+                args.checkpoint,
+                args.problem_type,
+                args.image_dir,
+                args.image_size,
+                args.trait,
+                args.output_csv,
+                debug=args.debug,
+            )
+
+    logging.info(f"Total records     {total}")
+    logging.info(f"Records processed {processed}")
 
     log.finished()
-
-
-def get_records(db, limit, offset, bad_taxa):
-    records = inference.get_inference_records(db, limit, offset)
-    total = len(records)
-    records = gbif.filter_bad_images(records)
-    good = len(records)
-    records = gbif.filter_bad_taxa(records, bad_taxa)
-    families = len(records)
-    logging.info(f"Total records {total}, good images {good}, good families {families}")
-    return records
 
 
 def parse_args():
@@ -44,27 +61,11 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--db",
+        "--gbif-db",
         type=Path,
         required=True,
         metavar="PATH",
-        help="""A database with information about herbarium sheets.""",
-    )
-
-    arg_parser.add_argument(
-        "--limit",
-        type=int,
-        default=1_000_000,
-        metavar="INT",
-        help="""Limit to this many images. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--offset",
-        type=int,
-        default=0,
-        metavar="INT",
-        help="""Read records after this offset. (default: %(default)s)""",
+        help="""This SQLite DB with information about herbarium sheets.""",
     )
 
     arg_parser.add_argument(

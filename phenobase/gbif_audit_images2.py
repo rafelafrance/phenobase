@@ -32,6 +32,7 @@ def main(args):
                 break
 
             total += len(rows)
+
             for row in tqdm(rows, desc=f"total: {total:,}"):
                 rec = gbif.GbifRec(row)
 

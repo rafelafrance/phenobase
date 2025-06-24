@@ -18,7 +18,7 @@ class GbifRec:
         row = dict(row)
 
         self.state = row["state"]
-        self.tiebreaker = row["tiebreaker"]
+        self.tiebreaker = int(row["tiebreaker"])
         self.gbifid = row["gbifID"]
 
         self.family = row.get("family", "").lower()
@@ -75,25 +75,28 @@ def filter_bad_images(records: list[GbifRec]) -> list[GbifRec]:
     return filtered
 
 
-def filter_bad_taxa(
-    records: list[GbifRec], bad_taxa: Path | None = None
-) -> list[GbifRec]:
+def filter_bad_taxa(records: list[GbifRec], bad_taxa: list[tuple]) -> list[GbifRec]:
     if not bad_taxa:
         return records
 
-    # Get the bad taxa
-    to_remove = set()
-    with bad_taxa.open() as f:
+    filtered = []
+    for rec in records:
+        if (rec.family, rec.genus) in bad_taxa or (rec.family, "") in bad_taxa:
+            continue
+        filtered.append(rec)
+    return filtered
+
+
+def get_bad_taxa(bad_taxa_csv: Path) -> list[tuple[str, str]]:
+    if not bad_taxa_csv:
+        return []
+
+    bad_taxa = set()
+    with bad_taxa_csv.open() as f:
         reader = csv.DictReader(f)
-        to_remove = [
+        bad_taxa = [
             (r["family"].lower(), r["genus"].lower() if r["genus"] else "")
             for r in reader
         ]
 
-    # Filter bad taxa from the rows
-    filtered = []
-    for rec in records:
-        if (rec.family, rec.genus) in to_remove or (rec.family, "") in to_remove:
-            continue
-        filtered.append(rec)
-    return filtered
+    return bad_taxa

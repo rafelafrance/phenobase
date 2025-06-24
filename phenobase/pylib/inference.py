@@ -1,5 +1,4 @@
 import logging
-import sqlite3
 from pathlib import Path
 
 import pandas as pd
@@ -15,30 +14,13 @@ from phenobase.pylib import gbif, util
 BATCH = 1_000_000
 
 
-def get_inference_records(db, limit, offset) -> list[gbif.GbifRec]:
-    with sqlite3.connect(db) as cxn:
-        cxn.row_factory = sqlite3.Row
-        sql = """
-            select gbifID, tiebreaker, state, family, genus, scientificName
-            from multimedia join occurrence using (gbifID)
-            limit ? offset ?"""
-        records = [gbif.GbifRec(r) for r in cxn.execute(sql, (limit, offset))]
-    return records
-
-
 def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset:
     images = []
     ids = []
     for rec in records:
-        if debug:
-            path = rec.local_path(image_dir)
-            if not path.exists():
-                continue
-        else:
-            path = rec.hipergator_path(image_dir)
-            if path.stat().st_size < util.TOO_DAMN_SMALL:
-                logging.warning(f"Bad image file {path.stem}")
-                continue
+        path = rec.get_path(image_dir, debug=debug)
+        if not path.exists():
+            continue
 
         ids.append(rec.stem)
         images.append(str(path))
@@ -97,11 +79,13 @@ def infer_records(
 
     loader = get_data_loader(dataset, image_size)
 
-    logging.info("Starting inference")
-
     output = []
-    mode = "w"
-    header = True
+    if output_csv.exists():
+        mode = "a"
+        header = False
+    else:
+        mode = "w"
+        header = True
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -131,7 +115,6 @@ def infer_records(
 
     df = pd.DataFrame(output)
     df.to_csv(output_csv, mode=mode, header=header, index=False)
-    logging.info("Finished inference")
     return output
 
 
