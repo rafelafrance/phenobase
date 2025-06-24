@@ -23,11 +23,12 @@ def main(args):
             """
         cursor = cxn.cursor()
 
+        select_args = None
         if args.limit or args.offset:
             select += " limit ? offset ?"
-            cxn.execute(select, (args.limit, args.offset))
-        else:
-            cursor.execute(select)
+            select_args = (args.limit, args.offset)
+
+        cursor.execute(select, select_args)
 
         while True:
             rows = cursor.fetchmany(inference.BATCH)

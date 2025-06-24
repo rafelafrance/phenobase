@@ -19,13 +19,21 @@ def main(args):
 
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
+
+        update = "update multimedia set state = ? where gbifid = ? and tiebreaker = ?"
+
         select = """
             select gbifID, tiebreaker, state
             from multimedia join occurrence using (gbifID)
             """
-        update = "update multimedia set state = ? where gbifid = ? and tiebreaker = ?"
         cursor = cxn.cursor()
-        cursor.execute(select)
+
+        select_args = None
+        if args.limit or args.offset:
+            select += " limit ? offset ?"
+            select_args = (args.limit, args.offset)
+
+        cursor.execute(select, select_args)
 
         while True:
             rows = cursor.fetchmany(inference.BATCH)
@@ -114,6 +122,22 @@ def parse_args():
         "--debug",
         action="store_true",
         help="""Use when debugging locally.""",
+    )
+
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="""Limit to this many images. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="""Read records after this offset. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
