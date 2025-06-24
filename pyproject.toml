@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phenobase"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
 license = { file = "LICENSE" }
 authors = [{ name = "Raphael LaFrance", email = "rafelafrance@proton.me" }]
@@ -141,6 +141,7 @@ ignore = [
     "N818",    # Exception name {name} should be named with an Error suffix
     "PD901",   # Avoid using the generic variable name df for DataFrames
     "PLR0913", # Too many arguments in function definition ({c_args} > {max_args})
+    "PLR0915", # Too many statements
     "PLR2004", # Magic value used in comparison
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "PLW0603", # Using the global statement to update {name} is discouraged

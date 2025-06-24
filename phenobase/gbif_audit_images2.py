@@ -34,7 +34,7 @@ def main(args):
             total += len(rows)
 
             for row in tqdm(rows, desc=f"total: {total:,}"):
-                rec = gbif.GbifRec(row)
+                rec: gbif.GbifRec = gbif.GbifRec(row)
 
                 if not rec.good_image:
                     skipped += 1
@@ -68,10 +68,12 @@ def main(args):
                                 image.save(path)
                                 channels += 1
 
-                    except util.IMAGE_ERRORS:
+                    except util.IMAGE_ERRORS as err:
+                        logging.warning(f"Image error {path.stem} {err}")
                         rec.state += " error"
                         errors += 1
                         cxn.execute(update, (rec.state, rec.gbifid, rec.tiebreaker))
+                        continue
 
             cxn.commit()
 
