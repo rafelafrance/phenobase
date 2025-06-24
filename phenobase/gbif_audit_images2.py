@@ -21,7 +21,8 @@ def main(args):
         cxn.row_factory = sqlite3.Row
         select = """
             select gbifID, tiebreaker, state
-            from multimedia join occurrence using (gbifID)"""
+            from multimedia join occurrence using (gbifID)
+            """
         update = "update multimedia set state = ? where gbifid = ? and tiebreaker = ?"
         cursor = cxn.cursor()
         cursor.execute(select)
@@ -63,7 +64,9 @@ def main(args):
                     try:
                         with Image.open(path) as image:
                             if image.mode != "RGB":
-                                print(f"RGB {path}")
+                                logging.info(
+                                    f"Image mode {image.mode} to RGB {path.name}"
+                                )
                                 image = image.convert("RGB")
                                 image.save(path)
                                 channels += 1

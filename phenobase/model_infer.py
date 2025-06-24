@@ -22,7 +22,12 @@ def main(args):
             from multimedia join occurrence using (gbifID)
             """
         cursor = cxn.cursor()
-        cursor.execute(select)
+
+        if args.limit or args.offset:
+            select += " limit ? offset ?"
+            cxn.execute(select, (args.limit, args.offset))
+        else:
+            cursor.execute(select)
 
         while True:
             rows = cursor.fetchmany(inference.BATCH)
@@ -74,6 +79,22 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""A path to the CSV file with the list of bad families and genera.""",
+    )
+
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="""Limit to this many images. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="""Read records after this offset. (default: %(default)s)""",
     )
 
     return inference.common_args(arg_parser)

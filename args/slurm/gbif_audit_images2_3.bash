@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=gbif_audit_images2
+#SBATCH --job-name=gbif_audit_images2_3
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -22,6 +22,8 @@ module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/gbif_audit_images2.py \
     --gbif-db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
-    --image-dir /blue/guralnick/share/phenobase_specimen_data/images
+    --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
+    --limit 10000000 \
+    --offset 30000000
 
 date
