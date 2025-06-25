@@ -10,7 +10,7 @@
 
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=16gb
-#SBATCH --time=4:00:00
+#SBATCH --time=4-00:00:00
 
 date
 hostname
