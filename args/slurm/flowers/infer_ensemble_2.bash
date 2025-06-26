@@ -9,7 +9,7 @@
 #SBATCH --output=/blue/guralnick/rafe.lafrance/phenobase/logs/%x_%j.out
 
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=64gb
+#SBATCH --mem=16gb
 #SBATCH --time=12:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:a100:1
