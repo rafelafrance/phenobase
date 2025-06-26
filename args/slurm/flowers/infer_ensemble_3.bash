@@ -23,7 +23,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
-    --db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
+    --gbif-db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
     --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
     --bad-taxa /home/rafe.lafrance/blue/phenobase/datasets/remove_flowers.csv \
     --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_paper_3a.csv \
