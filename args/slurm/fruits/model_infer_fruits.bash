@@ -12,7 +12,7 @@
 #SBATCH --mem=64gb
 #SBATCH --time=24:10:00
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:1
 
 date
 hostname
