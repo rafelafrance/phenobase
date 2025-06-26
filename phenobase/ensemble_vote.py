@@ -81,7 +81,6 @@ def get_vote_tally(score_csvs, ensemble, pred_col):
             if image_path in duplicates:
                 print(image_path)
                 sys.exit()
-                continue
             duplicates.add(image_path)
 
             # Convert a score into a vote for the model
