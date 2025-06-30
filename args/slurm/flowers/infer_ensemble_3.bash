@@ -10,7 +10,7 @@
 
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16gb
-#SBATCH --time=10-00:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
@@ -29,6 +29,6 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_3b.csv \
     --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/models/best_3combo_fract/vit_384_lg_flowers_f1_slurm_sl_checkpoint-9450 \
     --image-size 384 \
-    --limit 4000000 \
+    --limit 1000000 \
     --offset 1000000 \
     --trait flowers
