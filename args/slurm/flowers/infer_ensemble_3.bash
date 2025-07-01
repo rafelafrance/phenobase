@@ -11,8 +11,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16gb
 #SBATCH --time=2-00:00:00
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --partition=hpg-b200
+#SBATCH --gpus=1
 
 date
 hostname
