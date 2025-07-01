@@ -11,7 +11,7 @@ from transformers import AutoModelForImageClassification
 from datasets import Dataset, Image
 from phenobase.pylib import gbif, util
 
-BATCH = 1_000_000
+BATCH = 100_000
 
 
 def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset:
@@ -105,13 +105,6 @@ def infer_records(
             rec[f"{trait}_score"] = score.item()
             rec["path"] = sheet["path"][0]
             output.append(rec)
-
-            if len(output) >= BATCH:
-                df = pd.DataFrame(output)
-                df.to_csv(output_csv, mode=mode, header=header, index=False)
-                output = []
-                mode = "a"
-                header = False
 
     df = pd.DataFrame(output)
     df.to_csv(output_csv, mode=mode, header=header, index=False)
