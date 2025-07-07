@@ -11,7 +11,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=64gb
 #SBATCH --time=2-00:00:00
-#SBATCH --partition=hpg-b200
+#SBATCH --partition=hpg-gpu
 #SBATCH --gpus=1
 
 date

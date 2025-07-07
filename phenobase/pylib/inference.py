@@ -11,7 +11,7 @@ from transformers import AutoModelForImageClassification
 from datasets import Dataset, Image
 from phenobase.pylib import gbif, util
 
-BATCH = 100_000
+BATCH = 10_000
 
 
 def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset:
