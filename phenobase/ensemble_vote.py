@@ -45,8 +45,14 @@ def main(args):
 
     # Output votes and metadata to a CSV file
     df = pd.DataFrame(output)
-    df = df.drop([ensemble["trait"], pred_col], axis=1)
-    df.to_csv(args.vote_csv, index=False)
+    df = df[["gbifid", "sci_name", "votes", "winner", "family", "genus", "tiebreaker"]]
+
+    df["family"] = df["family"].str.title()
+    df["genus"] = df["genus"].str.title()
+    df["winner"] = df["winner"].astype(str)
+
+    mode, header = ("a", False) if args.vote_csv.exists() else ("w", True)
+    df.to_csv(args.vote_csv, mode=mode, header=header, index=False)
 
     print_results(winners)
 
@@ -85,9 +91,9 @@ def get_vote_tally(score_csvs, ensemble, pred_col):
 
             # Convert a score into a vote for the model
             if score < model["threshold_low"]:
-                vote = 0.0
+                vote = 0
             elif score >= model["threshold_high"]:
-                vote = 1.0
+                vote = 1
             else:
                 vote = None
 
@@ -103,7 +109,7 @@ def parse_args():
             """
             Calculate ensemble results on inferred data.
             These are "hard vote" ensembles, so I'm looking for a majority of votes
-            after thresholds. An expert will check the results.
+            after using model thresholds.
             """
         ),
     )
@@ -130,7 +136,7 @@ def parse_args():
         "--vote-csv",
         type=Path,
         metavar="PATH",
-        help="""Output the vote results to this CSV file.""",
+        help="""Append vote results to this CSV file.""",
     )
 
     args = arg_parser.parse_args()

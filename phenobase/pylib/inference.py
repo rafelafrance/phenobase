@@ -80,12 +80,6 @@ def infer_records(
     loader = get_data_loader(dataset, image_size)
 
     output = []
-    if output_csv.exists():
-        mode = "a"
-        header = False
-    else:
-        mode = "w"
-        header = True
 
     with torch.no_grad():
         for sheet in tqdm(loader):
@@ -107,6 +101,7 @@ def infer_records(
             output.append(rec)
 
     df = pd.DataFrame(output)
+    mode, header = ("a", False) if output_csv.exists() else ("w", True)
     df.to_csv(output_csv, mode=mode, header=header, index=False)
     return output
 
@@ -125,7 +120,7 @@ def common_args(arg_parser):
         type=Path,
         required=True,
         metavar="PATH",
-        help="""Output inference results to this CSV.""",
+        help="""Append inference results to this CSV.""",
     )
 
     arg_parser.add_argument(
