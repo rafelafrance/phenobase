@@ -32,7 +32,7 @@ def main(args):
 
         reader = csv.DictReader(f)
 
-        for row in tqdm(reader):
+        for i, row in enumerate(tqdm(reader)):
             formatted_trait = format_trait(row, args.trait, args.results)
             if not formatted_trait:
                 continue
@@ -68,6 +68,9 @@ def main(args):
             # family_counts[data["family"]] += 1
 
             records.append(rec)
+
+            if args.limit and i >= args.limit:
+                break
 
     df = pd.DataFrame(records)
     mode, header = ("a", False) if args.output_csv.exists() else ("w", True)
@@ -161,6 +164,13 @@ def parse_args():
         choices=["positive", "negative", "pos/neg", "all"],
         default="positive",
         help="""What results to include in the output. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="""Limit to this many records, 0 = unlimited. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
