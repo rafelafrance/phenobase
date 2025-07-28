@@ -7,7 +7,7 @@ test:
 base:
 	test -d .venv || python3.12 -m venv .venv
 	. .venv/bin/activate
-	python3 -m pip install -U pip setuptools wheel
+	python3 -m pip install -U pip setuptools setuptools-scm wheel
 
 install: base
 	python3 -m pip install .
