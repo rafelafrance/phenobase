@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=flower_inference_2g
+#SBATCH --job-name=flower_inference_2h
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
@@ -26,11 +26,11 @@ python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/model_infer.py \
     --gbif-db /home/rafe.lafrance/blue/phenobase/data/gbif_2024-10-28.sqlite \
     --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
     --bad-taxa /home/rafe.lafrance/blue/phenobase/datasets/remove_flowers.csv \
-    --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_2g.csv \
+    --output-csv /home/rafe.lafrance/blue/phenobase/data/infer/flower_inference_2h.csv \
     --checkpoint /blue/guralnick/rafe.lafrance/phenobase/data/models/best_3combo_fract/vit_384_lg_flowers_f1_a_checkpoint-19199 \
     --image-size 384 \
     --limit 5000000 \
-    --offset 20000000 \
+    --offset 25000000 \
     --problem-type regression \
     --trait flowers
 
