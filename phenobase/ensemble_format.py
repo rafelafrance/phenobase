@@ -66,12 +66,10 @@ def main(args):
                 "occurrenceID": data["gbifID"],
                 "organismID": data["organismID"],
                 "genus": data["genus"],
-                "taxonRank": data["taxonRank"],
                 "date": data["eventDate"],
                 "recordedBy": data["recordedBy"],
                 "coordinateUncertaintyInMeters": data["coordinateUncertaintyInMeters"],
-                "certainty": format_certainty(row),
-                "verbatimTrait": str(row["winner"]),
+                "verbatimTrait": args.trait,
                 "modelUri": "Zenodo link TBD",
             }
 
@@ -97,11 +95,6 @@ def format_prediction_class(row):
 def format_prediction_probability(row):
     count = sum(1 for v in row["votes"] if v == row["winner"])
     return 1.0 if count == 3 else 0.67
-
-
-def format_certainty(row):
-    count = sum(1 for v in row["votes"] if v == row["winner"])
-    return "High = 3/3 votes" if count == 3 else "Medium = 2/3 votes"
 
 
 def format_trait(row, trait, results):
