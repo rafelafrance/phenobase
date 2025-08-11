@@ -19,7 +19,8 @@ def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset
     ids = []
     for rec in records:
         path = rec.get_path(image_dir, debug=debug)
-        if not path.exists():
+        if not path.exists() or path.stat().st_size < util.TOO_DAMN_SMALL:
+            logging.warning(f"Bad image file {path.stem}")
             continue
 
         ids.append(rec.stem)
