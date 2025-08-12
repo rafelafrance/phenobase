@@ -52,7 +52,7 @@ def main(args):
                 continue
 
             rec = {
-                "dataSource": "gbif",
+                "dataSource": args.data_source,
                 "scientificName": data["scientificName"],
                 "trait": formatted_trait,
                 "family": data["family"],
@@ -70,7 +70,7 @@ def main(args):
                 "recordedBy": data["recordedBy"],
                 "coordinateUncertaintyInMeters": data["coordinateUncertaintyInMeters"],
                 "verbatimTrait": args.trait,
-                "modelUri": "Zenodo link TBD",
+                "modelUri": args.model_uri,
             }
 
             records.append(rec)
@@ -182,6 +182,19 @@ def parse_args():
         "--append",
         action="store_true",
         help="""Append formatted records to an already existing output CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--data-source",
+        default="gbif",
+        help="""Where is the ensemble stored.""",
+    )
+
+    arg_parser.add_argument(
+        "--model-uri",
+        default="Zenodo link TBD",
+        metavar="URI",
+        help="""Where is the ensemble stored.""",
     )
 
     arg_parser.add_argument(
