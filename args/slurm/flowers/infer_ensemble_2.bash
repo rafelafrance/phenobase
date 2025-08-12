@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=flower_inference_2h
+#SBATCH --job-name=2h_flower_inference
 
 #SBATCH --mail-user=rafe.lafrance@ufl.edu
 #SBATCH --mail-type=ALL
