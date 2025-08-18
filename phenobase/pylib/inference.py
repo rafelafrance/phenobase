@@ -84,8 +84,12 @@ def infer_records(
 
     with torch.no_grad():
         for sheet in tqdm(loader):
-            image = sheet["image"].to(device)
-            result = model(image)
+            try:
+                image = sheet["image"].to(device)
+                result = model(image)
+            except util.IMAGE_ERRORS as err:
+                logging.warning(f"Image error {err}")
+                continue
 
             if problem_type == util.ProblemType.REGRESSION:
                 scores = torch.sigmoid(result.logits)
