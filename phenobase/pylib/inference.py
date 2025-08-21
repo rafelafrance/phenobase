@@ -14,15 +14,11 @@ from phenobase.pylib import gbif, util
 BATCH = 10_000
 
 
-def get_inference_dataset(records, image_dir, *, debug: bool = False) -> Dataset:
+def get_inference_dataset(records, image_dir) -> Dataset:
     images = []
     ids = []
     for rec in records:
-        path = rec.get_path(image_dir, debug=debug)
-        if not path.exists() or path.stat().st_size < util.TOO_DAMN_SMALL:
-            logging.warning(f"Bad image file {path.stem}")
-            continue
-
+        path = rec.get_path(image_dir)
         ids.append(rec.stem)
         images.append(str(path))
 
@@ -57,8 +53,6 @@ def infer_records(
     image_size,
     trait,
     output_csv,
-    *,
-    debug: bool = False,
 ):
     softmax = torch.nn.Softmax(dim=1)
 
@@ -76,7 +70,7 @@ def infer_records(
 
     base_recs = {r.id: r.as_dict() for r in records}
 
-    dataset = get_inference_dataset(records, image_dir, debug=debug)
+    dataset = get_inference_dataset(records, image_dir)
 
     loader = get_data_loader(dataset, image_size)
 
@@ -106,8 +100,8 @@ def infer_records(
             output.append(rec)
 
     df = pd.DataFrame(output)
-    mode, header = ("a", False) if output_csv.exists() else ("w", True)
-    df.to_csv(output_csv, mode=mode, header=header, index=False)
+    header = not output_csv.exists()
+    df.to_csv(output_csv, mode="a", header=header, index=False)
     return output
 
 

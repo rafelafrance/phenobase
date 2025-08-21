@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import shutil
 import sqlite3
 import textwrap
 import warnings
@@ -61,9 +62,9 @@ def main(args):
                     logging.warning(f"Image is too damn small {path.stem}")
                     too_small += 1
                     rec.state += " small"
-                    logging.warning(
-                        UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
-                    )
+                    UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
+                    new_path = path.with_stem(f"{path.stem}_small")
+                    shutil.move(path, new_path)
                     continue
 
                 with warnings.catch_warnings():
@@ -83,11 +84,11 @@ def main(args):
 
                     except util.IMAGE_ERRORS as err:
                         logging.warning(f"Image error {path.stem} {err}")
-                        rec.state += " error"
                         errors += 1
-                        logging.warning(
-                            UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
-                        )
+                        rec.state += " error"
+                        UPDATE.format(rec.state, rec.gbifid, rec.tiebreaker)
+                        new_path = path.with_stem(f"{path.stem}_bit_rot_error")
+                        shutil.move(path, new_path)
                         continue
 
     logging.info(f"Total records     {total:,}")

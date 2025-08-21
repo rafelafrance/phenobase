@@ -121,7 +121,6 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
     if path.exists():
         return "exists"
 
-    req = None
     for _attempt in range(attempts):
         try:
             req = requests.get(url, timeout=DELAY)

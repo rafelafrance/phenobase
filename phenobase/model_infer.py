@@ -51,7 +51,6 @@ def main(args):
                 args.image_size,
                 args.trait,
                 args.output_csv,
-                debug=args.debug,
             )
 
     logging.info(f"Total records     {total}")
