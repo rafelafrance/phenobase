@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from PIL import Image as ImagePil
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 from tqdm import tqdm
@@ -11,14 +12,18 @@ from transformers import AutoModelForImageClassification
 from datasets import Dataset, Image
 from phenobase.pylib import gbif, util
 
-BATCH = 10_000
-
 
 def get_inference_dataset(records, image_dir) -> Dataset:
     images = []
     ids = []
     for rec in records:
-        path = rec.get_path(image_dir)
+        try:
+            path = rec.get_path(image_dir)
+            _image = ImagePil.open(path).resize((224, 224))  # Sigh, double read for now
+
+        except util.IMAGE_ERRORS:
+            continue
+
         ids.append(rec.stem)
         images.append(str(path))
 

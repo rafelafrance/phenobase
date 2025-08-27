@@ -9,9 +9,9 @@ from pathlib import Path
 from pylib import gbif, inference, log
 
 
-def main(args):
+def infer_from_custom_data(args):
     log.started(args=args)
-    records = get_records(args.custom_dataset)
+    records = get_records(args.custom_data)
 
     inference.infer_records(
         records,
@@ -26,8 +26,8 @@ def main(args):
     log.finished()
 
 
-def get_records(custom_dataset):
-    with custom_dataset.open() as f:
+def get_records(custom_data):
+    with custom_data.open() as f:
         reader = csv.DictReader(f)
         records = [gbif.GbifRec(r) for r in reader]
     good = gbif.filter_bad_images(records)
@@ -44,7 +44,7 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--custom-dataset",
+        "--custom-data",
         type=Path,
         required=True,
         metavar="PATH",
@@ -56,4 +56,4 @@ def parse_args():
 
 if __name__ == "__main__":
     ARGS = parse_args()
-    main(ARGS)
+    infer_from_custom_data(ARGS)

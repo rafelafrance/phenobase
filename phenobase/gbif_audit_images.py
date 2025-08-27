@@ -9,7 +9,7 @@ import warnings
 from pathlib import Path
 
 from PIL import Image
-from pylib import gbif, inference, log, util
+from pylib import gbif, log, util
 from tqdm import tqdm
 
 UPDATE = "update multimedia set state = '{}' where gbifid = '{}' and tiebreaker = {};"
@@ -23,12 +23,13 @@ def main(args):
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
 
+        cursor = cxn.cursor()
+        cursor.arraysize = 100_000
+
         select = """
             select gbifID, tiebreaker, state
             from multimedia join occurrence using (gbifID)
             """
-        cursor = cxn.cursor()
-
         select_args = None
         if args.limit or args.offset:
             select += " limit ? offset ?"
@@ -37,7 +38,7 @@ def main(args):
         cursor.execute(select, select_args)
 
         while True:
-            rows = cursor.fetchmany(inference.BATCH)
+            rows = cursor.fetchmany()
             if not rows:
                 break
 

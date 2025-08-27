@@ -19,7 +19,7 @@ class GbifRec:
 
         self.state = row["state"]
         self.tiebreaker = int(row["tiebreaker"])
-        self.gbifid = row["gbifID"]
+        self.gbifid = row.get("gbifID", row.get("gbifid"))
 
         self.family = row.get("family", "").lower()
         self.sci_name = row.get("scientificName", "").lower()
@@ -30,8 +30,12 @@ class GbifRec:
 
         parts = self.state.split()
         self.dir = parts[0]
-        self.stem = f"{self.gbifid}_{self.tiebreaker}"
-        self.stem += f"_{parts[-1]}" if len(parts) > 1 else ""
+
+        if "id" in row:
+            self.stem = row["id"]
+        else:
+            self.stem = f"{self.gbifid}_{self.tiebreaker}"
+            self.stem += f"_{parts[-1]}" if len(parts) > 1 else ""
 
     @property
     def id(self):
