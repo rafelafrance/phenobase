@@ -11,7 +11,9 @@ from pylib import gbif, inference, log
 
 def infer_from_custom_data(args):
     log.started(args=args)
-    records = get_records(args.custom_data)
+
+    bad_taxa = gbif.get_bad_taxa(args.bad_taxa)
+    records = get_records(args.custom_data, bad_taxa)
 
     inference.infer_records(
         records,
@@ -26,11 +28,14 @@ def infer_from_custom_data(args):
     log.finished()
 
 
-def get_records(custom_data):
+def get_records(
+    custom_data: Path, bad_taxa: list[tuple[str, str]]
+) -> list[gbif.GbifRec]:
     with custom_data.open() as f:
         reader = csv.DictReader(f)
         records = [gbif.GbifRec(r) for r in reader]
     good = gbif.filter_bad_images(records)
+    good = gbif.filter_bad_taxa(good, bad_taxa)
     logging.info(f"Total records {len(records)}, good images {len(good)}")
     return good
 
@@ -49,6 +54,14 @@ def parse_args():
         required=True,
         metavar="PATH",
         help="""A CSV file with GBIF records about the custom herbarium sheets.""",
+    )
+
+    arg_parser.add_argument(
+        "--bad-taxa",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""A path to the CSV file with the list of bad families and genera.""",
     )
 
     return inference.common_args(arg_parser)

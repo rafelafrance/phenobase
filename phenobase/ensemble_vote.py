@@ -115,11 +115,24 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--ensemble-json",
-        type=Path,
+        "--glob-1",
         required=True,
-        metavar="PATH",
-        help="""The JSON file that contains ensemble metrics.""",
+        metavar="GLOB",
+        help="""A glob for all the output CSVs for model 1.""",
+    )
+
+    arg_parser.add_argument(
+        "--glob-2",
+        required=True,
+        metavar="GLOB",
+        help="""A glob for all the output CSVs for model 2.""",
+    )
+
+    arg_parser.add_argument(
+        "--glob-3",
+        required=True,
+        metavar="GLOB",
+        help="""A glob for all the output CSVs for model 3.""",
     )
 
     arg_parser.add_argument(

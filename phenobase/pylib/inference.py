@@ -16,12 +16,14 @@ from phenobase.pylib import gbif, util
 def get_inference_dataset(records, image_dir) -> Dataset:
     images = []
     ids = []
+    path = None
     for rec in records:
         try:
             path = rec.get_path(image_dir)
             _image = ImagePil.open(path).resize((224, 224))  # Sigh, double read for now
 
-        except util.IMAGE_ERRORS:
+        except util.IMAGE_ERRORS as err:
+            logging.info(f"Skipping {path} error {err}")
             continue
 
         ids.append(rec.stem)

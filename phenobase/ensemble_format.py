@@ -60,7 +60,7 @@ def main(args):
                 "dayOfYear": data["startDayOfYear"],
                 "latitude": data["decimalLatitude"],
                 "longitude": data["decimalLongitude"],
-                "observedMetadataUrl": f"{base_url}{data["gbifID"]}",
+                "observedMetadataUrl": f"{base_url}{data['gbifID']}",
                 "annotationID": uuid.uuid5(uuid.NAMESPACE_URL, data["identifier"]),
                 "annotationMethod": "machine",
                 "occurrenceID": data["gbifID"],
@@ -110,11 +110,11 @@ def format_trait(row, trait, results):
             formatted_trait = f"{trait} present"
         case "pos/neg 0.0":
             formatted_trait = f"{trait} absent"
-        case "any 1.0":
+        case "all 1.0":
             formatted_trait = f"{trait} present"
-        case "any 0.0":
+        case "all 0.0":
             formatted_trait = f"{trait} absent"
-        case "any nan":
+        case "all nan":
             formatted_trait = f"{trait} unknown"
 
     return formatted_trait
