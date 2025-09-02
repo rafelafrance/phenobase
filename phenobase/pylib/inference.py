@@ -20,7 +20,8 @@ def get_inference_dataset(records, image_dir) -> Dataset:
     for rec in records:
         try:
             path = rec.get_path(image_dir)
-            _image = ImagePil.open(path).resize((224, 224))  # Sigh, double read for now
+            image = ImagePil.open(path).resize((224, 224))  # Sigh, double read for now
+            image.close()
 
         except util.IMAGE_ERRORS as err:
             logging.info(f"Skipping {path} error {err}")
