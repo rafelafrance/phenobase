@@ -2,104 +2,104 @@
 
 import argparse
 import csv
+import glob
 import json
-import sys
+import logging
 import textwrap
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
+from tqdm import tqdm
 
 from phenobase.pylib import log
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
-    # Get ensemble data
-    with args.ensemble_json.open() as f:
-        ensemble = json.load(f)
+    ensemble = get_ensemble(args.ensemble_json)
 
-    # Tally votes
-    pred_col = ensemble["trait"] + "_score"  # Column that holds the trait's score
-    vote_tally = get_vote_tally(args.score_csv, ensemble, pred_col)
+    votes = gather_votes(args.glob, ensemble)
 
-    # Get metadata
-    with args.score_csv[0].open() as f:
-        reader = csv.DictReader(f)
-        metadata = {r["path"]: r for r in reader}
+    tally_votes(votes, ensemble)
 
-    # Get the vote winners for each herbarium sheet
-    vote_threshold = int(ensemble["args"]["vote_threshold"])
-    winners = {}
-    output = []
+    write_csv(args.vote_csv, votes)
 
-    for path, votes in vote_tally.items():
-        top = Counter(votes).most_common()
-        best = top[0][0]
-        winner = None
-        if best is not None and top[0][1] >= vote_threshold:
-            winner = best
-        winners[path] = winner
-        output.append({"path": path, "votes": votes, "winner": winner} | metadata[path])
-
-    # Output votes and metadata to a CSV file
-    df = pd.DataFrame(output)
-    df = df[["gbifid", "sci_name", "votes", "winner", "family", "genus", "tiebreaker"]]
-
-    df["family"] = df["family"].str.title()
-    df["genus"] = df["genus"].str.title()
-    df["winner"] = df["winner"].astype(str)
-
-    mode, header = ("a", False) if args.vote_csv.exists() else ("w", True)
-    df.to_csv(args.vote_csv, mode=mode, header=header, index=False)
-
-    print_results(winners)
+    print_results(votes)
 
     log.finished()
 
 
-def print_results(winners):
-    global_vote = Counter(winners.values())
-    total = sum(v for v in global_vote.values())
-    for value, count in global_vote.items():
-        print(f"{value!s:>5} {count:5} {count / total * 100.0:5.2f}")
-    print(f"Total {total:5}")
+def write_csv(vote_csv: Path, votes) -> None:
+    logging.info("Writing CSV file")
+    df = pd.DataFrame(votes.values())
+    df.to_csv(vote_csv, index=False)
 
 
-def get_vote_tally(score_csvs, ensemble, pred_col):
-    vote_tally = defaultdict(list)
+def gather_votes(globs: list[str], ensemble: dict) -> dict[str, dict]:
+    votes = {}
 
-    for model, score_csv in zip(ensemble["checkpoints"], score_csvs, strict=True):
-        # Get all votes for a model
-        with score_csv.open() as f:
-            reader = csv.DictReader(f)
-            checkpoint_scores = list(reader)
+    pred_col = ensemble["trait"] + "_score"  # Column that holds the trait's score
+    len_ = len(ensemble["checkpoints"])
 
-        duplicates = set()
+    for i, glob_ in enumerate(globs):
+        checkpoint = ensemble["checkpoints"][i]
+        threshold_low = checkpoint["threshold_low"]
+        threshold_high = checkpoint["threshold_high"]
 
-        for score_row in checkpoint_scores:
-            image_path = score_row["path"]
-            score = float(score_row[pred_col])
+        for path in sorted(glob.glob(glob_)):  # noqa: PTH207
+            path = Path(path)
+            logging.info(path.stem)
+            with path.open() as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row["id"] not in votes:
+                        votes[row["id"]] = {
+                            "id": row["id"],
+                            "trait": ensemble["trait"],
+                            "scores": [None for _ in range(len_)],
+                            "votes": [None for _ in range(len_)],
+                            "winner": None,
+                        }
+                    score = float(row[pred_col])
+                    votes[row["id"]]["scores"][i] = score
 
-            # Make sure we only get an image's score once per model
-            # It happened once so the check is here now
-            if image_path in duplicates:
-                print(image_path)
-                sys.exit()
-            duplicates.add(image_path)
+                    if score < threshold_low:
+                        vote = 0
+                    elif score >= threshold_high:
+                        vote = 1
+                    else:
+                        vote = None
+                    votes[row["id"]]["votes"][i] = vote
 
-            # Convert a score into a vote for the model
-            if score < model["threshold_low"]:
-                vote = 0
-            elif score >= model["threshold_high"]:
-                vote = 1
-            else:
-                vote = None
+    return votes
 
-            vote_tally[image_path].append(vote)
 
-    return vote_tally
+def tally_votes(votes: dict[str, dict], ensemble: dict) -> None:
+    logging.info("Tally votes")
+    vote_threshold = int(ensemble["args"]["vote_threshold"])
+
+    for row in tqdm(votes.values()):
+        top = Counter(row["votes"]).most_common()
+        best = top[0][0]
+        if best is not None and top[0][1] >= vote_threshold:
+            row["winner"] = best
+
+
+def get_ensemble(ensemble_json: Path):
+    with ensemble_json.open() as f:
+        return json.load(f)
+
+
+def print_results(votes):
+    logging.info("Summarizing")
+    global_votes = defaultdict(int)
+    for vote in tqdm(votes.values()):
+        global_votes[vote["winner"]] += 1
+    for value, count in global_votes.items():
+        logging.info(f"{value!s:>5} {count:12,d} {count / len(votes) * 100.0:5.2f}%")
+    logging.info(f"Total {len(votes):12,d}")
 
 
 def parse_args():
@@ -109,40 +109,33 @@ def parse_args():
             """
             Calculate ensemble results on inferred data.
             These are "hard vote" ensembles, so I'm looking for a majority of votes
-            after using model thresholds.
+            after using model thresholds. Note: --glob must be in the same order as the
+            models in --ensemble-json. That is, if the best combo has checkpoints:
+                "vit_384_lg_flowers_f1_slurm_sl/checkpoint-9450",
+                "vit_384_lg_flowers_f1_a/checkpoint-19199",
+                "effnet_528_flowers_reg_f1_a/checkpoint-17424"
+            then the first --glob must match the outputs of model_infer.py:
+                --checkpoint vit_384_lg_flowers_f1_slurm_sl/checkpoint-9450
+            It sounds more complicated than it really is. You just need to match the
+            glob with the checkpoint models in the ensemble.
             """
         ),
     )
 
     arg_parser.add_argument(
-        "--glob-1",
-        required=True,
-        metavar="GLOB",
-        help="""A glob for all the output CSVs for model 1.""",
-    )
-
-    arg_parser.add_argument(
-        "--glob-2",
-        required=True,
-        metavar="GLOB",
-        help="""A glob for all the output CSVs for model 2.""",
-    )
-
-    arg_parser.add_argument(
-        "--glob-3",
-        required=True,
-        metavar="GLOB",
-        help="""A glob for all the output CSVs for model 3.""",
-    )
-
-    arg_parser.add_argument(
-        "--score-csv",
+        "--ensemble-json",
         type=Path,
         required=True,
-        action="append",
         metavar="PATH",
-        help="""The score CSV files from running the ensemble models. Enter them in the
-            same order as they are in the ensemble JSON file.""",
+        help="""The JSON file that contains ensemble metrics.""",
+    )
+
+    arg_parser.add_argument(
+        "--glob",
+        action="append",
+        required=True,
+        metavar="GLOB",
+        help="""A glob for all the output CSVs for a checkpoint in the ensemble.""",
     )
 
     arg_parser.add_argument(

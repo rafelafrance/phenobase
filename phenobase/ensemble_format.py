@@ -153,13 +153,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--trait",
-        choices=["flowers", "fruits", "leaves"],
-        default="flowers",
-        help="""What trait was classified. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
         "--results",
         choices=["positive", "negative", "pos/neg", "all"],
         default="positive",
