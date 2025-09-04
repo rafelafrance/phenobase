@@ -17,14 +17,24 @@ def get_inference_dataset(records, image_dir) -> Dataset:
     images = []
     ids = []
     path = None
+    image = None
     for rec in records:
         try:
             path = rec.get_path(image_dir)
-            image = ImagePil.open(path).resize((224, 224))  # Sigh, double read for now
+            image = ImagePil.open(path)
+            width, height = image.size
+            size = width * height
+            if size > util.TOO_BIG or size < util.TOO_DAMN_SMALL:
+                logging.info(f"Skipping {path} wrong size {size}")
+                image.close()
+                continue
+            image = image.resize((224, 224))
             image.close()
 
         except util.IMAGE_ERRORS as err:
             logging.info(f"Skipping {path} error {err}")
+            if image:
+                image.close()
             continue
 
         ids.append(rec.stem)

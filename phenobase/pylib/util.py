@@ -9,6 +9,7 @@ from PIL import Image as PilImage
 from datasets import Dataset, Image, NamedSplit
 
 TOO_DAMN_SMALL = 10_000
+TOO_BIG = 16_000_000
 
 IMAGE_ERRORS = (
     AttributeError,
