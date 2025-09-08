@@ -39,7 +39,7 @@ class Stats:
         return result
 
     def has_lat_long(self, data: dict) -> int:
-        result = data["decimalLatitude"] and data["decimalLatitude"]
+        result = 1 if data["decimalLatitude"] and data["decimalLatitude"] else 0
         self.lat_long += result
         return result
 
@@ -107,8 +107,13 @@ def main(args):
 
             stats.good += 1
 
+            if data.get("institutionCode"):
+                data_source = data["institutionCode"]
+            else:
+                data_source = "GBIF"
+
             rec = {
-                "dataSource": args.data_source,
+                "dataSource": data_source,
                 "scientificName": data["scientificName"],
                 "trait": format_trait(row),
                 "family": data["family"],
@@ -192,15 +197,9 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--data-source",
-        default="gbif",
-        help="""Where did we get the raw data.""",
-    )
-
-    arg_parser.add_argument(
         "--model-uri",
-        default="Zenodo link TBD",
-        metavar="URI",
+        default="Link TBD",
+        metavar="DOI",
         help="""Where is the ensemble stored.""",
     )
 
