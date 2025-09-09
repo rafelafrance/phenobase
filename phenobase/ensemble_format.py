@@ -107,10 +107,9 @@ def main(args):
 
             stats.good += 1
 
+            data_source = "GBIF"
             if data.get("institutionCode"):
-                data_source = data["institutionCode"]
-            else:
-                data_source = "GBIF"
+                data_source += "-" + data["institutionCode"]
 
             rec = {
                 "dataSource": data_source,
