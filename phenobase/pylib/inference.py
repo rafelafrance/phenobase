@@ -1,3 +1,4 @@
+import argparse
 import logging
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from datasets import Dataset, Image
 from phenobase.pylib import gbif, util
 
 
-def get_inference_dataset(records, image_dir) -> Dataset:
+def get_inference_dataset(records: list[dict], image_dir: Path) -> Dataset:
     images = []
     ids = []
     path = None
@@ -47,7 +48,7 @@ def get_inference_dataset(records, image_dir) -> Dataset:
     return dataset
 
 
-def get_data_loader(dataset, image_size):
+def get_data_loader(dataset: Dataset, image_size: int) -> DataLoader:
     infer_xforms = v2.Compose(
         [
             v2.Resize((image_size, image_size)),
@@ -65,13 +66,13 @@ def get_data_loader(dataset, image_size):
 
 def infer_records(
     records: list[gbif.GbifRec],
-    checkpoint,
-    problem_type,
-    image_dir,
-    image_size,
-    trait,
-    output_csv,
-):
+    checkpoint: Path,
+    problem_type: str,
+    image_dir: Path,
+    image_size: int,
+    trait: str,
+    output_csv: Path,
+) -> list[dict]:
     softmax = torch.nn.Softmax(dim=1)
 
     device = torch.device("cuda" if torch.backends.cuda.is_built() else "cpu")
@@ -123,7 +124,7 @@ def infer_records(
     return output
 
 
-def common_args(arg_parser):
+def common_args(arg_parser: argparse.ArgumentParser) -> argparse.Namespace:
     arg_parser.add_argument(
         "--image-dir",
         type=Path,

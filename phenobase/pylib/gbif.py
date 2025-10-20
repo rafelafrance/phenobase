@@ -14,7 +14,7 @@ class GbifRec:
     sci_name: str = ""
     tiebreaker: int = 0
 
-    def __init__(self, row):
+    def __init__(self: "GbifRec", row: dict) -> None:
         row = dict(row)
 
         self.state = row["state"]
@@ -38,39 +38,39 @@ class GbifRec:
             self.stem += f"_{parts[-1]}" if len(parts) > 1 else ""
 
     @property
-    def id(self):
+    def id(self: "GbifRec") -> str:
         return self.stem
 
     @property
-    def good_image(self):
+    def good_image(self: "GbifRec") -> bool:
         return self.state.startswith("images") and not (
             self.state.endswith("error") or self.state.endswith("small")
         )
 
     @property
-    def bad_image(self):
+    def bad_image(self: "GbifRec") -> bool:
         return self.state.endswith("error")
 
     @property
-    def too_small(self):
+    def too_small(self: "GbifRec") -> bool:
         return self.state.endswith("small")
 
     @property
-    def no_url(self):
+    def no_url(self: "GbifRec") -> bool:
         return not self.state.startswith("image")
 
-    def get_path(self, image_dir, *, debug: bool = False):
+    def get_path(self: "GbifRec", image_dir: Path, *, debug: bool = False) -> Path:
         if debug:
             return self.local_path(image_dir)
         return self.hipergator_path(image_dir)
 
-    def local_path(self, image_dir):
+    def local_path(self: "GbifRec", image_dir: Path) -> Path:
         return image_dir / (self.stem + ".jpg")
 
-    def hipergator_path(self, image_dir):
+    def hipergator_path(self: "GbifRec", image_dir: Path) -> Path:
         return image_dir / self.dir / (self.stem + ".jpg")
 
-    def as_dict(self):
+    def as_dict(self: "GbifRec") -> dict:
         return {"id": self.id, **asdict(self)}
 
 
@@ -92,9 +92,6 @@ def filter_bad_taxa(records: list[GbifRec], bad_taxa: list[tuple]) -> list[GbifR
 
 
 def get_bad_taxa(bad_taxa_csv: Path) -> list[tuple[str, str]]:
-    if not bad_taxa_csv:
-        return []
-
     bad_taxa = set()
     with bad_taxa_csv.open() as f:
         reader = csv.DictReader(f)

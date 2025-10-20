@@ -1,21 +1,17 @@
-.PHONY: test install dev base clean
+.PHONY: test install dev clean
 .ONESHELL:
 
 test:
-	python3 -m unittest discover
+	uv run -m unittest discover
 
-base:
-	test -d .venv || python3.12 -m venv .venv
-	. .venv/bin/activate
-	python3 -m pip install -U pip setuptools setuptools-scm wheel
+install:
+	uv sync
 
-install: base
-	python3 -m pip install .
-
-dev: base
-	python3 -m pip install -e .[dev]
-	pre-commit install
+dev:
+	uv sync
 
 clean:
-	rm -r .venv
+	rm -rf .venv
+	rm -rf build
+	rm -rf scales.egg-info
 	find -iname "*.pyc" -delete

@@ -19,6 +19,7 @@
 *.swp
 __pycache__
 .ipynb_checkpoints/
+__marimo__/
 *.egg-info/
 build/
 dist/

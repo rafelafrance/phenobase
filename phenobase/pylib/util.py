@@ -90,7 +90,7 @@ def get_dataset(
     problem_type: ProblemType,
     *,
     use_unknowns: bool = False,
-    limit=0,
+    limit: int = 0,
 ) -> Dataset:
     recs = get_records(
         split, dataset_csv, trait, use_unknowns=use_unknowns, limit=limit
@@ -117,7 +117,12 @@ def get_dataset(
 
 
 def get_records(
-    split: str, dataset_csv: Path, trait: str, *, use_unknowns=False, limit=0
+    split: str,
+    dataset_csv: Path,
+    trait: str,
+    *,
+    use_unknowns: bool = False,
+    limit: int = 0,
 ) -> list[dict]:
     with dataset_csv.open() as f:
         reader = csv.DictReader(f)
