@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import textwrap
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -18,19 +18,18 @@ from phenobase.pylib import log
 @dataclass
 class Stats:
     total: int = 0
-    matching_vote: int = 0
     event_date: int = 0
     lat_long: int = 0
     good: int = 0
+    pos: int = 0
+    neg: int = 0
+    equiv: int = 0
+    dups: int = 0
+    families: set[str] = field(default_factory=set)
+    genara: set[str] = field(default_factory=set)
 
     def positive_only(self, row: dict) -> int:
         result = 1 if row["winner"] and float(row["winner"]) == 1.0 else 0
-        self.matching_vote += result
-        return result
-
-    def negative_only(self, row: dict) -> int:
-        result = 1 if row["winner"] and float(row["winner"]) == 0.0 else 0
-        self.matching_vote += result
         return result
 
     def has_event_date(self, data: dict) -> int:
@@ -43,25 +42,24 @@ class Stats:
         self.lat_long += result
         return result
 
-    def missing_event_date(self, data: dict) -> int:
-        result = 1 if not data["eventDate"] else 0
-        self.event_date += result
-        return result
+    def add_taxa(self, family: str, genus: str) -> None:
+        self.families.add(family)
+        self.genara.add(genus)
 
-    def missing_lat_long(self, data: dict) -> int:
-        result = not (data["decimalLatitude"] and data["decimalLatitude"])
-        self.lat_long += result
-        return result
-
-    def log_results(self, subset) -> None:
-        logging.info(f"Total records                = {self.total:12,d}")
-        logging.info(f"Matching vote {subset:14} = {self.matching_vote:12,d}")
+    def log_results(self) -> None:
+        logging.info(f"Total records with votes     = {self.total:12,d}")
         logging.info(f"Missing event date           = {self.event_date:12,d}")
         logging.info(f"Missing lat/long             = {self.lat_long:12,d}")
+        logging.info(f"Duplicate gbifid/tiebreaker  = {self.dups:12,d}")
         logging.info(f"Good records                 = {self.good:12,d}")
+        logging.info(f"Positive records             = {self.pos:12,d}")
+        logging.info(f"Negative records             = {self.neg:12,d}")
+        logging.info(f"Equivocal records            = {self.equiv:12,d}")
+        logging.info(f"Unique families              = {len(self.families)}")
+        logging.info(f"Unique genara                = {len(self.genara)}")
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     sql = """
@@ -69,7 +67,8 @@ def main(args):
         where gbifid = ? and tiebreaker = ?
         """
 
-    records = []
+    records: list[dict] = []
+    unique: set[str] = set()
 
     base_url = "https://www.gbif.org/occurrence/"
 
@@ -81,31 +80,33 @@ def main(args):
         reader = csv.DictReader(f)
 
         for row in tqdm(reader):
+            if args.limit and stats.total >= args.limit:
+                break
+
             stats.total += 1
 
             gbif_id, tiebreaker = row["id"].split("_")
 
             data = dict(cxn.execute(sql, (gbif_id, tiebreaker)).fetchone())
 
-            match args.subset:
-                case "positives_only":
-                    keep = stats.positive_only(row)
-                    keep &= stats.has_event_date(data)
-                    keep &= stats.has_lat_long(data)
+            trait = format_trait(row, stats)  # Count trait before skipping records
 
-                case "missing_data":
-                    keep = stats.positive_only(row)
-                    keep &= stats.missing_event_date(data) or stats.missing_lat_long(
-                        data
-                    )
+            keep = stats.positive_only(row)
+            keep &= stats.has_event_date(data)
+            keep &= stats.has_lat_long(data)
 
-                case _:
-                    keep = False
+            if row["id"] in unique:
+                stats.dups += 1
+                keep = False
 
             if not keep:
                 continue
 
             stats.good += 1
+
+            unique.add(row["id"])
+
+            stats.add_taxa(data["family"], data["genus"])
 
             data_source = "GBIF"
             if data.get("institutionCode"):
@@ -114,7 +115,7 @@ def main(args):
             rec = {
                 "dataSource": data_source,
                 "scientificName": data["scientificName"],
-                "trait": format_trait(row),
+                "trait": trait,
                 "family": data["family"],
                 "year": data["year"],
                 "dayOfYear": data["startDayOfYear"],
@@ -135,10 +136,10 @@ def main(args):
 
             records.append(rec)
 
-            if args.limit and stats.good >= args.limit:
+            if args.filter_limit and stats.good >= args.filter_limit:
                 break
 
-    stats.log_results(args.subset)
+    stats.log_results()
 
     df = pd.DataFrame(records)
     df.to_csv(args.output_csv, index=False)
@@ -146,17 +147,21 @@ def main(args):
     log.finished()
 
 
-def format_trait(row) -> str:
-    present = "unknown"
+def format_trait(row: dict, stats: Stats) -> str:
     match row["winner"]:
         case "1.0":
             present = "present"
+            stats.pos += 1
         case "0.0":
             present = "absent"
+            stats.neg += 1
+        case _:
+            present = "unknown"
+            stats.equiv += 1
     return f"{row['trait']} {present}"
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
@@ -189,13 +194,6 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--subset",
-        choices=["positives_only", "missing_data"],
-        default="positives_only",
-        help="""What results to include in the output. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
         "--model-uri",
         default="Link TBD",
         metavar="DOI",
@@ -203,11 +201,19 @@ def parse_args():
     )
 
     arg_parser.add_argument(
-        "--limit",
+        "--filter-limit",
         type=int,
         default=0,
         metavar="INT",
         help="""Limit to this many filtered records. (default: %(default)s)""",
+    )
+
+    arg_parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="INT",
+        help="""Limit to this many total records. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()

@@ -28,7 +28,7 @@ Image.MAX_IMAGE_PIXELS = 300_000_000
 socket.setdefaulttimeout(TIMEOUT)
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     args.image_dir.mkdir(parents=True, exist_ok=True)
@@ -45,7 +45,9 @@ def main(args):
     log.finished()
 
 
-def multitasking_download(subdir, rows, max_workers, attempts, max_width):
+def multitasking_download(
+    subdir: Path, rows: list[dict], max_workers: int, attempts: int, max_width: int
+) -> list:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
             executor.submit(
@@ -63,7 +65,7 @@ def multitasking_download(subdir, rows, max_workers, attempts, max_width):
         return results
 
 
-def get_multimedia_recs(gbif_db, limit, offset):
+def get_multimedia_recs(gbif_db: Path, limit: int, offset: int) -> list[list]:
     """Get records and put them into batches/chunks that will fit in a directory."""
     with sqlite3.connect(gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -82,7 +84,7 @@ def get_multimedia_recs(gbif_db, limit, offset):
         return row_chunks
 
 
-def mk_subdir(image_dir, dir_suffix):
+def mk_subdir(image_dir: Path, dir_suffix: str) -> Path:
     # Names formatted like "images_0001a"
     dirs = sorted(image_dir.glob("images_*"))
 
@@ -94,7 +96,7 @@ def mk_subdir(image_dir, dir_suffix):
     return subdir
 
 
-def update_multimedia_states(subdir, gbif_db):
+def update_multimedia_states(subdir: Path, gbif_db: str) -> None:
     params = []
     for path in subdir.glob("*.jpg"):
         gbifid, tiebreaker, *_ = path.stem.split("_")
@@ -115,7 +117,9 @@ def update_multimedia_states(subdir, gbif_db):
         cxn.executemany(update, params)
 
 
-def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
+def download(
+    gbifid: str, tiebreaker: str, url: str, subdir: Path, attempts: int, max_width: int
+) -> str:
     path: Path = subdir / f"{gbifid}_{tiebreaker}.jpg"
 
     if path.exists():
@@ -168,13 +172,13 @@ def download(gbifid, tiebreaker, url, subdir, attempts, max_width):
     return "download"
 
 
-def log_counts(counts):
+def log_counts(counts: dict[str, int]) -> None:
     for key, value in counts.items():
         msg = f"Count {key} = {value}"
         logging.info(msg)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent("""Download GBIF images."""),

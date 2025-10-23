@@ -11,18 +11,39 @@ import pandas as pd
 from phenobase.pylib import gbif, log
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     if args.redbud:
         redbud(args)
     elif args.counts:
         counts(args)
+    elif args.checkpoint:
+        checkpoint(args)
 
     log.finished()
 
 
-def counts(args):
+def checkpoint(args: argparse.Namespace) -> None:
+    columns = [
+        "scientificname",
+        "formatted_genus",
+        "formatted_family",
+        "file",
+        "split",
+        "db",
+        "flowers",
+        "name",
+        "trait",
+        args.checkpoint,
+    ]
+    df = pd.read_csv(args.all_scores)
+    df = df.loc[:, columns]
+    df = df.rename(columns={args.checkpoint: "flowers_score", "name": "id"})
+    df.to_csv(args.output_csv, index=False)
+
+
+def counts(args: argparse.Namespace) -> None:
     logging.info("Started counts")
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -46,7 +67,7 @@ def counts(args):
         logging.info(f"Good taxa = {len(rows)}")
 
 
-def redbud(args):
+def redbud(args: argparse.Namespace) -> None:
     logging.info("Started redbud")
     with sqlite3.connect(args.gbif_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -64,7 +85,7 @@ def redbud(args):
     df.to_csv(args.output_csv, index=False)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
@@ -77,7 +98,6 @@ def parse_args():
     arg_parser.add_argument(
         "--gbif-db",
         type=Path,
-        required=True,
         metavar="PATH",
         help="""Read GBIF data from this SQLite DB.""",
     )
@@ -106,6 +126,18 @@ def parse_args():
         type=Path,
         metavar="PATH",
         help="""A path to the CSV file with the list of bad families and genera.""",
+    )
+
+    arg_parser.add_argument(
+        "--all-scores",
+        type=Path,
+        metavar="PATH",
+        help="""Output the all test scores CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--checkpoint",
+        help="""The name of the checkpoint to output.""",
     )
 
     args = arg_parser.parse_args()

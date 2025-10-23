@@ -19,7 +19,7 @@ class Dupe:
 Dupes = dict[str, list[Dupe]]
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     all_dupes: Dupes = get_paths(args.image_dir)
@@ -86,7 +86,7 @@ def report(all_dupes: Dupes, removed: int) -> None:
     logging.info(f"{'Image errors':<15} {image:8,d}")
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent("""Handle duplicate images for a single record."""),

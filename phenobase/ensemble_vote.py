@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from phenobase.pylib import log
+from phenobase.pylib import log, util
 
 
 def main(args: argparse.Namespace) -> None:
@@ -20,7 +20,7 @@ def main(args: argparse.Namespace) -> None:
 
     ensemble = get_ensemble(args.ensemble_json)
 
-    votes = gather_votes(args.glob, ensemble)
+    votes = gather_votes(args.glob, ensemble, args.trait)
 
     tally_votes(votes, ensemble)
 
@@ -31,13 +31,13 @@ def main(args: argparse.Namespace) -> None:
     log.finished()
 
 
-def write_csv(vote_csv: Path, votes) -> None:
+def write_csv(vote_csv: Path, votes: dict[str, dict]) -> None:
     logging.info("Writing CSV file")
     df = pd.DataFrame(votes.values())
     df.to_csv(vote_csv, index=False)
 
 
-def gather_votes(globs: list[str], ensemble: dict) -> dict[str, dict]:
+def gather_votes(globs: list[str], ensemble: dict, trait: str) -> dict[str, dict]:
     votes = {}
 
     pred_col = ensemble["trait"] + "_score"  # Column that holds the trait's score
@@ -60,10 +60,14 @@ def gather_votes(globs: list[str], ensemble: dict) -> dict[str, dict]:
                             "trait": ensemble["trait"],
                             "scores": [None for _ in range(len_)],
                             "votes": [None for _ in range(len_)],
+                            "expected": row[trait],
                             "winner": None,
                         }
                     score = float(row[pred_col])
                     votes[row["id"]]["scores"][i] = score
+
+                    if trait:
+                        votes[row["id"]]["expected"] = row[trait]
 
                     if score < threshold_low:
                         vote = 0
@@ -87,12 +91,12 @@ def tally_votes(votes: dict[str, dict], ensemble: dict) -> None:
             row["winner"] = best
 
 
-def get_ensemble(ensemble_json: Path):
+def get_ensemble(ensemble_json: Path) -> dict:
     with ensemble_json.open() as f:
         return json.load(f)
 
 
-def print_results(votes):
+def print_results(votes: dict[str, dict]) -> None:
     logging.info("Summarizing")
     global_votes = defaultdict(int)
     for vote in tqdm(votes.values()):
@@ -102,7 +106,7 @@ def print_results(votes):
     logging.info(f"Total {len(votes):12,d}")
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
@@ -143,6 +147,12 @@ def parse_args():
         type=Path,
         metavar="PATH",
         help="""Append vote results to this CSV file.""",
+    )
+
+    arg_parser.add_argument(
+        "--trait",
+        choices=util.TRAITS,
+        help="""Trait being voted upon.""",
     )
 
     args = arg_parser.parse_args()

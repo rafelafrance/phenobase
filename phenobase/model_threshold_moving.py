@@ -13,7 +13,7 @@ from tqdm import tqdm
 STEP = 0.05
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     df1 = pd.read_csv(args.score_csv)
@@ -47,7 +47,12 @@ def main(args):
     log.finished()
 
 
-def filter_scores(y_trues, y_scores, threshold_lo=0.5, threshold_hi=0.5):
+def filter_scores(
+    y_trues: list,
+    y_scores: list,
+    threshold_lo: float = 0.5,
+    threshold_hi: float = 0.5,
+) -> tuple[list, list]:
     trues, preds = [], []
     for true, score in zip(y_trues, y_scores, strict=True):
         if score < threshold_lo:
@@ -59,11 +64,11 @@ def filter_scores(y_trues, y_scores, threshold_lo=0.5, threshold_hi=0.5):
     return trues, preds
 
 
-def best_thresholds(all_trues, all_scores, remove_limit) -> dict:
+def best_thresholds(all_trues: list, all_scores: list, remove_limit: float) -> dict:
     all_trues, all_preds = filter_scores(all_trues, all_scores)
     all_count = len(all_trues)
 
-    all_tn, _fp, _fn, all_tp = metrics.confusion_matrix(all_trues, all_preds).ravel()
+    all_tn, *_, all_tp = metrics.confusion_matrix(all_trues, all_preds).ravel()
     if all_tn == 0 or all_tp == 0:
         return {"error": "Missing tp or tn"}
 
@@ -114,7 +119,7 @@ def best_thresholds(all_trues, all_scores, remove_limit) -> dict:
     return bests[0]
 
 
-def sort_bests(bests):
+def sort_bests(bests: list[dict]) -> list[dict]:
     return sorted(
         bests,
         reverse=True,

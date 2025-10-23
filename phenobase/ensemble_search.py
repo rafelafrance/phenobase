@@ -13,7 +13,7 @@ from sklearn import metrics
 from tqdm import tqdm
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
 
     with args.metric_csv.open() as f:
@@ -92,7 +92,13 @@ def main(args):
     log.finished()
 
 
-def to_json(args, bests, metric, scores, trait):
+def to_json(
+    args: argparse.Namespace,
+    bests: list[dict],
+    metric: dict,
+    scores: list[dict],
+    trait: str,
+) -> None:
     # Filter combinations to remove really bad ones
     bests = [b for b in bests if b[args.combo_filter] >= args.combo_limit]
     # Now sort combos to find the best
@@ -121,7 +127,7 @@ def to_json(args, bests, metric, scores, trait):
         json.dump(best, f, indent=4)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent("""Vote."""),

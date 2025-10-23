@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     records: dict[str, dict] = {}
 
     for path in args.score_dir.glob("*.json"):
@@ -32,7 +32,7 @@ def main(args):
     df.to_csv(args.output_csv, index=False)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
         description=textwrap.dedent(
