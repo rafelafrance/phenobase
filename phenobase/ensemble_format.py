@@ -26,7 +26,7 @@ class Stats:
     equiv: int = 0
     dups: int = 0
     families: set[str] = field(default_factory=set)
-    genara: set[str] = field(default_factory=set)
+    genera: set[str] = field(default_factory=set)
 
     def positive_only(self, row: dict) -> int:
         result = 1 if row["winner"] and float(row["winner"]) == 1.0 else 0
@@ -44,7 +44,7 @@ class Stats:
 
     def add_taxa(self, family: str, genus: str) -> None:
         self.families.add(family)
-        self.genara.add(genus)
+        self.genera.add(genus)
 
     def log_results(self) -> None:
         logging.info(f"Total records with votes     = {self.total:12,d}")
@@ -56,7 +56,7 @@ class Stats:
         logging.info(f"Negative records             = {self.neg:12,d}")
         logging.info(f"Equivocal records            = {self.equiv:12,d}")
         logging.info(f"Unique families              = {len(self.families)}")
-        logging.info(f"Unique genara                = {len(self.genara)}")
+        logging.info(f"Unique genera                = {len(self.genera)}")
 
 
 def main(args: argparse.Namespace) -> None:
