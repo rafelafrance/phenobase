@@ -47,16 +47,16 @@ class Stats:
         self.genera.add(genus)
 
     def log_results(self) -> None:
-        logging.info(f"Total records with votes     = {self.total:12,d}")
-        logging.info(f"Missing event date           = {self.event_date:12,d}")
-        logging.info(f"Missing lat/long             = {self.lat_long:12,d}")
-        logging.info(f"Duplicate gbifid/tiebreaker  = {self.dups:12,d}")
-        logging.info(f"Good records                 = {self.good:12,d}")
-        logging.info(f"Positive records             = {self.pos:12,d}")
-        logging.info(f"Negative records             = {self.neg:12,d}")
-        logging.info(f"Equivocal records            = {self.equiv:12,d}")
-        logging.info(f"Unique families              = {len(self.families)}")
-        logging.info(f"Unique genera                = {len(self.genera)}")
+        logging.info(f"Total records with votes = {self.total:12,d}")
+        logging.info(f"Missing event date       = {self.event_date:12,d}")
+        logging.info(f"Missing lat/long         = {self.lat_long:12,d}")
+        logging.info(f"Duplicate gbifid         = {self.dups:12,d}")
+        logging.info(f"Good records             = {self.good:12,d}")
+        logging.info(f"Positive records         = {self.pos:12,d}")
+        logging.info(f"Negative records         = {self.neg:12,d}")
+        logging.info(f"Equivocal records        = {self.equiv:12,d}")
+        logging.info(f"Unique families          = {len(self.families):12,d}")
+        logging.info(f"Unique genera            = {len(self.genera):12,d}")
 
 
 def main(args: argparse.Namespace) -> None:
@@ -95,7 +95,7 @@ def main(args: argparse.Namespace) -> None:
             keep &= stats.has_event_date(data)
             keep &= stats.has_lat_long(data)
 
-            if row["id"] in unique:
+            if gbif_id in unique:
                 stats.dups += 1
                 keep = False
 
@@ -104,7 +104,7 @@ def main(args: argparse.Namespace) -> None:
 
             stats.good += 1
 
-            unique.add(row["id"])
+            unique.add(gbif_id)
 
             stats.add_taxa(data["family"], data["genus"])
 

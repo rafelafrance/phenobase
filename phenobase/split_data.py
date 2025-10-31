@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
-from pylib import log, util
+
+from phenobase.pylib import log, util
 
 FILTER_COUNT = 5
 FILTER_RATE = 0.25
@@ -23,18 +24,18 @@ class Taxon:
     labels: list[str] = field(default_factory=list)
 
     @property
-    def keep(self):
+    def keep(self) -> bool:
         count = len(self.labels)
         unknown = sum(1 for lb in self.labels if lb == "u")
         fract = unknown / count
         return count <= FILTER_COUNT or fract < FILTER_RATE
 
     @property
-    def remove(self):
+    def remove(self) -> bool:
         return not self.keep
 
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
     log.started(args=args)
     random.seed(args.seed)
 
@@ -107,7 +108,7 @@ def get_expert_idigbio_data(ant_idigbio: Path) -> list[dict]:
     return list(recs.values())
 
 
-def append_gbif_metadata(records, gbif_db) -> None:
+def append_gbif_metadata(records: list[dict], gbif_db: Path) -> None:
     sql = """
         select * from multimedia join occurrence using (gbifid)
         where gbifid = ? and tiebreaker = ?
@@ -122,7 +123,7 @@ def append_gbif_metadata(records, gbif_db) -> None:
             rec |= data
 
 
-def append_idigbio_metadata(records, idigbio_db) -> None:
+def append_idigbio_metadata(records: list[dict], idigbio_db: Path) -> None:
     sql = "select * from angiosperms where coreid = ?"
     with sqlite3.connect(idigbio_db) as cxn:
         cxn.row_factory = sqlite3.Row
@@ -133,7 +134,7 @@ def append_idigbio_metadata(records, idigbio_db) -> None:
             rec |= data
 
 
-def format_taxa(records):
+def format_taxa(records: list[dict]) -> None:
     for rec in records:
         rec["formatted_family"] = rec["family"].lower()
 
@@ -142,7 +143,9 @@ def format_taxa(records):
         rec["formatted_genus"] = genus
 
 
-def filter_records(records, trait: str, split_csv: Path | None = None):
+def filter_records(
+    records: list[dict], trait: str, split_csv: Path | None = None
+) -> None:
     by_genus = group_by_genus(records, trait)
     by_family = group_by_family(by_genus)
 
@@ -162,7 +165,7 @@ def filter_records(records, trait: str, split_csv: Path | None = None):
         df.to_csv(path, index=False)
 
 
-def group_by_genus(records, trait):
+def group_by_genus(records: list[dict], trait: str) -> list[Taxon]:
     by_genus = {}
     for rec in records:
         label = rec[trait].lower()
@@ -178,7 +181,7 @@ def group_by_genus(records, trait):
     return list(by_genus.values())
 
 
-def group_by_family(by_genus):
+def group_by_family(by_genus: list[Taxon]) -> list[Taxon]:
     by_family = {}
     for taxon in by_genus:
         if taxon.keep:

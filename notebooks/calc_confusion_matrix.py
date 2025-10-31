@@ -24,15 +24,15 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""The name of the model checkpoints in the winning ensemble.""")
+    mo.md(r"""The name of the model checkpoints in the winning ensemble. The ensemble we used for final inference on 22 M records.""")
     return
 
 
 @app.cell
 def _():
-    checkpoint_1 = "vit_384_lg_flowers_f1_slurm_sl/checkpoint-9450"
-    checkpoint_2 = "vit_384_lg_flowers_f1_a/checkpoint-19199"
-    checkpoint_3 = "effnet_528_flowers_reg_f1_a/checkpoint-17424"
+    checkpoint_1 = "vit_384_lg_truth_f1_slurm_sl/checkpoint-9450"
+    checkpoint_2 = "vit_384_lg_truth_f1_a/checkpoint-19199"
+    checkpoint_3 = "effnet_528_truth_reg_f1_a/checkpoint-17424"
     checkpoints = [checkpoint_1, checkpoint_2, checkpoint_3]
     return checkpoint_1, checkpoint_2, checkpoint_3, checkpoints
 
@@ -55,9 +55,7 @@ def _(Path, checkpoint_1, checkpoint_2, checkpoint_3):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""These 2 CSV files hold the high and low thresholds for each model checkpoint in the winning ensemble. And, yes they are the same, I checked."""
-    )
+    mo.md(r"""These 2 CSV files hold the high and low thresholds for each model checkpoint in the winning ensemble, and yes the thresholds are the same, I checked.""")
     return
 
 
@@ -70,9 +68,7 @@ def _(scores_dir):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Get the high and low thresholds for each model checkpoint in the winning ensemble."""
-    )
+    mo.md(r"""Get the high and low thresholds for each model checkpoint in the winning ensemble.""")
     return
 
 
@@ -86,9 +82,7 @@ def _(checkpoints, metrics_path, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Read in the scores of the winning model checkpoints against the holdout dataset."""
-    )
+    mo.md(r"""Read in the scores of the winning model checkpoints against the holdout dataset.""")
     return
 
 
@@ -103,9 +97,7 @@ def _(holdout_1_path, holdout_2_path, holdout_3_path, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Each model has its own vote which is a score that is either above (>=) the high threshold or below (<) the low threshold. Otherwise the vote is None == equivocal for that particular model checkpoint."""
-    )
+    mo.md(r"""Each model has its own vote which is a score that is either above (>=) the high threshold or below (<) the low threshold. Otherwise the vote is None == equivocal for that particular model checkpoint.""")
     return
 
 
@@ -114,8 +106,8 @@ def _(highs, holdouts, lows):
     for i in range(3):
         col = f"pred_{i + 1}"
         holdouts[i][col] = None
-        holdouts[i].loc[holdouts[i]["flowers_score"] >= highs[i], col] = 1.0
-        holdouts[i].loc[holdouts[i]["flowers_score"] < lows[i], col] = 0.0
+        holdouts[i].loc[holdouts[i]["truth_score"] >= highs[i], col] = 1.0
+        holdouts[i].loc[holdouts[i]["truth_score"] < lows[i], col] = 0.0
     return
 
 
@@ -127,26 +119,27 @@ def _(mo):
 
 @app.cell
 def _(holdout_1, holdout_2, holdout_3, pd):
-    votes = holdout_1["flowers"]
-    votes = pd.concat(
+    vote_df = holdout_1["truth"]
+    vote_df = pd.concat(
         [
-            holdout_1["flowers"],
+            holdout_1["truth"],
             holdout_1["pred_1"],
             holdout_2["pred_2"],
             holdout_3["pred_3"],
         ],
         axis=1,
     )
-    votes["winner"] = None
-    votes
-    return (votes,)
+    vote_df = vote_df.rename(columns={"truth": "truth"})
+    vote_df["predicted"] = None
+    vote_df
+    return (vote_df,)
 
 
 @app.cell
 def _(mo):
     mo.md(
         r"""
-    Now I tally the votes from above. To declare a winner for the herbarium sample there must be 2 or more votes for either presence (1) or absence (0). No votes (None or blank) do no contribute to the final winner. So
+    Now I tally the votes from above. To declare a predicted for the herbarium sample there must be 2 or more votes for either presence (1) or absence (0). No votes (None or blank) do no contribute to the final predicted. So
     - 2 or more 1 votes indicate presence. A single 0 or None/blank are OK.
     - 2 or more 0 votes indicate absence. A single 1 or None/blank are OK.
     - The rest of the records are considered "equivocal".
@@ -156,15 +149,15 @@ def _(mo):
 
 
 @app.cell
-def _(Counter, votes):
-    for j, row in votes.iterrows():
+def _(Counter, vote_df):
+    for j, row in vote_df.iterrows():
         tops = Counter([row["pred_1"], row["pred_2"], row["pred_3"]]).most_common()
         top = tops[0]
         if top[0] == 0.0 and top[1] >= 2:
-            votes.loc[j, "winner"] = 0
+            vote_df.loc[j, "predicted"] = 0
         elif top[0] == 1.0 and top[1] >= 2:
-            votes.loc[j, "winner"] = 1
-    votes
+            vote_df.loc[j, "predicted"] = 1
+    vote_df
     return
 
 
@@ -172,39 +165,40 @@ def _(Counter, votes):
 def _(mo):
     mo.md(
         r"""
-    Now compute the predicted winners vs. the actual value determined by a subject matter expert. That is we are computing the confusion matrix for the ensemble predictions.
-    - True positive (tp) = predicted positive and the true value is positive.
-    - False positive (fp) = predicted positive and the true value is negative.
-    - False negative (fn) = predicted negative and the true value is positive.
-    - True negative (tn) = predicted negative and the true value is negative.
+    Now compute the predicted predicteds vs. the actual value determined by a subject matter expert. That is we are computing the confusion matrix for the ensemble predictions.
+    - True positive (`tp`) = predicted positive and the true value is positive.
+    - False positive (`fp`) = predicted positive and the true value is negative.
+    - False negative (`fn`) = predicted negative and the true value is positive.
+    - True negative (`tn`) = predicted negative and the true value is negative.
     """
     )
     return
 
 
 @app.cell
-def _(votes):
-    tp = votes.loc[(votes["flowers"] == 1) & (votes["winner"] == 1)].shape[0]
-    fp = votes.loc[(votes["flowers"] == 0) & (votes["winner"] == 1)].shape[0]
-    fn = votes.loc[(votes["flowers"] == 1) & (votes["winner"] == 0)].shape[0]
-    tn = votes.loc[(votes["flowers"] == 0) & (votes["winner"] == 0)].shape[0]
+def _(vote_df):
+    tp = vote_df.loc[(vote_df["truth"] == 1) & (vote_df["predicted"] == 1)].shape[0]
+    fp = vote_df.loc[(vote_df["truth"] == 0) & (vote_df["predicted"] == 1)].shape[0]
+    fn = vote_df.loc[(vote_df["truth"] == 1) & (vote_df["predicted"] == 0)].shape[0]
+    tn = vote_df.loc[(vote_df["truth"] == 0) & (vote_df["predicted"] == 0)].shape[0]
     tp, fp, fn, tn, (tp + fn + fp + tn)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Finally, I look at the equivocal records and see how many the expert said were positive (e_pos) and negative (e_neg)."""
-    )
+    mo.md(r"""Finally, I look at the equivocal records and see how many the expert said were positive (`e_pos`) and negative (`e_neg`).""")
     return
 
 
 @app.cell
-def _(votes):
-    equiv = votes["winner"].isna().sum()
-    e_pos = votes.loc[(votes["flowers"] == 1) & (votes["winner"].isna())].shape[0]
-    e_neg = votes.loc[(votes["flowers"] == 0) & (votes["winner"].isna())].shape[0]
+def _(vote_df):
+    equiv = vote_df["predicted"].isna().sum()
+
+    e_pos = vote_df.loc[(vote_df["truth"] == 1) & (vote_df["predicted"].isna())].shape[0]
+
+    e_neg = vote_df.loc[(vote_df["truth"] == 0) & (vote_df["predicted"].isna())].shape[0]
+
     equiv, e_pos, e_neg
     return
 

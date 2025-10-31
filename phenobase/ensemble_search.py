@@ -8,9 +8,10 @@ from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
 
-from pylib import log, util
 from sklearn import metrics
 from tqdm import tqdm
+
+from phenobase.pylib import log, util
 
 
 def main(args: argparse.Namespace) -> None:
