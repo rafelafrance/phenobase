@@ -18,8 +18,6 @@ from phenobase.pylib import log
 @dataclass
 class Stats:
     total: int = 0
-    event_date: int = 0
-    lat_long: int = 0
     good: int = 0
     pos: int = 0
     neg: int = 0
@@ -33,24 +31,12 @@ class Stats:
         result = 1 if row["winner"] and float(row["winner"]) == 1.0 else 0
         return result
 
-    def has_event_date(self, data: dict) -> int:
-        result = 1 if data["eventDate"] else 0
-        self.event_date += result
-        return result
-
-    def has_lat_long(self, data: dict) -> int:
-        result = 1 if data["decimalLatitude"] and data["decimalLatitude"] else 0
-        self.lat_long += result
-        return result
-
     def add_taxa(self, family: str, genus: str) -> None:
         self.families.add(family)
         self.genera.add(genus)
 
     def log_results(self) -> None:
         logging.info(f"Total records with votes = {self.total:12,d}")
-        logging.info(f"Missing event date       = {self.event_date:12,d}")
-        logging.info(f"Missing lat/long         = {self.lat_long:12,d}")
         logging.info(f"Duplicate gbifid         = {self.dups:12,d}")
         logging.info(f"Good records             = {self.good:12,d}")
         logging.info(f"Positive records         = {self.pos:12,d}")
@@ -81,9 +67,6 @@ def main(args: argparse.Namespace) -> None:
         reader = csv.DictReader(f)
 
         for row in tqdm(reader):
-            if args.limit and stats.total >= args.limit:
-                break
-
             stats.total += 1
 
             gbif_id, tiebreaker = row["id"].split("_")
@@ -93,8 +76,6 @@ def main(args: argparse.Namespace) -> None:
             trait = format_trait(row, stats)  # Count trait before skipping records
 
             keep = stats.positive_only(row)
-            keep &= stats.has_event_date(data)
-            keep &= stats.has_lat_long(data)
 
             if gbif_id in unique:
                 stats.dups += 1
@@ -114,6 +95,7 @@ def main(args: argparse.Namespace) -> None:
                 data_source += "-" + data["institutionCode"]
 
             rec = {
+                "id": row["id"],
                 "dataSource": data_source,
                 "scientificName": data["scientificName"],
                 "trait": trait,
@@ -133,12 +115,10 @@ def main(args: argparse.Namespace) -> None:
                 "coordinateUncertaintyInMeters": data["coordinateUncertaintyInMeters"],
                 "verbatimTrait": row["trait"],
                 "modelUri": args.model_uri,
+                "state": data["state"],
             }
 
             records.append(rec)
-
-            if args.filter_limit and stats.good >= args.filter_limit:
-                break
 
     stats.log_results()
 
@@ -200,22 +180,6 @@ def parse_args() -> argparse.Namespace:
         default="Link TBD",
         metavar="DOI",
         help="""Where is the ensemble stored.""",
-    )
-
-    arg_parser.add_argument(
-        "--filter-limit",
-        type=int,
-        default=0,
-        metavar="INT",
-        help="""Limit to this many filtered records. (default: %(default)s)""",
-    )
-
-    arg_parser.add_argument(
-        "--limit",
-        type=int,
-        default=0,
-        metavar="INT",
-        help="""Limit to this many total records. (default: %(default)s)""",
     )
 
     args = arg_parser.parse_args()
