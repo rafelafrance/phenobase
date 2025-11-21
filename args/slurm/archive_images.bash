@@ -21,7 +21,7 @@ export PATH=/blue/guralnick/rafe.lafrance/.conda/envs/vitmae/bin:$PATH
 module purge
 
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/ad_hoc_ufit_utility.py \
-    --archive-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_archive_2025-11-20.csv \
+    --archive-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_formatted_2025-10-21.csv \
     --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
     --output-dir /home/rafe.lafrance/blue/phenobase/data/small_image_archive
 
