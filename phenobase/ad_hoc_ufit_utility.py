@@ -24,9 +24,13 @@ def archive_images(args: argparse.Namespace) -> None:
     with args.archive_csv.open() as in_file:
         reader = csv.DictReader(in_file)
         for row in reader:
-            stem, *_ = row["state"].split(" ")
-            src: Path = args.image_dir / stem / f"{row['id']}.jpg"
-            dst: Path = args.output_dir / src.name
+            subdir, *_ = row["state"].split(" ")
+
+            dst_dir = args.output_dir / subdir
+            dst_dir.mkdir(parents=True, exist_ok=True)
+
+            src: Path = args.image_dir / subdir / f"{row['id']}.jpg"
+            dst: Path = dst_dir / src.name
             copyfile(src, dst)
 
 

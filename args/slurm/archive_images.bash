@@ -23,6 +23,6 @@ module purge
 python3 /blue/guralnick/rafe.lafrance/phenobase/phenobase/ad_hoc_ufit_utility.py \
     --archive-csv /home/rafe.lafrance/blue/phenobase/data/flower_inference_archive_2025-11-20.csv \
     --image-dir /blue/guralnick/share/phenobase_specimen_data/images \
-    --output-dir /home/rafe.lafrance/blue/phenobase/data/image_archive
+    --output-dir /home/rafe.lafrance/blue/phenobase/data/small_image_archive
 
 date

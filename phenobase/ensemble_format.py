@@ -114,6 +114,7 @@ def main(args: argparse.Namespace) -> None:
                 data_source += "-" + data["institutionCode"]
 
             rec = {
+                "id": row["id"],
                 "dataSource": data_source,
                 "scientificName": data["scientificName"],
                 "trait": trait,
@@ -133,6 +134,7 @@ def main(args: argparse.Namespace) -> None:
                 "coordinateUncertaintyInMeters": data["coordinateUncertaintyInMeters"],
                 "verbatimTrait": row["trait"],
                 "modelUri": args.model_uri,
+                "state": data["state"],
             }
 
             records.append(rec)
