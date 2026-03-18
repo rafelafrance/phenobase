@@ -131,7 +131,9 @@ def to_json(
 def parse_args() -> argparse.Namespace:
     arg_parser = argparse.ArgumentParser(
         allow_abbrev=True,
-        description=textwrap.dedent("""Vote."""),
+        description=textwrap.dedent(
+            """Find combinations of 3 models to make ensembles."""
+        ),
     )
 
     arg_parser.add_argument(
