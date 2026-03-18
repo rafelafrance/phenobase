@@ -50,8 +50,8 @@ its own directory, and model 3... See this local bash [script](../args/local/mod
 3. You need to merge the results of the 3 models into a single CSV vote for each herbarium sheet.
 I glob the results of the 3 models, align them, and then vote on the results using each model's parameters. See the bash [script](../args/ensemble_vote.bash) what I did for the voting process.
 4. Finally, I cleaned the data and formatted the final results.
-  1. We only wanted records with both an event date and a latitude/longitude.
-  2. Then we selected certain fields from the database and formatted the data before writing the results.
-  3. See this bash [script](../args/ensemble_format.bash) for an example of how this was done.
+  - We only wanted records with both an event date and a latitude/longitude.
+  - Then we selected certain fields from the database and formatted the data before writing the results.
+  - See this bash [script](../args/ensemble_format.bash) for an example of how this was done.
 
 The process is a bit cumbersome, but it works fine.
