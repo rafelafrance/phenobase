@@ -183,6 +183,8 @@ gather the model results and corresponding images and package them so that an ex
 
 ### Ensembles
 
+See the [ensemble tutorial](./docs/ensemble_tutorial.md) for how to run the model ensemble.
+
 Often the results from a single model are lackluster.
 We combat this by combining models into an ensemble.
 Our current ensemble approach is

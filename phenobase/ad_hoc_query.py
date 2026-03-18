@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import logging
 import sqlite3
 import textwrap
 from pathlib import Path
+from shutil import copyfile
 
 import pandas as pd
 
@@ -20,8 +22,34 @@ def main(args: argparse.Namespace) -> None:
         counts(args)
     elif args.checkpoint:
         checkpoint(args)
+    elif args.dataset_csv:
+        copy_images(args)
 
     log.finished()
+
+
+def copy_images(args: argparse.Namespace) -> None:
+    train_path = args.output_dir / "train"
+    val_path = args.output_dir / "val"
+    test_path = args.output_dir / "test"
+
+    train_path.mkdir(parents=True, exist_ok=True)
+    val_path.mkdir(parents=True, exist_ok=True)
+    test_path.mkdir(parents=True, exist_ok=True)
+
+    with args.dataset_csv.open() as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            src = args.image_dir / Path(row["file"])
+            if not src.exists():
+                print(f"not found {src}")
+            match row["split"]:
+                case "train":
+                    copyfile(src, train_path / Path(row["file"]))
+                case "val":
+                    copyfile(src, val_path / Path(row["file"]))
+                case "test":
+                    copyfile(src, test_path / Path(row["file"]))
 
 
 def checkpoint(args: argparse.Namespace) -> None:
@@ -140,8 +168,29 @@ def parse_args() -> argparse.Namespace:
         help="""The name of the checkpoint to output.""",
     )
 
-    args = arg_parser.parse_args()
+    arg_parser.add_argument(
+        "--dataset-csv",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="""A path to dataset directory.""",
+    )
 
+    arg_parser.add_argument(
+        "--image-dir",
+        type=Path,
+        metavar="PATH",
+        help="""Root directory for images.""",
+    )
+
+    arg_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        metavar="PATH",
+        help="""Put images in this directory.""",
+    )
+
+    args = arg_parser.parse_args()
     return args
 
 
